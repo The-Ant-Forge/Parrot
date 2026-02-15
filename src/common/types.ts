@@ -76,7 +76,8 @@ export type Message =
   | { type: "GET_OPTIONS" }
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
   | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
-  | { type: "CLEAR_CACHE" };
+  | { type: "CLEAR_CACHE" }
+  | { type: "CHECK_COLLECTION"; tmdbMovieId: string };
 
 // --- Responses ---
 
@@ -120,4 +121,14 @@ export interface SaveOptionsResponse {
 
 export interface ClearCacheResponse {
   success: boolean;
+}
+
+export interface CollectionCheckResponse {
+  hasCollection: boolean;
+  collection?: {
+    name: string;
+    totalMovies: number;
+    ownedMovies: { title: string; year?: number; plexUrl?: string }[];
+    missingMovies: { title: string; releaseDate?: string; tmdbId: number }[];
+  };
 }

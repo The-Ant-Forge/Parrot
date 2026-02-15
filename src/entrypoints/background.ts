@@ -1,8 +1,10 @@
-import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions } from "../common/storage";
+import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection } from "../common/storage";
 import { testConnection, buildLibraryIndex } from "../api/plex";
+import { getMovie, getCollection } from "../api/tmdb";
 import type {
   Message,
   CheckResponse,
+  CollectionCheckResponse,
   StatusResponse,
   TestConnectionResponse,
   BuildIndexResponse,
@@ -11,6 +13,7 @@ import type {
   SaveOptionsResponse,
   ClearCacheResponse,
   LibraryIndex,
+  OwnedItem,
 } from "../common/types";
 
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -46,7 +49,7 @@ async function handleCheck(
 ): Promise<CheckResponse> {
   const { mediaType, source, id } = message;
 
-  let item: import("../common/types").OwnedItem | undefined;
+  let item: OwnedItem | undefined;
 
   if (source === "title") {
     // Title-based lookup: id is a normalized key (e.g. "some title|2025")
@@ -279,6 +282,97 @@ export default defineBackground(() => {
             cachedIndex = null;
             console.log("Parrot: cache cleared");
             sendResponse({ success: true } satisfies ClearCacheResponse);
+            break;
+          }
+
+          case "CHECK_COLLECTION": {
+            try {
+              const options = await getOptions();
+              if (!options.tmdbApiKey) {
+                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+                break;
+              }
+
+              const movieId = parseInt(message.tmdbMovieId);
+              const movieData = await getMovie(options.tmdbApiKey, movieId);
+              if (!movieData.belongs_to_collection) {
+                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+                break;
+              }
+
+              const collectionId = movieData.belongs_to_collection.id;
+
+              // Check cache first
+              let collection = await getCachedCollection(collectionId);
+              if (!collection) {
+                collection = await getCollection(options.tmdbApiKey, collectionId);
+                await saveCachedCollection(collection);
+              }
+
+              // Filter parts based on options
+              const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+              let parts = collection.parts;
+              if (options.excludeFuture) {
+                parts = parts.filter((m) => m.release_date && m.release_date < today);
+              }
+
+              // Check size filters
+              if (parts.length < options.minCollectionSize) {
+                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+                break;
+              }
+
+              // Check ownership against library index
+              const index = await loadIndex();
+              const config = await getConfig();
+              const ownedMovies: { title: string; year?: number; plexUrl?: string }[] = [];
+              const missingMovies: { title: string; releaseDate?: string; tmdbId: number }[] = [];
+
+              for (const part of parts) {
+                const tmdbId = String(part.id);
+                const ownedItem: OwnedItem | undefined = index?.movies.byTmdbId[tmdbId];
+
+                if (ownedItem) {
+                  const plexUrl = config?.machineIdentifier
+                    ? buildPlexUrl(config.machineIdentifier, ownedItem.plexKey)
+                    : undefined;
+                  ownedMovies.push({
+                    title: part.title,
+                    year: part.release_date ? parseInt(part.release_date.slice(0, 4)) : undefined,
+                    plexUrl,
+                  });
+                } else {
+                  missingMovies.push({
+                    title: part.title,
+                    releaseDate: part.release_date || undefined,
+                    tmdbId: part.id,
+                  });
+                }
+              }
+
+              // Apply minOwned filter
+              if (ownedMovies.length < options.minOwned) {
+                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+                break;
+              }
+
+              console.log(
+                `Parrot COLLECTION: ${collection.name} — ${ownedMovies.length}/${parts.length} owned, ${missingMovies.length} missing`,
+              );
+
+              sendResponse({
+                hasCollection: true,
+                collection: {
+                  name: collection.name,
+                  totalMovies: parts.length,
+                  ownedMovies,
+                  missingMovies,
+                },
+              } satisfies CollectionCheckResponse);
+            } catch (err) {
+              console.error("Parrot: collection check failed", err);
+              sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+            }
             break;
           }
         }

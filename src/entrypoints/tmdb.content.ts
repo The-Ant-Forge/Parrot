@@ -1,5 +1,6 @@
 import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
-import type { CheckResponse } from "../common/types";
+import { removeCollectionPanel, injectCollectionPanel } from "../common/collection-panel";
+import type { CheckResponse, CollectionCheckResponse } from "../common/types";
 
 function extractFromUrl(url: string) {
   const match = url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
@@ -12,6 +13,7 @@ function extractFromUrl(url: string) {
 
 async function checkAndBadge() {
   removeBadge();
+  removeCollectionPanel();
 
   const info = extractFromUrl(location.href);
   console.log("Parrot TMDB: extracted", info, "from", location.href);
@@ -39,9 +41,32 @@ async function checkAndBadge() {
     });
     console.log("Parrot TMDB: response", response);
     updateBadgeFromResponse(badge, response);
+
+    // Check for collection gaps (movies only)
+    if (info.mediaType === "movie") {
+      checkCollection(info.id, anchor);
+    }
   } catch (err) {
     console.error("Parrot TMDB: error", err);
     removeBadge();
+  }
+}
+
+async function checkCollection(tmdbMovieId: string, anchor: Element) {
+  try {
+    const response: CollectionCheckResponse = await browser.runtime.sendMessage({
+      type: "CHECK_COLLECTION",
+      tmdbMovieId,
+    });
+
+    if (response.hasCollection && response.collection && response.collection.missingMovies.length > 0) {
+      console.log(
+        `Parrot TMDB: collection "${response.collection.name}" — ${response.collection.ownedMovies.length}/${response.collection.totalMovies} owned`,
+      );
+      injectCollectionPanel(anchor, response.collection);
+    }
+  } catch (err) {
+    console.error("Parrot TMDB: collection check failed", err);
   }
 }
 
