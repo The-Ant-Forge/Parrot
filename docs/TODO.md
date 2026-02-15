@@ -48,6 +48,36 @@ Part of the [ComPlexionist](https://github.com/StephKoenig/ComPlexionist) family
 
 ---
 
+## Phase 5: Options/Settings Page
+
+> Spec: [`docs/Phase 5 - Options Page.md`](Phase%205%20-%20Options%20Page.md)
+
+Full-tab WXT options page for API credentials (Plex, TMDB), gap detection toggles (exclude future, exclude specials, min collection size, min owned), and cache management. Prerequisite for Phase 6.
+
+- [ ] `ParrotOptions` type + defaults in `types.ts`
+- [ ] Storage helpers (`getOptions`, `saveOptions`) in `storage.ts`
+- [ ] Background handlers (`GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `CLEAR_CACHE`)
+- [ ] TMDB host_permissions in `wxt.config.ts`
+- [ ] Options page UI (`src/entrypoints/options/`)
+- [ ] Settings link in popup
+
+---
+
+## Phase 6: TMDB Collection Gap Detection
+
+> Spec: [`docs/Phase 6 - TMDB Collection Gaps.md`](Phase%206%20-%20TMDB%20Collection%20Gaps.md)
+
+When browsing a movie on TMDB that belongs to a collection, show a collapsible panel listing owned and missing movies. Uses TMDB API to fetch collection membership, cross-references against Plex library index.
+
+- [ ] TMDB API client (`src/api/tmdb.ts`)
+- [ ] Collection types + `CHECK_COLLECTION` message
+- [ ] Collection cache in `storage.local` (30-day TTL)
+- [ ] `CHECK_COLLECTION` handler in background
+- [ ] Collection panel component (`src/common/collection-panel.ts`)
+- [ ] TMDB content script integration
+
+---
+
 ## Phase 1: Polish & Reliability
 
 **1.1 Test Coverage**
