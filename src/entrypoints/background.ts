@@ -1,6 +1,6 @@
 import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
-import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId } from "../api/tmdb";
+import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId } from "../api/tmdb";
 import { getSeriesEpisodes, validateTvdbKey } from "../api/tvdb";
 import type {
   Message,
@@ -17,13 +17,16 @@ import type {
   OptionsResponse,
   SaveOptionsResponse,
   ClearCacheResponse,
+  FindTmdbIdResponse,
+  StorageUsageResponse,
+  TabMediaInfo,
+  TabMediaResponse,
   LibraryIndex,
   OwnedItem,
 } from "../common/types";
 
-const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
-
 let cachedIndex: LibraryIndex | null = null;
+const tabMediaCache = new Map<number, TabMediaInfo>();
 
 async function loadIndex(): Promise<LibraryIndex | null> {
   if (!cachedIndex) {
@@ -149,6 +152,41 @@ function getIconImageData(state: IconState): Record<string, ImageData> {
   };
 }
 
+async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
+  try {
+    const options = await getOptions();
+    if (!options.tmdbApiKey) return;
+
+    // Resolve TMDB ID if not already known
+    let tmdbId = info.tmdbId;
+    if (!tmdbId && info.source === "imdb") {
+      tmdbId = (await findByImdbId(options.tmdbApiKey, info.id)) ?? undefined;
+    } else if (!tmdbId && info.source === "tvdb") {
+      tmdbId = (await findByTvdbId(options.tmdbApiKey, info.id)) ?? undefined;
+    }
+    if (tmdbId) info.tmdbId = tmdbId;
+
+    if (!tmdbId) return;
+
+    if (info.mediaType === "movie") {
+      const details = await getMovie(options.tmdbApiKey, tmdbId);
+      info.title = details.title;
+      info.year = details.release_date ? parseInt(details.release_date.slice(0, 4)) : undefined;
+      info.posterPath = details.poster_path;
+    } else {
+      const details = await getTvShow(options.tmdbApiKey, tmdbId);
+      info.title = details.name;
+      info.posterPath = details.poster_path ?? null;
+      info.seasonCount = details.number_of_seasons;
+      info.episodeCount = details.number_of_episodes;
+      info.showStatus = details.status;
+    }
+    tabMediaCache.set(tabId, info);
+  } catch (err) {
+    console.error("Parrot: metadata fetch failed", err);
+  }
+}
+
 async function setTabIcon(tabId: number, state: IconState) {
   try {
     await browser.action.setIcon({ imageData: getIconImageData(state), tabId });
@@ -165,23 +203,8 @@ export default defineBackground(() => {
     console.error("Parrot: failed to set default icon", err);
   }
 
-  // Auto-refresh stale index on startup
-  (async () => {
-    const config = await getConfig();
-    if (!config) return;
-
-    const index = await loadIndex();
-    if (!index || Date.now() - index.lastRefresh > STALE_THRESHOLD_MS) {
-      try {
-        const freshIndex = await buildLibraryIndex(config);
-        await saveLibraryIndex(freshIndex);
-        cachedIndex = freshIndex;
-        console.log(`Parrot: auto-refreshed index (${freshIndex.itemCount} items)`);
-      } catch (err) {
-        console.error("Parrot: auto-refresh failed", err);
-      }
-    }
-  })();
+  // Index is lazy-loaded on first CHECK via loadIndex()
+  // Users refresh manually via popup or options page
 
   browser.runtime.onMessage.addListener(
     (message: Message, _sender, sendResponse) => {
@@ -224,10 +247,29 @@ export default defineBackground(() => {
           case "GET_STATUS": {
             const config = await getConfig();
             const index = await loadIndex();
+            // Count unique items by plexKey to avoid duplicates across maps
+            let movieCount = 0;
+            let showCount = 0;
+            if (index) {
+              const movieKeys = new Set<string>();
+              for (const item of Object.values(index.movies.byTmdbId)) movieKeys.add(item.plexKey);
+              for (const item of Object.values(index.movies.byImdbId)) movieKeys.add(item.plexKey);
+              for (const item of Object.values(index.movies.byTitle)) movieKeys.add(item.plexKey);
+              movieCount = movieKeys.size;
+
+              const showKeys = new Set<string>();
+              for (const item of Object.values(index.shows.byTvdbId)) showKeys.add(item.plexKey);
+              for (const item of Object.values(index.shows.byTmdbId)) showKeys.add(item.plexKey);
+              for (const item of Object.values(index.shows.byImdbId)) showKeys.add(item.plexKey);
+              for (const item of Object.values(index.shows.byTitle)) showKeys.add(item.plexKey);
+              showCount = showKeys.size;
+            }
             sendResponse({
               configured: !!config,
               lastRefresh: index?.lastRefresh ?? null,
               itemCount: index?.itemCount ?? 0,
+              movieCount,
+              showCount,
             } satisfies StatusResponse);
             break;
           }
@@ -247,6 +289,26 @@ export default defineBackground(() => {
               result.owned ? result.item : "",
             );
             if (tabId) await setTabIcon(tabId, result.owned ? "owned" : "not-owned");
+
+            // Cache tab media info for popup dashboard
+            if (tabId) {
+              const mediaInfo: TabMediaInfo = {
+                mediaType: message.mediaType,
+                source: message.source,
+                id: message.id,
+                owned: result.owned,
+                plexUrl: result.plexUrl,
+                tmdbId: result.item?.tmdbId ?? (message.source === "tmdb" ? parseInt(message.id) : undefined),
+                imdbId: result.item?.imdbId ?? (message.source === "imdb" ? message.id : undefined),
+                tvdbId: result.item?.tvdbId ?? (message.source === "tvdb" ? parseInt(message.id) : undefined),
+                title: result.item?.title,
+                year: result.item?.year,
+              };
+              tabMediaCache.set(tabId, mediaInfo);
+              // Fire-and-forget metadata fetch
+              fetchTabMetadata(tabId, mediaInfo);
+            }
+
             sendResponse(result);
             break;
           }
@@ -301,6 +363,31 @@ export default defineBackground(() => {
             cachedIndex = null;
             console.log("Parrot: cache cleared");
             sendResponse({ success: true } satisfies ClearCacheResponse);
+            break;
+          }
+
+          case "GET_TAB_MEDIA": {
+            const media = tabMediaCache.get(message.tabId) ?? null;
+            sendResponse({ media } satisfies TabMediaResponse);
+            break;
+          }
+
+          case "GET_STORAGE_USAGE": {
+            try {
+              const estimate = await navigator.storage.estimate();
+              sendResponse({
+                bytesUsed: estimate.usage ?? 0,
+                quota: estimate.quota ?? null,
+              } satisfies StorageUsageResponse);
+            } catch {
+              // Fallback: estimate from index size
+              const index = await loadIndex();
+              const bytesUsed = index ? JSON.stringify(index).length : 0;
+              sendResponse({
+                bytesUsed,
+                quota: null,
+              } satisfies StorageUsageResponse);
+            }
             break;
           }
 
@@ -522,6 +609,23 @@ export default defineBackground(() => {
             break;
           }
 
+          case "FIND_TMDB_ID": {
+            try {
+              const options = await getOptions();
+              if (!options.tmdbApiKey) {
+                sendResponse({ tmdbId: null } satisfies FindTmdbIdResponse);
+                break;
+              }
+              const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
+              const tmdbId = await resolver(options.tmdbApiKey, message.id);
+              sendResponse({ tmdbId } satisfies FindTmdbIdResponse);
+            } catch (err) {
+              console.error("Parrot: FIND_TMDB_ID failed", err);
+              sendResponse({ tmdbId: null } satisfies FindTmdbIdResponse);
+            }
+            break;
+          }
+
           case "CHECK_COLLECTION": {
             try {
               const options = await getOptions();
@@ -617,4 +721,9 @@ export default defineBackground(() => {
       return true; // keep message channel open for async response
     },
   );
+
+  // Clean up stale tab media cache entries
+  browser.tabs.onRemoved.addListener((tabId) => {
+    tabMediaCache.delete(tabId);
+  });
 });

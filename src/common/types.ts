@@ -10,6 +10,9 @@ export interface OwnedItem {
   title: string;
   year?: number;
   plexKey: string;
+  tmdbId?: number;
+  tvdbId?: number;
+  imdbId?: string;
 }
 
 /** Cached index of the user's Plex library (stored in browser.storage.local) */
@@ -52,6 +55,7 @@ export interface ParrotOptions {
   excludeSpecials: boolean;
   minCollectionSize: number;
   minOwned: number;
+  expandPanels: boolean;
 }
 
 export const DEFAULT_OPTIONS: ParrotOptions = {
@@ -61,6 +65,7 @@ export const DEFAULT_OPTIONS: ParrotOptions = {
   excludeSpecials: true,
   minCollectionSize: 2,
   minOwned: 2,
+  expandPanels: false,
 };
 
 // --- Messages (popup/content scripts/options → background) ---
@@ -81,7 +86,10 @@ export type Message =
   | { type: "VALIDATE_TVDB_KEY"; apiKey: string }
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
-  | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string };
+  | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
+  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb"; id: string }
+  | { type: "GET_TAB_MEDIA"; tabId: number }
+  | { type: "GET_STORAGE_USAGE" };
 
 // --- Responses ---
 
@@ -89,6 +97,8 @@ export interface StatusResponse {
   configured: boolean;
   lastRefresh: number | null;
   itemCount: number;
+  movieCount: number;
+  showCount: number;
 }
 
 export interface CheckResponse {
@@ -130,6 +140,50 @@ export interface SaveOptionsResponse {
 
 export interface ClearCacheResponse {
   success: boolean;
+}
+
+export interface FindTmdbIdResponse {
+  tmdbId: number | null;
+}
+
+// --- Tab media info (popup dashboard) ---
+
+export interface TabMediaInfo {
+  mediaType: "movie" | "show";
+  source: "tmdb" | "imdb" | "tvdb" | "title";
+  id: string;
+  owned: boolean;
+  plexUrl?: string;
+  tmdbId?: number;
+  imdbId?: string;
+  tvdbId?: number;
+  title?: string;
+  year?: number;
+  posterPath?: string | null;
+  seasonCount?: number;
+  episodeCount?: number;
+  showStatus?: string;
+}
+
+export interface TabMediaResponse {
+  media: TabMediaInfo | null;
+}
+
+export interface StorageUsageResponse {
+  bytesUsed: number;
+  quota: number | null;
+}
+
+// --- Site definitions ---
+
+export interface SiteDefinition {
+  id: string;
+  name: string;
+  urlPattern: string;
+  mediaType: "movie" | "show" | "auto";
+  badgeSelector: string;
+  isBuiltin: boolean;
+  enabled: boolean;
 }
 
 // --- Episode gap types ---

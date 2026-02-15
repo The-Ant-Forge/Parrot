@@ -4,27 +4,23 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 
 ---
 
-## Polish & Reliability
+## Future Enhancements
+
+### User-Configurable Sites (advanced)
+- [ ] Universal content script with dynamic registration (`browser.scripting.registerContentScripts`)
+- [ ] Custom site CRUD in options page (add/edit/remove)
+- [ ] Per-site permission request (`browser.permissions.request`)
+
+### Polish & Reliability (remaining)
 
 > Spec: [`Phase 9 - Consolidation Polish and Reliability.md`](Phase%209%20-%20Consolidation%20Polish%20and%20Reliability.md)
 
-**Test Coverage**
-- [x] Unit tests for ID extraction (shared extractors module)
-- [x] Unit tests for GUID extraction (`extractExternalIds`)
-- [x] Unit tests for title normalization and slug parsing
-- [ ] Unit tests for badge component (deferred — UI changes coming)
-- [ ] Integration test for message flow (deferred — needs browser API mocking)
-
 **Error Handling**
-- [x] Badge tooltip on error (red "!" badge with hover reason)
 - [ ] Graceful handling of Plex server going offline mid-session
 - [ ] Retry logic for transient network failures during index build
-- [ ] Handle `storage.local` quota exceeded (large libraries)
 
 **Performance**
-- [x] Debounce MutationObserver callbacks (shared `observeUrlChanges` utility)
 - [ ] Measure index build time for large libraries (1000+ items)
-- [ ] Lazy index loading (don't load full index into memory on startup)
 
 ---
 

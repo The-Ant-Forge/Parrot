@@ -8,7 +8,7 @@ export function removeEpisodePanel() {
   document.querySelector(`[${PANEL_ATTR}]`)?.remove();
 }
 
-export function createEpisodePanel(gaps: GapData): HTMLDivElement {
+export function createEpisodePanel(gaps: GapData, expanded = false): HTMLDivElement {
   const panel = document.createElement("div");
   panel.setAttribute(PANEL_ATTR, "true");
 
@@ -21,7 +21,8 @@ export function createEpisodePanel(gaps: GapData): HTMLDivElement {
     fontFamily: "system-ui, -apple-system, sans-serif",
     fontSize: "13px",
     overflow: "hidden",
-    maxWidth: "400px",
+    width: "fit-content",
+    maxWidth: "100%",
   });
 
   // Header (clickable to expand/collapse)
@@ -42,6 +43,7 @@ export function createEpisodePanel(gaps: GapData): HTMLDivElement {
     fontSize: "12px",
     transition: "transform 0.15s",
     color: "#ebaf00",
+    transform: expanded ? "rotate(90deg)" : "",
   });
 
   const headerText = document.createElement("span");
@@ -55,10 +57,10 @@ export function createEpisodePanel(gaps: GapData): HTMLDivElement {
   header.appendChild(arrow);
   header.appendChild(headerText);
 
-  // Body (season list, hidden by default)
+  // Body (season list, collapsed by default)
   const body = document.createElement("div");
   Object.assign(body.style, {
-    display: "none",
+    display: expanded ? "block" : "none",
     borderTop: "1px solid #444",
     padding: "4px 0",
   });
@@ -121,9 +123,9 @@ export function createEpisodePanel(gaps: GapData): HTMLDivElement {
   return panel;
 }
 
-export function injectEpisodePanel(anchor: Element, gaps: GapData) {
+export function injectEpisodePanel(anchor: Element, gaps: GapData, expanded = false) {
   removeEpisodePanel();
-  const panel = createEpisodePanel(gaps);
+  const panel = createEpisodePanel(gaps, expanded);
 
   // Insert after the anchor's parent (typically after the title section)
   if (anchor.parentElement) {

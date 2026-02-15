@@ -8,41 +8,62 @@
   </head>
   <body>
     <div id="app">
-      <div class="header-row">
+      <!-- State A: Setup (not configured) -->
+      <div id="setupView" hidden>
         <h1>Parrot</h1>
-        <a href="#" id="settingsLink" title="Settings">&#9881;</a>
+
+        <div class="section">
+          <label for="serverUrl">Plex Server URL</label>
+          <input
+            type="text"
+            id="serverUrl"
+            placeholder="http://192.168.1.100:32400"
+            spellcheck="false"
+          />
+
+          <label for="token">Plex Token</label>
+          <input type="password" id="token" placeholder="Your Plex token" />
+
+          <div class="button-row">
+            <button id="testBtn">Test</button>
+            <button id="saveBtn" class="primary">Save &amp; Sync</button>
+          </div>
+        </div>
+
+        <div id="setupFeedback" class="feedback" hidden></div>
       </div>
 
-      <div class="section">
-        <label for="serverUrl">Plex Server URL</label>
-        <input
-          type="text"
-          id="serverUrl"
-          placeholder="http://192.168.1.100:32400"
-          spellcheck="false"
-        />
-
-        <label for="token">Plex Token</label>
-        <input type="password" id="token" placeholder="Your Plex token" />
-
-        <div class="button-row">
-          <button id="testBtn">Test Connection</button>
-          <button id="saveBtn" class="primary">Save &amp; Sync</button>
+      <!-- State B: Dashboard (configured) -->
+      <div id="dashboardView" hidden>
+        <div class="header-row">
+          <h1>Parrot</h1>
+          <a href="#" id="settingsLink" title="Settings">&#9881;</a>
         </div>
-      </div>
 
-      <div id="feedback" class="feedback" hidden></div>
+        <div class="status-bar">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText"></span>
+          <span class="spacer"></span>
+          <span id="librarySummary"></span>
+        </div>
 
-      <div id="status" class="section status" hidden>
-        <div class="status-row">
-          <span>Library items:</span>
-          <span id="itemCount">—</span>
+        <div id="mediaCard" class="media-card" hidden>
+          <div class="media-row">
+            <img id="mediaPoster" class="poster" alt="" />
+            <div class="media-info">
+              <div id="mediaTitle" class="media-title"></div>
+              <div id="mediaSubtitle" class="media-subtitle"></div>
+              <div id="mediaIds" class="media-ids"></div>
+            </div>
+          </div>
         </div>
-        <div class="status-row">
-          <span>Last synced:</span>
-          <span id="lastSync">—</span>
+
+        <div class="footer">
+          <button id="refreshBtn">Refresh</button>
+          <span id="footerInfo"></span>
         </div>
-        <button id="refreshBtn">Refresh Library</button>
+
+        <div id="dashFeedback" class="feedback" hidden></div>
       </div>
     </div>
 

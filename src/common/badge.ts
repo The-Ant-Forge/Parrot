@@ -86,6 +86,19 @@ export function updateBadgeFromResponse(
   }
 }
 
+export type CompletenessState = "complete" | "incomplete";
+
+export function updateBadgeCompleteness(state: CompletenessState) {
+  const badge = findExistingBadge();
+  if (!badge) return;
+
+  // Find the text span inside the badge (after the SVG icon)
+  const textSpan = badge.querySelector("span");
+  if (!textSpan) return;
+
+  textSpan.textContent = state === "complete" ? "Plex : Complete" : "Plex : Incomplete";
+}
+
 export function findExistingBadge(): HTMLSpanElement | null {
   return document.querySelector(`[${BADGE_ATTR}]`);
 }

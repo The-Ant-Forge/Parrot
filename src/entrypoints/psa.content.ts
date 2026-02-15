@@ -1,10 +1,16 @@
-import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { removeCollectionPanel } from "../common/collection-panel";
+import { removeEpisodePanel } from "../common/episode-panel";
 import { extractPsaFromUrl } from "../common/extractors";
+import { checkGaps } from "../common/gap-checker";
 import { parseSlug, buildTitleKey } from "../common/normalize";
+import { getOptions } from "../common/storage";
 import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
+  removeCollectionPanel();
+  removeEpisodePanel();
 
   const info = extractPsaFromUrl(location.href);
   console.log("Parrot PSA: extracted", info, "from", location.href);
@@ -42,6 +48,19 @@ async function checkAndBadge() {
 
     console.log("Parrot PSA: response", response);
     updateBadgeFromResponse(badge, response);
+
+    // Gap detection — only if OwnedItem has external IDs from enrichment
+    if (response.owned && response.item && (response.item.tmdbId || response.item.tvdbId)) {
+      const options = await getOptions();
+      checkGaps({
+        mediaType: info.mediaType,
+        source: "title",
+        id: titleKey,
+        anchor,
+        response,
+        expandPanels: options.expandPanels,
+      });
+    }
   } catch (err) {
     console.error("Parrot PSA: error", err);
     showErrorBadge(badge, "Could not check Plex library");

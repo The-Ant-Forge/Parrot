@@ -1,4 +1,8 @@
-import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { removeCollectionPanel } from "../common/collection-panel";
+import { removeEpisodePanel } from "../common/episode-panel";
+import { checkGaps } from "../common/gap-checker";
+import { getOptions } from "../common/storage";
 import type { CheckResponse } from "../common/types";
 
 function findExternalId(): {
@@ -39,6 +43,8 @@ function findExternalId(): {
 
 async function checkAndBadge() {
   removeBadge();
+  removeCollectionPanel();
+  removeEpisodePanel();
 
   const extId = findExternalId();
   if (!extId) return;
@@ -49,6 +55,7 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   try {
+    let mediaType = extId.mediaType;
     let response: CheckResponse = await browser.runtime.sendMessage({
       type: "CHECK",
       mediaType: extId.mediaType,
@@ -58,6 +65,7 @@ async function checkAndBadge() {
 
     // IMDb doesn't distinguish movie/show — try show if movie missed
     if (!response.owned && extId.source === "imdb") {
+      mediaType = "show";
       response = await browser.runtime.sendMessage({
         type: "CHECK",
         mediaType: "show",
@@ -67,6 +75,19 @@ async function checkAndBadge() {
     }
 
     updateBadgeFromResponse(badge, response);
+
+    // Gap detection for owned items
+    if (response.owned) {
+      const options = await getOptions();
+      checkGaps({
+        mediaType,
+        source: extId.source,
+        id: extId.id,
+        anchor,
+        response,
+        expandPanels: options.expandPanels,
+      });
+    }
   } catch {
     showErrorBadge(badge, "Could not check Plex library");
   }

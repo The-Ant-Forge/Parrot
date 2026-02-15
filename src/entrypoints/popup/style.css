@@ -1,17 +1,21 @@
 body {
-  width: 320px;
-  min-height: 200px;
+  width: 340px;
+  min-height: 120px;
   margin: 0;
   padding: 16px;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
-  color: #1a1a1a;
+  background: #1a1a1a;
+  color: #eee;
 }
 
 h1 {
   font-size: 18px;
   margin: 0;
+  color: #fff;
 }
+
+/* --- Header --- */
 
 .header-row {
   display: flex;
@@ -28,7 +32,13 @@ h1 {
 }
 
 .header-row a:hover {
-  color: #e5a00d;
+  color: #ebaf00;
+}
+
+/* --- Setup form --- */
+
+#setupView h1 {
+  margin-bottom: 12px;
 }
 
 .section {
@@ -40,21 +50,23 @@ h1 {
 label {
   font-weight: 600;
   font-size: 12px;
-  color: #555;
+  color: #999;
 }
 
 input {
   padding: 6px 8px;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 4px;
   font-size: 13px;
   font-family: inherit;
+  background: #282828;
+  color: #eee;
 }
 
 input:focus {
   outline: none;
-  border-color: #e5a00d;
-  box-shadow: 0 0 0 2px rgba(229, 160, 13, 0.2);
+  border-color: #ebaf00;
+  box-shadow: 0 0 0 2px rgba(235, 175, 0, 0.2);
 }
 
 .button-row {
@@ -65,16 +77,17 @@ input:focus {
 
 button {
   padding: 6px 12px;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 4px;
-  background: #f5f5f5;
+  background: #333;
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
+  color: #eee;
 }
 
 button:hover:not(:disabled) {
-  background: #eee;
+  background: #444;
 }
 
 button:disabled {
@@ -83,15 +96,17 @@ button:disabled {
 }
 
 button.primary {
-  background: #e5a00d;
+  background: #ebaf00;
   border-color: #c88b0a;
-  color: #fff;
+  color: #1a1a1a;
   font-weight: 600;
 }
 
 button.primary:hover:not(:disabled) {
   background: #d4920c;
 }
+
+/* --- Feedback --- */
 
 .feedback {
   margin-top: 8px;
@@ -101,33 +116,147 @@ button.primary:hover:not(:disabled) {
 }
 
 .feedback.success {
-  background: #e6f4ea;
-  color: #1e7e34;
+  background: #1b3a1b;
+  color: #6dd06d;
 }
 
 .feedback.error {
-  background: #fce8e6;
-  color: #c5221f;
+  background: #3a1b1b;
+  color: #e56b6b;
 }
 
 .feedback.info {
-  background: #e8f0fe;
-  color: #1967d2;
+  background: #1b2a3a;
+  color: #6bace5;
 }
 
-.status {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
-}
+/* --- Status bar --- */
 
-.status-row {
+.status-bar {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #282828;
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 10px;
 }
 
-.status button {
-  margin-top: 8px;
-  width: 100%;
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot.connected {
+  background: #4caf50;
+}
+
+.dot.offline {
+  background: #888;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* --- Media card --- */
+
+.media-card {
+  padding: 10px;
+  border-radius: 6px;
+  background: #282828;
+  margin-bottom: 10px;
+}
+
+.media-row {
+  display: flex;
+  gap: 10px;
+}
+
+.poster {
+  width: 60px;
+  height: 90px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #333;
+  flex-shrink: 0;
+}
+
+.poster[src=""],
+.poster:not([src]) {
+  display: none;
+}
+
+.media-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.media-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-subtitle {
+  font-size: 11px;
+  color: #999;
+}
+
+.media-ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.id-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #333;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.id-tag.plex {
+  background: #ebaf00;
+  color: #1a1a1a;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.id-tag.owned {
+  border: 1px solid #ebaf00;
+  color: #ebaf00;
+  background: transparent;
+}
+
+/* --- Footer --- */
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer button {
+  flex-shrink: 0;
+}
+
+#footerInfo {
+  font-size: 11px;
+  color: #777;
 }

@@ -230,3 +230,60 @@ button.danger:hover:not(:disabled) {
 #saveOptionsBtn {
   margin-top: 12px;
 }
+
+.sites-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sites-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 8px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.sites-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.sites-table tr:last-child td {
+  border-bottom: none;
+}
+
+.sites-table .url-pattern {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 11px;
+  color: #666;
+}
+
+.media-type-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.media-type-tag.movie {
+  background: #e8f0fe;
+  color: #1967d2;
+}
+
+.media-type-tag.show {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.media-type-tag.auto {
+  background: #fef7e0;
+  color: #b06000;
+}

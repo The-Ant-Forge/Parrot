@@ -138,3 +138,68 @@ Test coverage, error feedback, and performance hardening without changing user-f
 - Added `showErrorBadge(badge, reason)` convenience function
 - Updated 6 content scripts to show red "!" error badge with hover tooltip instead of silently removing the badge on failure
 - Exception: NZBForYou keeps `removeAllBadges()` (multi-badge layout)
+
+---
+
+## Phase 10: Quality of Life
+
+> Spec: [`Phase 10 - QOL.md`](Phase%2010%20-%20QOL.md)
+
+UX polish, broader gap detection coverage, popup redesign, and expanded test suite.
+
+### Bug Fixes & Polish
+- TVDB API key auto-save — validation now calls `saveAllOptions()` automatically (same for TMDB)
+- Panel width — replaced fixed `maxWidth: 400px` with `width: fit-content; max-width: 100%`
+- Auto-expand panels — `expandPanels` boolean option (default false) in `ParrotOptions`, toggle in options page
+
+### OwnedItem Enrichment
+- Added optional `tmdbId`, `tvdbId`, `imdbId` fields to `OwnedItem`
+- `buildLibraryIndex` now stores external IDs on each item (~40 bytes/item)
+- Enables cross-site ID resolution for gap detection and popup metadata
+
+### Badge Completeness Text
+- `updateBadgeCompleteness(state)` in `badge.ts` — updates badge text to "Plex : Complete" or "Plex : Incomplete"
+- Called by gap-checker after gap detection resolves
+
+### Shared Gap-Checker Module
+- `src/common/gap-checker.ts` — centralized gap detection orchestration
+- Resolves TMDB ID from any source (tmdb direct, imdb/tvdb via `FIND_TMDB_ID`, title via enriched OwnedItem)
+- Handles both movie collection gaps and show episode gaps
+- New `findByImdbId` function in `tmdb.ts`
+- New `FIND_TMDB_ID` background message handler
+
+### Gap Detection Rollout
+- Gap detection now active on all 6 content scripts (all except NZBForYou):
+  - TMDB, TVDB: refactored to use shared gap-checker
+  - IMDb, NZBGeek, RARGB: added gap detection for owned items
+  - PSA: conditional gap detection (only if OwnedItem has tmdbId/tvdbId from enrichment)
+- Fixed `removeBadge` import bug in 4 content scripts
+
+### Popup Redesign
+- Two-state popup: setup form (unconfigured) → dashboard (configured)
+- Dashboard shows: connection status dot, library summary (movies/shows counts), media card for current tab
+- Media card displays: TMDB poster thumbnail, title + year, season/episode counts for TV, source ID tags, Plex link
+- Tab media cache (`Map<number, TabMediaInfo>`) in background with fire-and-forget TMDB metadata fetch
+- `GET_TAB_MEDIA` message handler + `browser.tabs.onRemoved` cleanup
+- Enhanced `StatusResponse` with `movieCount` and `showCount` (Set-based dedup for accurate counts)
+
+### Supported Sites Display
+- `SiteDefinition` type in `types.ts`
+- `DEFAULT_SITES` constant in `src/common/sites.ts` (7 built-in entries)
+- Sites table in options page showing name, media type tag, URL pattern
+
+### Lazy Index Loading
+- Removed startup auto-refresh in background service worker
+- Index is lazy-loaded from storage on first CHECK via `loadIndex()`
+- Users refresh manually via popup or options page
+
+### Storage Measurement
+- `GET_STORAGE_USAGE` message handler using `navigator.storage.estimate()` (with JSON fallback)
+- Options page Cache card displays "Storage: X.X MB / Y MB"
+- Updates after refresh, sync, and clear operations
+
+### Test Suite Expansion
+- Added `happy-dom` devDependency for DOM testing
+- `tests/badge.test.ts` — 20 tests covering `createBadge`, `updateBadge`, `updateBadgeFromResponse`, `showErrorBadge`, `findExistingBadge`, `injectBadge`, `removeBadge`, `updateBadgeCompleteness`
+- `tests/plex-integration.test.ts` — 6 tests covering `buildLibraryIndex` with mocked fetch (mixed content, enrichment, title keys, section filtering, missing GUIDs, empty library)
+- Total: 70 tests across 5 test files

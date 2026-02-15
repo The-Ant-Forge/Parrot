@@ -142,6 +142,9 @@ export async function buildLibraryIndex(
         title: item.title,
         year: item.year,
         plexKey: item.ratingKey,
+        tmdbId: ids.tmdbId,
+        tvdbId: ids.tvdbId,
+        imdbId: ids.imdbId,
       };
 
       if (section.type === "movie") {

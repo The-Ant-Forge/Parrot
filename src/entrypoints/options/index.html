@@ -112,8 +112,28 @@
             <input type="number" id="minOwned" min="1" max="50" />
           </div>
 
+          <div class="toggle-row">
+            <label for="expandPanels">Auto-expand gap panels</label>
+            <input type="checkbox" id="expandPanels" />
+          </div>
+
           <button id="saveOptionsBtn" class="primary">Save Options</button>
           <div id="optionsFeedback" class="feedback" hidden></div>
+        </section>
+
+        <!-- Supported Sites -->
+        <section class="card">
+          <h2>Supported Sites</h2>
+          <table id="sitesTable" class="sites-table">
+            <thead>
+              <tr>
+                <th>Site</th>
+                <th>Media Type</th>
+                <th>URL Pattern</th>
+              </tr>
+            </thead>
+            <tbody id="sitesBody"></tbody>
+          </table>
         </section>
 
         <!-- Cache Management -->
@@ -128,6 +148,10 @@
             <div class="status-row">
               <span>Last synced:</span>
               <span id="cacheLastSync">—</span>
+            </div>
+            <div class="status-row">
+              <span>Storage:</span>
+              <span id="storageUsage">—</span>
             </div>
           </div>
 

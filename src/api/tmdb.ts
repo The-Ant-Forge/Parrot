@@ -18,9 +18,11 @@ export interface TMDBCollection {
   parts: TMDBCollectionMovie[];
 }
 
-interface TMDBMovieResponse {
+export interface TMDBMovieDetails {
   id: number;
   title: string;
+  release_date: string;
+  poster_path: string | null;
   belongs_to_collection: TMDBCollectionRef | null;
 }
 
@@ -35,6 +37,10 @@ interface TMDBCollectionResponse {
 export interface TMDBTvShow {
   id: number;
   name: string;
+  poster_path?: string | null;
+  status?: string;
+  number_of_seasons?: number;
+  number_of_episodes?: number;
   seasons: { season_number: number; episode_count: number; air_date: string | null }[];
 }
 
@@ -44,6 +50,7 @@ export interface TMDBTvSeason {
 }
 
 interface TMDBFindResponse {
+  movie_results: { id: number }[];
   tv_results: { id: number }[];
 }
 
@@ -59,14 +66,13 @@ async function tmdbFetch<T>(apiKey: string, path: string): Promise<T> {
 }
 
 /**
- * Get movie details — we only need belongs_to_collection.
+ * Get movie details — returns collection ref, poster, title, etc.
  */
 export async function getMovie(
   apiKey: string,
   movieId: number,
-): Promise<{ belongs_to_collection: TMDBCollectionRef | null }> {
-  const data = await tmdbFetch<TMDBMovieResponse>(apiKey, `/movie/${movieId}`);
-  return { belongs_to_collection: data.belongs_to_collection };
+): Promise<TMDBMovieDetails> {
+  return tmdbFetch<TMDBMovieDetails>(apiKey, `/movie/${movieId}`);
 }
 
 /**
@@ -118,4 +124,22 @@ export async function findByTvdbId(
     `/find/${tvdbId}?external_source=tvdb_id`,
   );
   return data.tv_results.length > 0 ? data.tv_results[0].id : null;
+}
+
+/**
+ * Convert an IMDb ID to a TMDB ID using the find endpoint.
+ * Checks movie results first, then TV results.
+ * Returns null if no match found.
+ */
+export async function findByImdbId(
+  apiKey: string,
+  imdbId: string,
+): Promise<number | null> {
+  const data = await tmdbFetch<TMDBFindResponse>(
+    apiKey,
+    `/find/${imdbId}?external_source=imdb_id`,
+  );
+  if (data.movie_results.length > 0) return data.movie_results[0].id;
+  if (data.tv_results.length > 0) return data.tv_results[0].id;
+  return null;
 }

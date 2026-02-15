@@ -1,9 +1,11 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel, injectCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel, injectEpisodePanel } from "../common/episode-panel";
+import { removeCollectionPanel } from "../common/collection-panel";
+import { removeEpisodePanel } from "../common/episode-panel";
 import { extractTmdbFromUrl } from "../common/extractors";
+import { checkGaps } from "../common/gap-checker";
+import { getOptions } from "../common/storage";
 import { observeUrlChanges } from "../common/url-observer";
-import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse } from "../common/types";
+import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
@@ -37,52 +39,18 @@ async function checkAndBadge() {
     console.log("Parrot TMDB: response", response);
     updateBadgeFromResponse(badge, response);
 
-    // Check for collection gaps (movies) or episode gaps (TV shows)
-    if (info.mediaType === "movie") {
-      checkCollection(info.id, anchor);
-    } else if (info.mediaType === "show" && response.owned) {
-      checkEpisodes(info.id, anchor);
-    }
+    const options = await getOptions();
+    checkGaps({
+      mediaType: info.mediaType,
+      source: "tmdb",
+      id: info.id,
+      anchor,
+      response,
+      expandPanels: options.expandPanels,
+    });
   } catch (err) {
     console.error("Parrot TMDB: error", err);
     showErrorBadge(badge, "Could not check Plex library");
-  }
-}
-
-async function checkCollection(tmdbMovieId: string, anchor: Element) {
-  try {
-    const response: CollectionCheckResponse = await browser.runtime.sendMessage({
-      type: "CHECK_COLLECTION",
-      tmdbMovieId,
-    });
-
-    if (response.hasCollection && response.collection && response.collection.missingMovies.length > 0) {
-      console.log(
-        `Parrot TMDB: collection "${response.collection.name}" — ${response.collection.ownedMovies.length}/${response.collection.totalMovies} owned`,
-      );
-      injectCollectionPanel(anchor, response.collection);
-    }
-  } catch (err) {
-    console.error("Parrot TMDB: collection check failed", err);
-  }
-}
-
-async function checkEpisodes(tmdbId: string, anchor: Element) {
-  try {
-    const response: EpisodeGapResponse = await browser.runtime.sendMessage({
-      type: "CHECK_EPISODES",
-      source: "tmdb",
-      id: tmdbId,
-    });
-
-    if (response.hasGaps && response.gaps) {
-      console.log(
-        `Parrot TMDB: ${response.gaps.totalOwned}/${response.gaps.totalEpisodes} episodes, ${response.gaps.completeSeasons}/${response.gaps.totalSeasons} seasons complete`,
-      );
-      injectEpisodePanel(anchor, response.gaps);
-    }
-  } catch (err) {
-    console.error("Parrot TMDB: episode check failed", err);
   }
 }
 

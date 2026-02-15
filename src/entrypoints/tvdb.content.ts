@@ -1,7 +1,9 @@
-import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeEpisodePanel, injectEpisodePanel } from "../common/episode-panel";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { removeEpisodePanel } from "../common/episode-panel";
+import { checkGaps } from "../common/gap-checker";
+import { getOptions } from "../common/storage";
 import { observeUrlChanges } from "../common/url-observer";
-import type { CheckResponse, EpisodeGapResponse } from "../common/types";
+import type { CheckResponse } from "../common/types";
 
 function extractTvdbId(): string | null {
   // TVDB numeric ID is not in the URL slug — find it in page links
@@ -45,31 +47,19 @@ async function checkAndBadge() {
     });
     updateBadgeFromResponse(badge, response);
 
-    // Check episode gaps if owned
     if (response.owned) {
-      checkEpisodes(tvdbId, anchor);
+      const options = await getOptions();
+      checkGaps({
+        mediaType: "show",
+        source: "tvdb",
+        id: tvdbId,
+        anchor,
+        response,
+        expandPanels: options.expandPanels,
+      });
     }
   } catch {
     showErrorBadge(badge, "Could not check Plex library");
-  }
-}
-
-async function checkEpisodes(tvdbId: string, anchor: Element) {
-  try {
-    const response: EpisodeGapResponse = await browser.runtime.sendMessage({
-      type: "CHECK_EPISODES",
-      source: "tvdb",
-      id: tvdbId,
-    });
-
-    if (response.hasGaps && response.gaps) {
-      console.log(
-        `Parrot TVDB: ${response.gaps.totalOwned}/${response.gaps.totalEpisodes} episodes, ${response.gaps.completeSeasons}/${response.gaps.totalSeasons} seasons complete`,
-      );
-      injectEpisodePanel(anchor, response.gaps);
-    }
-  } catch (err) {
-    console.error("Parrot TVDB: episode check failed", err);
   }
 }
 

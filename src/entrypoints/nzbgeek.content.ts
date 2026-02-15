@@ -1,5 +1,9 @@
-import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { removeCollectionPanel } from "../common/collection-panel";
+import { removeEpisodePanel } from "../common/episode-panel";
 import { extractNzbgeekMediaType } from "../common/extractors";
+import { checkGaps } from "../common/gap-checker";
+import { getOptions } from "../common/storage";
 import type { CheckResponse } from "../common/types";
 
 function findExternalId(): { source: "tmdb" | "imdb" | "tvdb"; id: string } | null {
@@ -30,6 +34,8 @@ function findTitleAnchor(): Element | null {
 
 async function checkAndBadge() {
   removeBadge();
+  removeCollectionPanel();
+  removeEpisodePanel();
 
   const mediaType = extractNzbgeekMediaType(location.search);
   if (!mediaType) return;
@@ -52,6 +58,19 @@ async function checkAndBadge() {
     });
     console.log("Parrot NZBGeek: response", response);
     updateBadgeFromResponse(badge, response);
+
+    // Gap detection for owned items
+    if (response.owned) {
+      const options = await getOptions();
+      checkGaps({
+        mediaType,
+        source: extId.source,
+        id: extId.id,
+        anchor,
+        response,
+        expandPanels: options.expandPanels,
+      });
+    }
   } catch {
     showErrorBadge(badge, "Could not check Plex library");
   }

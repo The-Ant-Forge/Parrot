@@ -1,4 +1,5 @@
 import { getConfig, saveConfig } from "../../common/storage";
+import { DEFAULT_SITES } from "../../common/sites";
 import type {
   PlexConfig,
   ParrotOptions,
@@ -9,6 +10,7 @@ import type {
   ValidateTvdbKeyResponse,
   OptionsResponse,
   ClearCacheResponse,
+  StorageUsageResponse,
 } from "../../common/types";
 
 const $ = <T extends HTMLElement>(id: string) =>
@@ -39,17 +41,41 @@ const excludeFutureInput = $<HTMLInputElement>("excludeFuture");
 const excludeSpecialsInput = $<HTMLInputElement>("excludeSpecials");
 const minCollectionSizeInput = $<HTMLInputElement>("minCollectionSize");
 const minOwnedInput = $<HTMLInputElement>("minOwned");
+const expandPanelsInput = $<HTMLInputElement>("expandPanels");
 const saveOptionsBtn = $<HTMLButtonElement>("saveOptionsBtn");
 const optionsFeedback = $<HTMLDivElement>("optionsFeedback");
+
+// --- Sites elements ---
+const sitesBody = $<HTMLTableSectionElement>("sitesBody");
 
 // --- Cache elements ---
 const cacheItemCountEl = $<HTMLSpanElement>("cacheItemCount");
 const cacheLastSyncEl = $<HTMLSpanElement>("cacheLastSync");
+const storageUsageEl = $<HTMLSpanElement>("storageUsage");
 const refreshBtn = $<HTMLButtonElement>("refreshBtn");
 const clearCacheBtn = $<HTMLButtonElement>("clearCacheBtn");
 const cacheFeedback = $<HTMLDivElement>("cacheFeedback");
 
 // --- Helpers ---
+
+function gatherOptions(): ParrotOptions {
+  return {
+    tmdbApiKey: tmdbApiKeyInput.value.trim(),
+    tvdbApiKey: tvdbApiKeyInput.value.trim(),
+    excludeFuture: excludeFutureInput.checked,
+    excludeSpecials: excludeSpecialsInput.checked,
+    minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
+    minOwned: Math.max(1, parseInt(minOwnedInput.value) || 1),
+    expandPanels: expandPanelsInput.checked,
+  };
+}
+
+async function saveAllOptions(): Promise<void> {
+  await browser.runtime.sendMessage({
+    type: "SAVE_OPTIONS",
+    options: gatherOptions(),
+  });
+}
 
 function getFormConfig(): PlexConfig {
   return {
@@ -96,6 +122,23 @@ function showPlexStatus(count: number, lastRefresh: number | null) {
 function showCacheStatus(count: number, lastRefresh: number | null) {
   cacheItemCountEl.textContent = count > 0 ? `${count} items` : "empty";
   cacheLastSyncEl.textContent = lastRefresh ? formatTimestamp(lastRefresh) : "never";
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function updateStorageUsage() {
+  const result: StorageUsageResponse = await browser.runtime.sendMessage({
+    type: "GET_STORAGE_USAGE",
+  });
+  let text = formatBytes(result.bytesUsed);
+  if (result.quota) {
+    text += ` / ${formatBytes(result.quota)}`;
+  }
+  storageUsageEl.textContent = text;
 }
 
 // --- Plex handlers ---
@@ -160,6 +203,7 @@ saveBtn.addEventListener("click", async () => {
     showFeedback(plexFeedback, `Synced ${result.itemCount} items`, "success");
     showPlexStatus(result.itemCount ?? 0, Date.now());
     showCacheStatus(result.itemCount ?? 0, Date.now());
+    updateStorageUsage();
   } else {
     showFeedback(plexFeedback, result.error ?? "Sync failed", "error");
   }
@@ -185,7 +229,8 @@ validateTmdbBtn.addEventListener("click", async () => {
   setButtonLoading(validateTmdbBtn, false);
 
   if (result.valid) {
-    showFeedback(tmdbFeedback, "Valid", "success");
+    showFeedback(tmdbFeedback, "Valid — saved", "success");
+    await saveAllOptions();
   } else {
     showFeedback(tmdbFeedback, result.error ?? "Invalid key", "error");
   }
@@ -211,7 +256,8 @@ validateTvdbBtn.addEventListener("click", async () => {
   setButtonLoading(validateTvdbBtn, false);
 
   if (result.valid) {
-    showFeedback(tvdbFeedback, "Valid", "success");
+    showFeedback(tvdbFeedback, "Valid — saved", "success");
+    await saveAllOptions();
   } else {
     showFeedback(tvdbFeedback, result.error ?? "Invalid key", "error");
   }
@@ -220,22 +266,10 @@ validateTvdbBtn.addEventListener("click", async () => {
 // --- Options handlers ---
 
 saveOptionsBtn.addEventListener("click", async () => {
-  const options: ParrotOptions = {
-    tmdbApiKey: tmdbApiKeyInput.value.trim(),
-    tvdbApiKey: tvdbApiKeyInput.value.trim(),
-    excludeFuture: excludeFutureInput.checked,
-    excludeSpecials: excludeSpecialsInput.checked,
-    minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
-    minOwned: Math.max(1, parseInt(minOwnedInput.value) || 1),
-  };
-
   hideFeedback(optionsFeedback);
   setButtonLoading(saveOptionsBtn, true);
 
-  await browser.runtime.sendMessage({
-    type: "SAVE_OPTIONS",
-    options,
-  });
+  await saveAllOptions();
 
   setButtonLoading(saveOptionsBtn, false);
   showFeedback(optionsFeedback, "Options saved", "success");
@@ -257,6 +291,7 @@ refreshBtn.addEventListener("click", async () => {
     showFeedback(cacheFeedback, `Refreshed — ${result.itemCount} items`, "success");
     showCacheStatus(result.itemCount ?? 0, Date.now());
     showPlexStatus(result.itemCount ?? 0, Date.now());
+    updateStorageUsage();
   } else {
     showFeedback(cacheFeedback, result.error ?? "Refresh failed", "error");
   }
@@ -276,8 +311,36 @@ clearCacheBtn.addEventListener("click", async () => {
     showFeedback(cacheFeedback, "Cache cleared", "success");
     showCacheStatus(0, null);
     showPlexStatus(0, null);
+    updateStorageUsage();
   }
 });
+
+// --- Sites table ---
+
+function renderSitesTable() {
+  sitesBody.innerHTML = "";
+  for (const site of DEFAULT_SITES) {
+    const tr = document.createElement("tr");
+
+    const nameTd = document.createElement("td");
+    nameTd.textContent = site.name;
+    tr.appendChild(nameTd);
+
+    const typeTd = document.createElement("td");
+    const typeTag = document.createElement("span");
+    typeTag.className = `media-type-tag ${site.mediaType}`;
+    typeTag.textContent = site.mediaType === "auto" ? "auto" : site.mediaType;
+    typeTd.appendChild(typeTag);
+    tr.appendChild(typeTd);
+
+    const urlTd = document.createElement("td");
+    urlTd.className = "url-pattern";
+    urlTd.textContent = site.urlPattern;
+    tr.appendChild(urlTd);
+
+    sitesBody.appendChild(tr);
+  }
+}
 
 // --- Init: load saved config, options, and status ---
 
@@ -300,6 +363,7 @@ clearCacheBtn.addEventListener("click", async () => {
   excludeSpecialsInput.checked = options.excludeSpecials;
   minCollectionSizeInput.value = String(options.minCollectionSize);
   minOwnedInput.value = String(options.minOwned);
+  expandPanelsInput.checked = options.expandPanels;
 
   // Load status
   const status: StatusResponse = await browser.runtime.sendMessage({
@@ -310,4 +374,8 @@ clearCacheBtn.addEventListener("click", async () => {
     showPlexStatus(status.itemCount, status.lastRefresh);
   }
   showCacheStatus(status.itemCount, status.lastRefresh);
+  updateStorageUsage();
+
+  // Render sites table
+  renderSitesTable();
 })();
