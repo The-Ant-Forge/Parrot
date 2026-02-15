@@ -101,6 +101,15 @@ saveBtn.addEventListener("click", async () => {
   hideFeedback();
   setButtonLoading(saveBtn, true);
 
+  // Fetch machineIdentifier before saving
+  const testResult: TestConnectionResponse = await browser.runtime.sendMessage({
+    type: "TEST_CONNECTION",
+    config,
+  });
+  if (testResult.machineIdentifier) {
+    config.machineIdentifier = testResult.machineIdentifier;
+  }
+
   await saveConfig(config);
   showFeedback("Syncing library...", "info");
 

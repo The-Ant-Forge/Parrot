@@ -61,7 +61,24 @@ export function updateBadgeFromResponse(
   badge: HTMLSpanElement,
   response: CheckResponse,
 ) {
-  updateBadge(badge, response.owned ? "owned" : "not-owned");
+  const status = response.owned ? "owned" : "not-owned";
+
+  if (response.owned && response.plexUrl) {
+    // Replace span with a clickable <a> link
+    const link = document.createElement("a");
+    link.setAttribute(BADGE_ATTR, "true");
+    link.href = response.plexUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.style.textDecoration = "none";
+    link.style.cursor = "pointer";
+    setBadgeContent(link as unknown as HTMLSpanElement, status);
+    applyStyles(link, status);
+    badge.replaceWith(link);
+  } else {
+    setBadgeContent(badge, status);
+    applyStyles(badge, status);
+  }
 }
 
 export function findExistingBadge(): HTMLSpanElement | null {

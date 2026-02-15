@@ -2,6 +2,7 @@
 export interface PlexConfig {
   serverUrl: string;
   token: string;
+  machineIdentifier?: string;
 }
 
 /** A media item the user owns in Plex */
@@ -64,12 +65,14 @@ export interface StatusResponse {
 export interface CheckResponse {
   owned: boolean;
   item?: OwnedItem;
+  plexUrl?: string;
 }
 
 export interface TestConnectionResponse {
   success: boolean;
   error?: string;
   libraryCount?: number;
+  machineIdentifier?: string;
 }
 
 export interface BuildIndexResponse {

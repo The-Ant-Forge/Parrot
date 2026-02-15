@@ -32,30 +32,43 @@ async function loadIndex(): Promise<LibraryIndex | null> {
   return cachedIndex;
 }
 
-function handleCheck(
+function buildPlexUrl(machineIdentifier: string, plexKey: string): string {
+  return `https://app.plex.tv/desktop/#!/server/${machineIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${plexKey}`;
+}
+
+async function handleCheck(
   message: Extract<Message, { type: "CHECK" }>,
   index: LibraryIndex,
-): CheckResponse {
+): Promise<CheckResponse> {
   const { mediaType, source, id } = message;
+
+  let item: import("../common/types").OwnedItem | undefined;
 
   if (mediaType === "movie") {
     const map =
       source === "tmdb"
         ? index.movies.byTmdbId
         : index.movies.byImdbId;
-    const item = map[id];
-    return item ? { owned: true, item } : { owned: false };
+    item = map[id];
+  } else {
+    const map =
+      source === "tvdb"
+        ? index.shows.byTvdbId
+        : source === "tmdb"
+          ? index.shows.byTmdbId
+          : index.shows.byImdbId;
+    item = map[id];
   }
 
-  // show
-  const map =
-    source === "tvdb"
-      ? index.shows.byTvdbId
-      : source === "tmdb"
-        ? index.shows.byTmdbId
-        : index.shows.byImdbId;
-  const item = map[id];
-  return item ? { owned: true, item } : { owned: false };
+  if (!item) return { owned: false };
+
+  // Build deep link if machineIdentifier is available
+  const config = await getConfig();
+  const plexUrl = config?.machineIdentifier
+    ? buildPlexUrl(config.machineIdentifier, item.plexKey)
+    : undefined;
+
+  return { owned: true, item, plexUrl };
 }
 
 type IconState = "owned" | "not-owned" | "inactive";
@@ -212,7 +225,7 @@ export default defineBackground(() => {
               sendResponse({ owned: false } satisfies CheckResponse);
               break;
             }
-            const result = handleCheck(message, index);
+            const result = await handleCheck(message, index);
             console.log(
               `Parrot CHECK: ${message.mediaType} ${message.source}:${message.id} → ${result.owned ? "OWNED" : "not owned"}`,
               result.owned ? result.item : "",

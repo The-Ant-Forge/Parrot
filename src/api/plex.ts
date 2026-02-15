@@ -18,7 +18,7 @@ async function plexFetch(config: PlexConfig, path: string): Promise<Response> {
 
 export async function testConnection(
   config: PlexConfig,
-): Promise<{ success: boolean; error?: string; libraryCount?: number }> {
+): Promise<{ success: boolean; error?: string; libraryCount?: number; machineIdentifier?: string }> {
   try {
     const res = await plexFetch(config, "/library/sections");
     if (!res.ok) {
@@ -29,7 +29,20 @@ export async function testConnection(
     }
     const data = await res.json();
     const sections = data.MediaContainer?.Directory ?? [];
-    return { success: true, libraryCount: sections.length };
+
+    // Fetch machineIdentifier from server identity
+    let machineIdentifier: string | undefined;
+    try {
+      const idRes = await plexFetch(config, "/");
+      if (idRes.ok) {
+        const idData = await idRes.json();
+        machineIdentifier = idData.MediaContainer?.machineIdentifier;
+      }
+    } catch {
+      // Non-critical — deep links just won't work
+    }
+
+    return { success: true, libraryCount: sections.length, machineIdentifier };
   } catch {
     return { success: false, error: "Could not reach server — check URL" };
   }
