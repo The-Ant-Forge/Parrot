@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parrot</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <h1>Parrot</h1>
+
+      <div class="section">
+        <label for="serverUrl">Plex Server URL</label>
+        <input
+          type="text"
+          id="serverUrl"
+          placeholder="http://192.168.1.100:32400"
+          spellcheck="false"
+        />
+
+        <label for="token">Plex Token</label>
+        <input type="password" id="token" placeholder="Your Plex token" />
+
+        <div class="button-row">
+          <button id="testBtn">Test Connection</button>
+          <button id="saveBtn" class="primary">Save &amp; Sync</button>
+        </div>
+      </div>
+
+      <div id="feedback" class="feedback" hidden></div>
+
+      <div id="status" class="section status" hidden>
+        <div class="status-row">
+          <span>Library items:</span>
+          <span id="itemCount">—</span>
+        </div>
+        <div class="status-row">
+          <span>Last synced:</span>
+          <span id="lastSync">—</span>
+        </div>
+        <button id="refreshBtn">Refresh Library</button>
+      </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

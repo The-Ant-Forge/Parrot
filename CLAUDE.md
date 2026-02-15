@@ -10,11 +10,11 @@ Read agents.md
 - **Target browsers:** Chrome (primary), Firefox (secondary)
 
 Key files:
-- `docs/spec.md` — Full specification and architecture
-- `manifest.json` — Extension manifest
-- `src/background/service-worker.ts` — Library cache, Plex API proxy
-- `src/content/` — Content scripts per supported site
-- `src/popup/` — Settings and status popup
+- `docs/Parrot spec.md` — Full specification and architecture
+- `wxt.config.ts` — WXT/Vite configuration (manifest is auto-generated)
+- `src/entrypoints/background.ts` — Library cache, Plex API proxy
+- `src/entrypoints/*.content.ts` — Content scripts per supported site
+- `src/entrypoints/popup/` — Settings and status popup
 - `src/api/plex.ts` — Plex API client
 - `tests/` — Vitest test suite
 
@@ -71,14 +71,15 @@ url.match(/imdb\.com\/title\/(tt\d+)/)
 
 ```
 src/
-├── background/service-worker.ts   # Library index cache, Plex API proxy
-├── content/
-│   ├── tmdb.ts                    # TMDB page content script
-│   ├── tvdb.ts                    # TVDB page content script
-│   └── imdb.ts                    # IMDb page content script
-├── popup/
-│   ├── popup.html                 # Settings/status UI
-│   └── popup.ts                   # Popup logic
+├── entrypoints/
+│   ├── background.ts              # Library index cache, Plex API proxy
+│   ├── tmdb.content.ts            # TMDB page content script
+│   ├── imdb.content.ts            # IMDb page content script
+│   ├── tvdb.content.ts            # TVDB page content script
+│   └── popup/
+│       ├── index.html             # Settings/status UI
+│       ├── main.ts                # Popup logic
+│       └── style.css              # Popup styles
 ├── api/plex.ts                    # Plex API client
 └── common/
     ├── types.ts                   # Shared types
@@ -134,7 +135,7 @@ npm run lint
 1. Go to `chrome://extensions/`
 2. Enable Developer Mode
 3. Click "Load unpacked"
-4. Select `dist/` folder
+4. Select `.output/chrome-mv3/` folder
 
 ---
 
@@ -152,6 +153,8 @@ Whenever we do a planning session (plan mode), always write the finalised specif
 2. Run tests/linting after each change
 3. Only then commit/push
 
+### Documentation or commentary
+Never use real movie or tv show names. Always make up example ones.
 ---
 
 ## Storage
