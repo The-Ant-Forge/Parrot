@@ -58,16 +58,84 @@ function handleCheck(
   return item ? { owned: true, item } : { owned: false };
 }
 
-async function setIconOwned(tabId: number, owned: boolean) {
-  if (owned) {
-    await browser.action.setBadgeText({ text: "✓", tabId });
-    await browser.action.setBadgeBackgroundColor({ color: "#4caf50", tabId });
-  } else {
-    await browser.action.setBadgeText({ text: "", tabId });
+type IconState = "owned" | "not-owned" | "inactive";
+
+const ICON_COLORS: Record<IconState, { bg: string; border: string; letter: string }> = {
+  owned: { bg: "#1a1a1a", border: "#ebaf00", letter: "#ffffff" },
+  "not-owned": { bg: "#3a3a3a", border: "#888888", letter: "#888888" },
+  inactive: { bg: "#cccccc", border: "#999999", letter: "#666666" },
+};
+
+function roundedRect(
+  ctx: OffscreenCanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function drawIcon(size: number, state: IconState): ImageData {
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext("2d")!;
+  const c = ICON_COLORS[state];
+
+  // Rounded rectangle background
+  const borderWidth = Math.max(1, Math.round(size * 0.08));
+  const radius = Math.round(size * 0.18);
+  const inset = borderWidth / 2;
+
+  roundedRect(ctx, inset, inset, size - borderWidth, size - borderWidth, radius);
+  ctx.fillStyle = c.bg;
+  ctx.fill();
+  ctx.strokeStyle = c.border;
+  ctx.lineWidth = borderWidth;
+  ctx.stroke();
+
+  // "P" letter centered
+  const fontSize = Math.round(size * 0.6);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.fillStyle = c.letter;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("P", size / 2, size / 2 + size * 0.04);
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function getIconImageData(state: IconState): Record<string, ImageData> {
+  return {
+    "16": drawIcon(16, state),
+    "32": drawIcon(32, state),
+    "48": drawIcon(48, state),
+    "128": drawIcon(128, state),
+  };
+}
+
+async function setTabIcon(tabId: number, state: IconState) {
+  try {
+    await browser.action.setIcon({ imageData: getIconImageData(state), tabId });
+  } catch (err) {
+    console.error("Parrot: failed to set tab icon", err);
   }
 }
 
 export default defineBackground(() => {
+  // Set default inactive icon on startup
+  try {
+    browser.action.setIcon({ imageData: getIconImageData("inactive") });
+  } catch (err) {
+    console.error("Parrot: failed to set default icon", err);
+  }
+
   // Auto-refresh stale index on startup
   (async () => {
     const config = await getConfig();
@@ -140,7 +208,7 @@ export default defineBackground(() => {
             const index = await loadIndex();
             if (!index) {
               console.log("Parrot CHECK: no index loaded, returning not owned");
-              if (tabId) await setIconOwned(tabId, false);
+              if (tabId) await setTabIcon(tabId, "not-owned");
               sendResponse({ owned: false } satisfies CheckResponse);
               break;
             }
@@ -149,7 +217,7 @@ export default defineBackground(() => {
               `Parrot CHECK: ${message.mediaType} ${message.source}:${message.id} → ${result.owned ? "OWNED" : "not owned"}`,
               result.owned ? result.item : "",
             );
-            if (tabId) await setIconOwned(tabId, result.owned);
+            if (tabId) await setTabIcon(tabId, result.owned ? "owned" : "not-owned");
             sendResponse(result);
             break;
           }
