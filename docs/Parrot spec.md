@@ -2,7 +2,7 @@
 
 ## Overview
 
-Parrot is a browser extension that tells you whether media you're browsing on the web is already in your Plex library. When you land on a movie or TV show page on a supported site, Parrot shows a badge indicating whether you own it or not.
+Parrot is a browser extension that tells you whether media you're browsing on the web is already in your Plex library. When you land on a movie or TV show page on a supported site, Parrot shows a badge indicating whether you own it or not. For owned TV shows, it can also show which episodes you're missing. For movies in TMDB collections, it shows which other movies in the collection you own or are missing.
 
 **Companion to ComPlexionist** — ComPlexionist finds gaps in your library; Parrot prevents you from hunting for something you already have.
 
@@ -13,13 +13,15 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 
 ## How It Works
 
-1. User browses to a supported page (e.g., `themoviedb.org/movie/550-fight-club`)
+1. User browses to a supported page (e.g., `themoviedb.org/movie/550-the-sparring-partner`)
 2. Content script extracts the media's external ID from the page URL or DOM
 3. Extension sends a `CHECK` message to the service worker
 4. Service worker looks up the ID in a cached index of the user's Plex library
 5. Response flows back with ownership status and deep-link data
 6. Content script injects an ownership badge next to the title
 7. Toolbar icon updates per-tab to reflect ownership state
+8. For movies: if part of a TMDB collection, a collection gap panel may appear
+9. For TV shows: if owned but missing episodes, an episode gap panel may appear
 
 ---
 
@@ -76,7 +78,7 @@ TMDB, IMDb, and TVDB are single-page applications. Content scripts use `Mutation
 parrot/
 ├── src/
 │   ├── entrypoints/
-│   │   ├── background.ts              # Library cache, Plex API proxy, icon rendering
+│   │   ├── background.ts              # Library cache, API proxy, icon rendering
 │   │   ├── tmdb.content.ts            # TMDB content script
 │   │   ├── imdb.content.ts            # IMDb content script
 │   │   ├── tvdb.content.ts            # TVDB content script
@@ -84,16 +86,24 @@ parrot/
 │   │   ├── rargb.content.ts           # RARGB content script
 │   │   ├── nzbforyou.content.ts       # NZBForYou content script
 │   │   ├── psa.content.ts             # PSA content script (title-based)
+│   │   ├── options/
+│   │   │   ├── index.html             # Options page HTML
+│   │   │   ├── main.ts                # Options page logic
+│   │   │   └── style.css              # Options page styles
 │   │   └── popup/
-│   │       ├── index.html             # Settings/status UI
+│   │       ├── index.html             # Popup HTML
 │   │       ├── main.ts                # Popup logic
 │   │       └── style.css              # Popup styles
 │   ├── api/
-│   │   └── plex.ts                    # Plex API client
+│   │   ├── plex.ts                    # Plex API client
+│   │   ├── tmdb.ts                    # TMDB v3 API client
+│   │   └── tvdb.ts                    # TVDB v4 API client (optional)
 │   └── common/
 │       ├── types.ts                   # Shared types (LibraryIndex, OwnedItem, etc.)
 │       ├── storage.ts                 # Storage helpers
 │       ├── badge.ts                   # Page badge component
+│       ├── collection-panel.ts        # Collection gap panel component
+│       ├── episode-panel.ts           # Episode gap panel component
 │       └── normalize.ts              # Title normalization for slug-based matching
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
@@ -106,35 +116,48 @@ parrot/
 
 ### Component Responsibilities
 
-**Service Worker (`background.ts` — 246 lines)**
+**Service Worker (`background.ts`)**
 - Manages the Plex library index cache (in-memory + `storage.local`)
 - Proxies Plex API requests (avoids CORS issues from content scripts)
-- Responds to `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS` messages
+- Handles all message types: `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
 - Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
 - Auto-refreshes stale cache on startup (>24h threshold)
 
-**Content Scripts (8 scripts, ~60-100 lines each)**
+**Content Scripts (7 scripts)**
 - One per supported site
 - Extracts media ID from URL or by scanning page links
 - Sends `CHECK` message to service worker
 - Injects ownership badge into the page DOM
+- For TMDB movies: triggers `CHECK_COLLECTION` for collection gap panel
+- For TMDB/TVDB TV shows: triggers `CHECK_EPISODES` for episode gap panel
 - SPA-aware: uses `MutationObserver` on TMDB/IMDb/TVDB
 
-**Popup (`popup/` — 165 lines + HTML/CSS)**
-- Configuration UI (Plex URL, token)
+**Options Page (`options/`)**
+- Full-tab settings page (4 card sections)
+- Plex server configuration (URL, token, test, save & sync)
+- API key management (TMDB required, TVDB optional) with validation buttons
+- Gap detection toggles (exclude future, exclude specials, minimum thresholds)
+- Cache management (refresh, clear)
+
+**Popup (`popup/`)**
+- Quick-access configuration UI (Plex URL, token)
 - Connection test button with feedback
 - Cache status (last refresh timestamp, item count)
-- Manual refresh button
-- Relative time display ("5m ago", "2h ago")
+- Settings link to open options page
+
+**API Clients (`api/`)**
+- `plex.ts` — Plex server connection, library fetching, episode data
+- `tmdb.ts` — TMDB v3 (movies, collections, TV shows/seasons, TVDB-to-TMDB ID conversion)
+- `tvdb.ts` — TVDB v4 (bearer token auth, paginated episode fetching, key validation)
 
 ### Data Flow
 
 ```
-Content Script → Message → Service Worker → Library Index
+Content Script → Message → Service Worker → Library Index / API Clients
                                 ↓
-                          CheckResponse
+                          Response (ownership, gaps)
                                 ↓
-Badge + Icon ← Content Script
+Badge + Panel + Icon ← Content Script
 ```
 
 ### Message Protocol
@@ -145,9 +168,16 @@ type Message =
   | { type: "BUILD_INDEX" }
   | { type: "GET_STATUS" }
   | { type: "CHECK"; mediaType: "movie"|"show"; source: "tmdb"|"imdb"|"tvdb"|"title"; id: string }
+  | { type: "GET_OPTIONS" }
+  | { type: "SAVE_OPTIONS"; options: ParrotOptions }
+  | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
+  | { type: "VALIDATE_TVDB_KEY"; apiKey: string }
+  | { type: "CLEAR_CACHE" }
+  | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
+  | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
 ```
 
-Content scripts always go through the service worker — they never call the Plex API directly.
+Content scripts always go through the service worker — they never call Plex or external APIs directly.
 
 ---
 
@@ -177,6 +207,10 @@ GET /library/sections/{sectionId}/all?includeGuids=1
 → All items in a library with external GUIDs
 → IMPORTANT: includeGuids=1 is required to get external IDs
 → Request Accept: application/json for JSON response
+
+GET /library/metadata/{ratingKey}/allLeaves
+→ All episodes for a TV show (seasonNumber + episodeNumber)
+→ Used for episode gap detection
 ```
 
 ### External ID System (GUIDs)
@@ -223,6 +257,36 @@ The `machineIdentifier` is fetched once during setup (from `GET /`) and stored a
 
 ---
 
+## External API Clients
+
+### TMDB v3 (`src/api/tmdb.ts`)
+
+Auth: API key as query param (`?api_key={key}`). Base URL: `https://api.themoviedb.org/3`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `getMovie` | `GET /movie/{id}` | Movie details (collection membership) |
+| `getCollection` | `GET /collection/{id}` | All movies in a collection |
+| `getTvShow` | `GET /tv/{id}` | TV show details with seasons list |
+| `getTvSeason` | `GET /tv/{id}/season/{n}` | Episodes in a season |
+| `findByTvdbId` | `GET /find/{tvdbId}?external_source=tvdb_id` | Convert TVDB ID to TMDB ID |
+| `validateTmdbKey` | `GET /configuration` | Key validation (200 = valid) |
+
+### TVDB v4 (`src/api/tvdb.ts`) — Optional
+
+Auth: bearer token via `POST /login` with `{ apikey: "..." }`. Base URL: `https://api4.thetvdb.com/v4`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `getSeriesEpisodes` | `GET /series/{id}/episodes/default?page={n}` | All episodes (paginated, 500/page) |
+| `validateTvdbKey` | `POST /login` | Key validation (login succeeds = valid) |
+
+Token is cached in-memory (service worker lifetime). Auto-retries on 401 (expired token).
+
+Used only when a TVDB API key is configured **and** the source page is TVDB. TMDB pages always use the TMDB API. If no TVDB key is set, TVDB pages fall back to TMDB via `findByTvdbId`.
+
+---
+
 ## Library Index Cache
 
 ### Structure
@@ -230,17 +294,17 @@ The `machineIdentifier` is fetched once during setup (from `GET /`) and stored a
 ```typescript
 interface LibraryIndex {
   movies: {
-    byTmdbId: Record<string, OwnedItem>;    // "550" → item
-    byImdbId: Record<string, OwnedItem>;    // "tt0137523" → item
-    byTitle: Record<string, OwnedItem>;     // "fight club|1999" → item
-  };
-  shows: {
-    byTvdbId: Record<string, OwnedItem>;    // "81189" → item
     byTmdbId: Record<string, OwnedItem>;
     byImdbId: Record<string, OwnedItem>;
     byTitle: Record<string, OwnedItem>;
   };
-  lastRefresh: number;  // Unix timestamp
+  shows: {
+    byTvdbId: Record<string, OwnedItem>;
+    byTmdbId: Record<string, OwnedItem>;
+    byImdbId: Record<string, OwnedItem>;
+    byTitle: Record<string, OwnedItem>;
+  };
+  lastRefresh: number;
   itemCount: number;
 }
 
@@ -269,10 +333,10 @@ Uses `Record<string, OwnedItem>` instead of `Map` because `browser.storage` only
 For sites without external IDs (PSA), Parrot normalizes titles for fuzzy matching:
 
 ```typescript
-normalizeTitle("Fight Club") → "fight club"
-normalizeTitle("The-Dark-Knight") → "the dark knight"
-buildTitleKey("Fight Club", 1999) → "fight club|1999"
-parseSlug("the-dark-knight-2008") → { title: "the dark knight", year: 2008 }
+normalizeTitle("The Sparring Partner") → "the sparring partner"
+normalizeTitle("The-Dark-Corridors") → "the dark corridors"
+buildTitleKey("The Sparring Partner", 1999) → "the sparring partner|1999"
+parseSlug("the-dark-corridors-2008") → { title: "the dark corridors", year: 2008 }
 ```
 
 Lookup tries `"title|year"` first, falls back to `"title"` only.
@@ -284,14 +348,42 @@ Lookup tries `"title|year"` first, falls back to `"title"` only.
 | First install | Full index build on setup |
 | Extension startup | Load cached if < 24 hours old |
 | Stale cache (> 24h) | Auto-refresh in background |
-| Manual refresh | User clicks "Refresh Library" in popup |
+| Manual refresh | User clicks "Refresh Library" in popup/options |
 
 ### Storage
 
 | Store | Contents | Notes |
 |-------|----------|-------|
-| `browser.storage.sync` | Plex URL, token, machineIdentifier | Syncs across devices |
-| `browser.storage.local` | Library index cache | Can be large (1000+ items) |
+| `browser.storage.sync` | Plex URL, token, machineIdentifier, options | Syncs across devices |
+| `browser.storage.local` | Library index, collection cache (30d TTL), episode gap cache (24h TTL) | Can be large |
+
+---
+
+## Gap Detection
+
+### Collection Gaps (TMDB Movies)
+
+When viewing a TMDB movie page, Parrot checks if the movie belongs to a TMDB collection. If the user owns some but not all movies in the collection, a collapsible panel appears showing owned and missing movies.
+
+- Triggered by `CHECK_COLLECTION` message after ownership badge
+- Uses TMDB API (`getMovie` → `getCollection`)
+- Collection data cached 30 days in `storage.local`
+- Respects `excludeFuture` and `minCollectionSize`/`minOwned` options
+- Panel shows owned movies (gold checkmark, Plex deep link) and missing movies (gray X)
+
+### Episode Gaps (TV Shows)
+
+When viewing a TV show page on TMDB or TVDB, if the user owns the show but is missing episodes, a collapsible season-level panel appears.
+
+- Triggered by `CHECK_EPISODES` message after ownership badge (for owned shows only)
+- Source-based API routing:
+  - TVDB pages with TVDB key configured → TVDB v4 API (direct, accurate numbering)
+  - TVDB pages without TVDB key → falls back to TMDB API via ID conversion
+  - TMDB pages → always TMDB API
+- Episode data fetched on demand, never stored in the library index
+- Gap results cached 24 hours in `storage.local` (keyed by `source:id`)
+- Respects `excludeSpecials` (skip Season 0) and `excludeFuture` (skip unaired episodes)
+- Panel shows "X of Y episodes — N of M seasons full", with per-season breakdown
 
 ---
 
@@ -318,6 +410,9 @@ async function checkAndBadge() {
   });
 
   updateBadgeFromResponse(badge, response);   // Update badge + make clickable
+
+  // For TMDB movies → check collection gaps
+  // For TMDB/TVDB TV shows → check episode gaps
 }
 ```
 
@@ -331,6 +426,38 @@ A compact pill badge injected next to the title element on each supported page:
 
 When owned, the badge becomes a clickable `<a>` element linking to the item in Plex Web.
 
+### Collection Gap Panel
+
+A collapsible panel injected below the ownership badge on TMDB movie pages:
+
+```
++-------------------------------------------+
+| > Spy Saga Collection -- 2 of 5 owned     |  <- collapsed by default
++-------------------------------------------+
+|  [check] The First Mission (2002)  [Plex] |  <- owned, links to Plex
+|  [check] The Sequel (2004)         [Plex] |
+|  [x] The Third One (2007)                 |  <- missing
+|  [x] The Reboot (2012)                    |
+|  [x] The Finale (2020)                    |
++-------------------------------------------+
+```
+
+### Episode Gap Panel
+
+A collapsible panel injected below the ownership badge on TV show pages:
+
+```
++----------------------------------------------+
+| > 52 of 65 episodes - 3 of 5 seasons full    |
+|----------------------------------------------|
+|  S1     20/20                                 |
+|  S2     20/20                                 |
+|  S3     12/15  (missing 3)                    |
+|  S4     10/10                                 |
+|  S5      0/20  (missing all)                  |
++----------------------------------------------+
+```
+
 ### Toolbar Icon
 
 The extension toolbar icon is a rounded "P" drawn dynamically via `OffscreenCanvas` at multiple resolutions (16, 32, 48, 128px):
@@ -343,28 +470,44 @@ Icon state is set per-tab based on CHECK results.
 
 ---
 
+## Options Page
+
+Full-tab settings page with four sections:
+
+### 1. Plex Server
+- Server URL input
+- Token input (password field)
+- Test Connection button with feedback
+- Save & Sync button (validates, saves config, builds library index)
+- Status display (item count, last sync timestamp)
+
+### 2. API Keys
+- TMDB API key input + Validate button (required for collection/episode gap features)
+- TVDB API key input + Validate button (optional, for more accurate TV episode numbering)
+
+### 3. Gap Detection
+- Toggle: "Exclude future/unreleased movies" (default: on)
+- Toggle: "Exclude specials (Season 0)" (default: on)
+- Number input: "Minimum collection size" (default: 2, min: 2)
+- Number input: "Minimum owned to show gaps" (default: 2, min: 1)
+
+### 4. Cache Management
+- Display: "Library index: X items, last synced Y"
+- Button: "Refresh Library" (rebuilds index)
+- Button: "Clear All Cache" (clears `storage.local`)
+
+---
+
 ## Manifest V3
 
 The manifest is auto-generated by WXT from `wxt.config.ts` and the entrypoints directory structure.
 
-```typescript
-// wxt.config.ts
-export default defineConfig({
-  srcDir: "src",
-  entrypointsDir: "entrypoints",
-  manifest: {
-    name: "Parrot",
-    description: "See if media you're browsing is already in your Plex library",
-    version: pkg.version,
-    permissions: ["storage"],
-    host_permissions: ["http://*/library/*", "https://*/library/*"],
-  },
-});
-```
-
 Key permissions:
-- `storage` — for `browser.storage.sync` (config) and `browser.storage.local` (index)
-- `host_permissions` — for Plex API access (user's local server)
+- `storage` — for `browser.storage.sync` (config, options) and `browser.storage.local` (index, caches)
+- `host_permissions`:
+  - `http://*/library/*`, `https://*/library/*` — Plex API access
+  - `https://api.themoviedb.org/*` — TMDB API
+  - `https://api4.thetvdb.com/*` — TVDB API
 
 Content script URL matches are defined in each `*.content.ts` file via WXT's `defineContentScript()`.
 
@@ -390,57 +533,38 @@ Single source of truth is `package.json`; `wxt.config.ts` reads from it.
 |-------|----------------|
 | No Plex URL/token configured | Popup prompts setup |
 | Plex server unreachable | Badge shows error icon, tooltip explains |
-| Invalid token (401) | Popup shows "Authentication failed — check your token" |
+| Invalid token (401) | Popup shows "Authentication failed -- check your token" |
 | Library not found (404) | "Library not found" message |
 | Timeout | "Plex server not responding" |
-| Network error | "Cannot reach Plex server — check URL" |
+| Network error | "Cannot reach Plex server -- check URL" |
 | Library empty | Badge shows "No libraries found" |
 | Unsupported page | Extension stays dormant |
-
-These patterns mirror ComPlexionist's `get_friendly_message()` error mapping (see `src/complexionist/gui/errors.py`).
+| Invalid TMDB key | Options page shows validation error |
+| Invalid TVDB key | Options page shows validation error |
 
 ---
 
 ## Key Patterns from ComPlexionist
 
-These patterns are proven in the desktop app and should guide extension development:
+These patterns are proven in the desktop app and guide extension development:
 
 ### Cache TTL Strategy
 
-ComPlexionist uses conditional TTLs based on content type:
-- **Ended shows:** Longer cache (data won't change)
-- **Continuing shows:** Shorter cache (new episodes expected)
-- **Movies in collections:** 30 days
-- **Movies without collections:** 7 days
-
-Consider similar tiered refresh for the library index — e.g., don't rebuild for items that haven't changed. Currently Parrot uses a flat 24h refresh for the entire index.
+ComPlexionist uses conditional TTLs based on content type. Parrot currently uses:
+- **Library index:** 24 hours (flat)
+- **Collection cache:** 30 days
+- **Episode gap cache:** 24 hours
 
 ### Date Timezone Buffer
 
-ComPlexionist uses `< date.today()` (strict less-than) instead of `<=` for release dates, adding a 1-day buffer for timezone differences. Apply the same logic if showing release status in badges (e.g., future episode awareness).
-
-### Error Message Translation
-
-ComPlexionist centralizes API error translation in `gui/errors.py`. HTTP status codes are mapped to user-friendly messages. Parrot should follow the same pattern — never show raw error codes or stack traces to users.
+ComPlexionist uses `< date.today()` (strict less-than) instead of `<=` for release dates, adding a 1-day buffer for timezone differences. Parrot applies the same logic when filtering future episodes and unreleased collection movies.
 
 ### GUID Extraction
 
 The external ID extraction from Plex `guids` arrays is identical in both projects. The patterns are:
-- `tmdb://(\d+)` → TMDB numeric ID
-- `tvdb://(\d+)` → TVDB numeric ID
-- `imdb://(tt\d+)` → IMDb string ID
-
-Both projects extract these the same way — any improvements should be ported between them.
-
-### BaseAPIClient Pattern
-
-ComPlexionist extracts shared HTTP patterns into a `BaseAPIClient` class with:
-- Typed `client` property (asserts connection is active)
-- `_handle_response()` with unified error handling
-- Cache hit/miss recording for statistics
-- Context manager protocol (`__enter__`/`__exit__`)
-
-Consider a similar pattern if Parrot adds more API clients (e.g., TMDB for episode data).
+- `tmdb://(\d+)` — TMDB numeric ID
+- `tvdb://(\d+)` — TVDB numeric ID
+- `imdb://(tt\d+)` — IMDb string ID
 
 ---
 
@@ -449,23 +573,19 @@ Consider a similar pattern if Parrot adds more API clients (e.g., TMDB for episo
 | Component | Technology |
 |-----------|------------|
 | Language | TypeScript (strict mode) |
-| Build | WXT 0.19.0 (Vite-based extension framework) |
-| Testing | Vitest 3.0.0 |
-| Linting | ESLint 9.0.0 + Prettier 3.4.0 |
+| Build | WXT 0.19.x (Vite-based extension framework) |
+| Testing | Vitest |
+| Linting | ESLint + Prettier |
 | Target | Chrome (primary), Firefox (secondary) |
 | Runtime | Manifest V3 service worker + content scripts |
-
-**Total codebase:** ~1,155 lines of TypeScript across 15 source files.
 
 ---
 
 ## Future Ideas
 
-See `docs/Parrot TODO.md` for the full roadmap. Key areas:
+See [`docs/TODO.md`](TODO.md) for the full roadmap. Key areas:
 
-- **TV Episode Awareness:** Show "You have S01-S03" on TV show pages
 - **Additional Sites:** Letterboxd, Trakt, JustWatch, Rotten Tomatoes
-- **Collection Awareness:** "You have 3/5 movies in this collection" on TMDB collection pages
 - **Multi-Server Support:** Allow multiple Plex server configurations
 - **Advanced Settings:** Per-site toggles, badge position, refresh interval
 - **Publishing:** Chrome Web Store and Firefox Add-ons submission

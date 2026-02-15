@@ -47,6 +47,7 @@ export interface PlexSection {
 
 export interface ParrotOptions {
   tmdbApiKey: string;
+  tvdbApiKey: string;
   excludeFuture: boolean;
   excludeSpecials: boolean;
   minCollectionSize: number;
@@ -55,6 +56,7 @@ export interface ParrotOptions {
 
 export const DEFAULT_OPTIONS: ParrotOptions = {
   tmdbApiKey: "",
+  tvdbApiKey: "",
   excludeFuture: true,
   excludeSpecials: true,
   minCollectionSize: 2,
@@ -76,8 +78,10 @@ export type Message =
   | { type: "GET_OPTIONS" }
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
   | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
+  | { type: "VALIDATE_TVDB_KEY"; apiKey: string }
   | { type: "CLEAR_CACHE" }
-  | { type: "CHECK_COLLECTION"; tmdbMovieId: string };
+  | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
+  | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string };
 
 // --- Responses ---
 
@@ -111,6 +115,11 @@ export interface ValidateTmdbKeyResponse {
   error?: string;
 }
 
+export interface ValidateTvdbKeyResponse {
+  valid: boolean;
+  error?: string;
+}
+
 export interface OptionsResponse {
   options: ParrotOptions;
 }
@@ -121,6 +130,38 @@ export interface SaveOptionsResponse {
 
 export interface ClearCacheResponse {
   success: boolean;
+}
+
+// --- Episode gap types ---
+
+export interface SeasonGapInfo {
+  seasonNumber: number;
+  ownedCount: number;
+  totalCount: number;
+  missing: { number: number; name: string; airDate?: string }[];
+}
+
+export interface EpisodeGapResponse {
+  hasGaps: boolean;
+  gaps?: {
+    showTitle: string;
+    totalOwned: number;
+    totalEpisodes: number;
+    completeSeasons: number;
+    totalSeasons: number;
+    seasons: SeasonGapInfo[];
+  };
+}
+
+export interface EpisodeGapCacheEntry {
+  showTitle: string;
+  cacheKey: string; // "tmdb:{id}" or "tvdb:{id}"
+  seasons: SeasonGapInfo[];
+  totalOwned: number;
+  totalEpisodes: number;
+  completeSeasons: number;
+  totalSeasons: number;
+  fetchedAt: number;
 }
 
 export interface CollectionCheckResponse {

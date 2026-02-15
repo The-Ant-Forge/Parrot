@@ -68,6 +68,24 @@
             <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">
               themoviedb.org/settings/api</a>.
           </p>
+
+          <label for="tvdbApiKey">TVDB API Key <span class="optional">(optional)</span></label>
+          <div class="input-with-button">
+            <input
+              type="password"
+              id="tvdbApiKey"
+              placeholder="Your TVDB v4 API key"
+              spellcheck="false"
+            />
+            <button id="validateTvdbBtn">Validate</button>
+          </div>
+          <div id="tvdbFeedback" class="feedback" hidden></div>
+          <p class="hint">
+            For more accurate TV episode numbering. Get a key at
+            <a href="https://thetvdb.com/api-information" target="_blank" rel="noopener">
+              thetvdb.com/api-information</a>.
+            TMDB is used as fallback.
+          </p>
         </section>
 
         <!-- Gap Detection Options -->

@@ -83,6 +83,23 @@ export async function fetchSectionItems(
   );
 }
 
+export async function fetchShowEpisodes(
+  config: PlexConfig,
+  ratingKey: string,
+): Promise<Array<{ seasonNumber: number; episodeNumber: number }>> {
+  const res = await plexFetch(config, `/library/metadata/${ratingKey}/allLeaves`);
+  if (!res.ok) throw new Error(`Plex API error: ${res.status}`);
+  const data = await res.json();
+  const episodes: Array<{ parentIndex?: number; index?: number }> =
+    data.MediaContainer?.Metadata ?? [];
+  return episodes
+    .filter((ep) => ep.parentIndex != null && ep.index != null)
+    .map((ep) => ({
+      seasonNumber: ep.parentIndex!,
+      episodeNumber: ep.index!,
+    }));
+}
+
 export function extractExternalIds(
   guids: Array<{ id: string }>,
 ): ExternalIds {

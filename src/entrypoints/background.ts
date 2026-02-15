@@ -1,14 +1,19 @@
-import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection } from "../common/storage";
-import { testConnection, buildLibraryIndex } from "../api/plex";
-import { getMovie, getCollection } from "../api/tmdb";
+import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
+import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
+import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId } from "../api/tmdb";
+import { getSeriesEpisodes, validateTvdbKey } from "../api/tvdb";
 import type {
   Message,
   CheckResponse,
   CollectionCheckResponse,
+  EpisodeGapResponse,
+  SeasonGapInfo,
+  EpisodeGapCacheEntry,
   StatusResponse,
   TestConnectionResponse,
   BuildIndexResponse,
   ValidateTmdbKeyResponse,
+  ValidateTvdbKeyResponse,
   OptionsResponse,
   SaveOptionsResponse,
   ClearCacheResponse,
@@ -277,11 +282,243 @@ export default defineBackground(() => {
             break;
           }
 
+          case "VALIDATE_TVDB_KEY": {
+            try {
+              const valid = await validateTvdbKey(message.apiKey);
+              if (valid) {
+                sendResponse({ valid: true } satisfies ValidateTvdbKeyResponse);
+              } else {
+                sendResponse({ valid: false, error: "Invalid API key" } satisfies ValidateTvdbKeyResponse);
+              }
+            } catch {
+              sendResponse({ valid: false, error: "Could not reach TVDB — check your connection" } satisfies ValidateTvdbKeyResponse);
+            }
+            break;
+          }
+
           case "CLEAR_CACHE": {
             await browser.storage.local.clear();
             cachedIndex = null;
             console.log("Parrot: cache cleared");
             sendResponse({ success: true } satisfies ClearCacheResponse);
+            break;
+          }
+
+          case "CHECK_EPISODES": {
+            try {
+              const options = await getOptions();
+              const useTvdb = message.source === "tvdb" && !!options.tvdbApiKey;
+
+              // Need at least one API key
+              if (!useTvdb && !options.tmdbApiKey) {
+                sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+                break;
+              }
+
+              // Look up show in library index
+              const index = await loadIndex();
+              if (!index) {
+                sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+                break;
+              }
+
+              const showMap =
+                message.source === "tmdb"
+                  ? index.shows.byTmdbId
+                  : index.shows.byTvdbId;
+              const ownedShow: OwnedItem | undefined = showMap[message.id];
+              if (!ownedShow) {
+                sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+                break;
+              }
+
+              // Build cache key based on source
+              const cacheKey = `${message.source}:${message.id}`;
+
+              // Check cache
+              const cached = await getCachedEpisodeGaps(cacheKey);
+              if (cached) {
+                console.log(`Parrot EPISODES: cache hit for ${cacheKey}`);
+                sendResponse({
+                  hasGaps: cached.seasons.some((s) => s.missing.length > 0),
+                  gaps: {
+                    showTitle: cached.showTitle,
+                    totalOwned: cached.totalOwned,
+                    totalEpisodes: cached.totalEpisodes,
+                    completeSeasons: cached.completeSeasons,
+                    totalSeasons: cached.totalSeasons,
+                    seasons: cached.seasons,
+                  },
+                } satisfies EpisodeGapResponse);
+                break;
+              }
+
+              // Fetch Plex episodes (transient — not stored)
+              const config = await getConfig();
+              if (!config) {
+                sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+                break;
+              }
+              const plexEpisodes = await fetchShowEpisodes(config, ownedShow.plexKey);
+              const ownedSet = new Set(
+                plexEpisodes.map((ep) => `S${ep.seasonNumber}E${ep.episodeNumber}`),
+              );
+
+              const today = new Date().toISOString().split("T")[0];
+              let seasonGaps: SeasonGapInfo[];
+              let showTitle: string;
+
+              if (useTvdb) {
+                // --- TVDB path: one paginated call for all episodes ---
+                const allEpisodes = await getSeriesEpisodes(options.tvdbApiKey, message.id);
+                showTitle = ownedShow.title;
+
+                // Group episodes by season
+                const bySeason = new Map<number, typeof allEpisodes>();
+                for (const ep of allEpisodes) {
+                  if (options.excludeSpecials && ep.seasonNumber === 0) continue;
+                  if (options.excludeFuture && (!ep.aired || ep.aired >= today)) continue;
+                  const list = bySeason.get(ep.seasonNumber) ?? [];
+                  list.push(ep);
+                  bySeason.set(ep.seasonNumber, list);
+                }
+
+                seasonGaps = [];
+                const sortedSeasons = [...bySeason.keys()].sort((a, b) => a - b);
+
+                for (const seasonNum of sortedSeasons) {
+                  const episodes = bySeason.get(seasonNum)!;
+                  const missing: SeasonGapInfo["missing"] = [];
+                  let ownedCount = 0;
+
+                  for (const ep of episodes) {
+                    const key = `S${ep.seasonNumber}E${ep.number}`;
+                    if (ownedSet.has(key)) {
+                      ownedCount++;
+                    } else {
+                      missing.push({
+                        number: ep.number,
+                        name: ep.name ?? `Episode ${ep.number}`,
+                        airDate: ep.aired ?? undefined,
+                      });
+                    }
+                  }
+
+                  seasonGaps.push({
+                    seasonNumber: seasonNum,
+                    ownedCount,
+                    totalCount: episodes.length,
+                    missing,
+                  });
+                }
+
+                console.log(`Parrot EPISODES: using TVDB for ${message.id}`);
+              } else {
+                // --- TMDB path: per-season fetching ---
+                let tmdbId: number;
+                if (message.source === "tmdb") {
+                  tmdbId = parseInt(message.id);
+                } else {
+                  const found = await findByTvdbId(options.tmdbApiKey, message.id);
+                  if (!found) {
+                    console.log(`Parrot EPISODES: could not find TMDB ID for TVDB ${message.id}`);
+                    sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+                    break;
+                  }
+                  tmdbId = found;
+                }
+
+                const tvShow = await getTvShow(options.tmdbApiKey, tmdbId);
+                showTitle = tvShow.name;
+
+                let seasons = tvShow.seasons;
+                if (options.excludeSpecials) {
+                  seasons = seasons.filter((s) => s.season_number !== 0);
+                }
+
+                seasonGaps = [];
+
+                for (const season of seasons) {
+                  if (season.episode_count === 0) continue;
+
+                  const tmdbSeason = await getTvSeason(options.tmdbApiKey, tmdbId, season.season_number);
+                  let episodes = tmdbSeason.episodes;
+
+                  if (options.excludeFuture) {
+                    episodes = episodes.filter((ep) => ep.air_date && ep.air_date < today);
+                  }
+
+                  if (episodes.length === 0) continue;
+
+                  const missing: SeasonGapInfo["missing"] = [];
+                  let ownedCount = 0;
+
+                  for (const ep of episodes) {
+                    const key = `S${season.season_number}E${ep.episode_number}`;
+                    if (ownedSet.has(key)) {
+                      ownedCount++;
+                    } else {
+                      missing.push({
+                        number: ep.episode_number,
+                        name: ep.name,
+                        airDate: ep.air_date ?? undefined,
+                      });
+                    }
+                  }
+
+                  seasonGaps.push({
+                    seasonNumber: season.season_number,
+                    ownedCount,
+                    totalCount: episodes.length,
+                    missing,
+                  });
+                }
+
+                console.log(`Parrot EPISODES: using TMDB for ${message.id}`);
+              }
+
+              const totalOwned = seasonGaps.reduce((sum, s) => sum + s.ownedCount, 0);
+              const totalEpisodes = seasonGaps.reduce((sum, s) => sum + s.totalCount, 0);
+              const completeSeasons = seasonGaps.filter((s) => s.missing.length === 0).length;
+              const hasAnyGaps = seasonGaps.some((s) => s.missing.length > 0);
+
+              // Cache the result
+              const cacheEntry: EpisodeGapCacheEntry = {
+                showTitle,
+                cacheKey,
+                seasons: seasonGaps,
+                totalOwned,
+                totalEpisodes,
+                completeSeasons,
+                totalSeasons: seasonGaps.length,
+                fetchedAt: Date.now(),
+              };
+              await saveCachedEpisodeGaps(cacheEntry);
+
+              console.log(
+                `Parrot EPISODES: ${showTitle} — ${totalOwned}/${totalEpisodes} episodes, ${completeSeasons}/${seasonGaps.length} seasons complete`,
+              );
+
+              if (!hasAnyGaps) {
+                sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+                break;
+              }
+
+              sendResponse({
+                hasGaps: true,
+                gaps: {
+                  showTitle,
+                  totalOwned,
+                  totalEpisodes,
+                  completeSeasons,
+                  totalSeasons: seasonGaps.length,
+                  seasons: seasonGaps,
+                },
+              } satisfies EpisodeGapResponse);
+            } catch (err) {
+              console.error("Parrot: episode check failed", err);
+              sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
+            }
             break;
           }
 

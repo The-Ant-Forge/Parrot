@@ -221,6 +221,12 @@ button.danger:hover:not(:disabled) {
   color: #e5a00d;
 }
 
+.optional {
+  font-weight: 400;
+  color: #999;
+  font-size: 11px;
+}
+
 #saveOptionsBtn {
   margin-top: 12px;
 }

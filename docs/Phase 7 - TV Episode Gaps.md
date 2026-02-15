@@ -11,11 +11,11 @@ When browsing a TV show page on TMDB or TVDB, if the user owns the show but is m
 
 ## Design decisions
 
-### Use TMDB API (not TVDB API) for episode data
+### TMDB by default, TVDB optional
 
-The TMDB API key is already configured (Phase 5). TMDB has comprehensive TV episode data via `/tv/{id}` and `/tv/{id}/season/{n}`. This avoids requiring a second API key (TVDB v4 requires registration + bearer token auth).
+TMDB is used by default for episode data (key already configured in Phase 5). For TVDB pages, the TVDB ID is converted to TMDB ID using `GET /find/{tvdb_id}?external_source=tvdb_id`.
 
-For TVDB pages, we convert TVDB ID to TMDB ID using TMDB's `GET /find/{tvdb_id}?external_source=tvdb_id` endpoint.
+Users who configure an optional TVDB v4 API key get source-based routing: TVDB pages use the TVDB API directly for more accurate episode numbering, while TMDB pages always use TMDB. See `src/api/tvdb.ts` for the TVDB client.
 
 ### Compact ownership: don't store episodes in the index
 
@@ -36,7 +36,7 @@ Stored in `browser.storage.local` under `"episodeGaps"`:
 ```typescript
 interface EpisodeGapCacheEntry {
   showTitle: string;
-  tmdbId: number;
+  cacheKey: string; // "tmdb:{id}" or "tvdb:{id}"
   seasons: SeasonGapInfo[];
   totalOwned: number;
   totalEpisodes: number;

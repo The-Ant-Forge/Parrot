@@ -30,6 +30,23 @@ interface TMDBCollectionResponse {
   parts: TMDBCollectionMovie[];
 }
 
+// --- TV types ---
+
+export interface TMDBTvShow {
+  id: number;
+  name: string;
+  seasons: { season_number: number; episode_count: number; air_date: string | null }[];
+}
+
+export interface TMDBTvSeason {
+  season_number: number;
+  episodes: { episode_number: number; name: string; air_date: string | null }[];
+}
+
+interface TMDBFindResponse {
+  tv_results: { id: number }[];
+}
+
 async function tmdbFetch<T>(apiKey: string, path: string): Promise<T> {
   const url = `${BASE_URL}${path}${path.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, {
@@ -65,4 +82,40 @@ export async function getCollection(
     name: data.name,
     parts: data.parts,
   };
+}
+
+/**
+ * Get TV show details — returns season list with episode counts.
+ */
+export async function getTvShow(
+  apiKey: string,
+  tvId: number,
+): Promise<TMDBTvShow> {
+  return tmdbFetch<TMDBTvShow>(apiKey, `/tv/${tvId}`);
+}
+
+/**
+ * Get all episodes for a specific season.
+ */
+export async function getTvSeason(
+  apiKey: string,
+  tvId: number,
+  seasonNumber: number,
+): Promise<TMDBTvSeason> {
+  return tmdbFetch<TMDBTvSeason>(apiKey, `/tv/${tvId}/season/${seasonNumber}`);
+}
+
+/**
+ * Convert a TVDB ID to a TMDB ID using the find endpoint.
+ * Returns null if no match found.
+ */
+export async function findByTvdbId(
+  apiKey: string,
+  tvdbId: string,
+): Promise<number | null> {
+  const data = await tmdbFetch<TMDBFindResponse>(
+    apiKey,
+    `/find/${tvdbId}?external_source=tvdb_id`,
+  );
+  return data.tv_results.length > 0 ? data.tv_results[0].id : null;
 }

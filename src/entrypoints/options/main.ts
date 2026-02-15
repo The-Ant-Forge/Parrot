@@ -6,6 +6,7 @@ import type {
   BuildIndexResponse,
   StatusResponse,
   ValidateTmdbKeyResponse,
+  ValidateTvdbKeyResponse,
   OptionsResponse,
   ClearCacheResponse,
 } from "../../common/types";
@@ -27,6 +28,11 @@ const lastSyncEl = $<HTMLSpanElement>("lastSync");
 const tmdbApiKeyInput = $<HTMLInputElement>("tmdbApiKey");
 const validateTmdbBtn = $<HTMLButtonElement>("validateTmdbBtn");
 const tmdbFeedback = $<HTMLDivElement>("tmdbFeedback");
+
+// --- TVDB elements ---
+const tvdbApiKeyInput = $<HTMLInputElement>("tvdbApiKey");
+const validateTvdbBtn = $<HTMLButtonElement>("validateTvdbBtn");
+const tvdbFeedback = $<HTMLDivElement>("tvdbFeedback");
 
 // --- Options elements ---
 const excludeFutureInput = $<HTMLInputElement>("excludeFuture");
@@ -185,11 +191,38 @@ validateTmdbBtn.addEventListener("click", async () => {
   }
 });
 
+// --- TVDB handlers ---
+
+validateTvdbBtn.addEventListener("click", async () => {
+  const apiKey = tvdbApiKeyInput.value.trim();
+  if (!apiKey) {
+    showFeedback(tvdbFeedback, "Enter a TVDB API key", "error");
+    return;
+  }
+
+  hideFeedback(tvdbFeedback);
+  setButtonLoading(validateTvdbBtn, true);
+
+  const result: ValidateTvdbKeyResponse = await browser.runtime.sendMessage({
+    type: "VALIDATE_TVDB_KEY",
+    apiKey,
+  });
+
+  setButtonLoading(validateTvdbBtn, false);
+
+  if (result.valid) {
+    showFeedback(tvdbFeedback, "Valid", "success");
+  } else {
+    showFeedback(tvdbFeedback, result.error ?? "Invalid key", "error");
+  }
+});
+
 // --- Options handlers ---
 
 saveOptionsBtn.addEventListener("click", async () => {
   const options: ParrotOptions = {
     tmdbApiKey: tmdbApiKeyInput.value.trim(),
+    tvdbApiKey: tvdbApiKeyInput.value.trim(),
     excludeFuture: excludeFutureInput.checked,
     excludeSpecials: excludeSpecialsInput.checked,
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
@@ -262,6 +295,7 @@ clearCacheBtn.addEventListener("click", async () => {
   });
   const options = optionsResult.options;
   tmdbApiKeyInput.value = options.tmdbApiKey;
+  tvdbApiKeyInput.value = options.tvdbApiKey;
   excludeFutureInput.checked = options.excludeFuture;
   excludeSpecialsInput.checked = options.excludeSpecials;
   minCollectionSizeInput.value = String(options.minCollectionSize);

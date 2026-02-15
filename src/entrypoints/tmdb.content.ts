@@ -1,6 +1,7 @@
 import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
 import { removeCollectionPanel, injectCollectionPanel } from "../common/collection-panel";
-import type { CheckResponse, CollectionCheckResponse } from "../common/types";
+import { removeEpisodePanel, injectEpisodePanel } from "../common/episode-panel";
+import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse } from "../common/types";
 
 function extractFromUrl(url: string) {
   const match = url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
@@ -14,6 +15,7 @@ function extractFromUrl(url: string) {
 async function checkAndBadge() {
   removeBadge();
   removeCollectionPanel();
+  removeEpisodePanel();
 
   const info = extractFromUrl(location.href);
   console.log("Parrot TMDB: extracted", info, "from", location.href);
@@ -42,9 +44,11 @@ async function checkAndBadge() {
     console.log("Parrot TMDB: response", response);
     updateBadgeFromResponse(badge, response);
 
-    // Check for collection gaps (movies only)
+    // Check for collection gaps (movies) or episode gaps (TV shows)
     if (info.mediaType === "movie") {
       checkCollection(info.id, anchor);
+    } else if (info.mediaType === "show" && response.owned) {
+      checkEpisodes(info.id, anchor);
     }
   } catch (err) {
     console.error("Parrot TMDB: error", err);
@@ -67,6 +71,25 @@ async function checkCollection(tmdbMovieId: string, anchor: Element) {
     }
   } catch (err) {
     console.error("Parrot TMDB: collection check failed", err);
+  }
+}
+
+async function checkEpisodes(tmdbId: string, anchor: Element) {
+  try {
+    const response: EpisodeGapResponse = await browser.runtime.sendMessage({
+      type: "CHECK_EPISODES",
+      source: "tmdb",
+      id: tmdbId,
+    });
+
+    if (response.hasGaps && response.gaps) {
+      console.log(
+        `Parrot TMDB: ${response.gaps.totalOwned}/${response.gaps.totalEpisodes} episodes, ${response.gaps.completeSeasons}/${response.gaps.totalSeasons} seasons complete`,
+      );
+      injectEpisodePanel(anchor, response.gaps);
+    }
+  } catch (err) {
+    console.error("Parrot TMDB: episode check failed", err);
   }
 }
 

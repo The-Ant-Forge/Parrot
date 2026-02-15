@@ -1,5 +1,6 @@
 import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
-import type { CheckResponse } from "../common/types";
+import { removeEpisodePanel, injectEpisodePanel } from "../common/episode-panel";
+import type { CheckResponse, EpisodeGapResponse } from "../common/types";
 
 function extractTvdbId(): string | null {
   // TVDB numeric ID is not in the URL slug — find it in page links
@@ -24,6 +25,7 @@ function extractTvdbId(): string | null {
 
 async function checkAndBadge() {
   removeBadge();
+  removeEpisodePanel();
 
   const tvdbId = extractTvdbId();
   if (!tvdbId) return;
@@ -41,8 +43,32 @@ async function checkAndBadge() {
       id: tvdbId,
     });
     updateBadgeFromResponse(badge, response);
+
+    // Check episode gaps if owned
+    if (response.owned) {
+      checkEpisodes(tvdbId, anchor);
+    }
   } catch {
     removeBadge();
+  }
+}
+
+async function checkEpisodes(tvdbId: string, anchor: Element) {
+  try {
+    const response: EpisodeGapResponse = await browser.runtime.sendMessage({
+      type: "CHECK_EPISODES",
+      source: "tvdb",
+      id: tvdbId,
+    });
+
+    if (response.hasGaps && response.gaps) {
+      console.log(
+        `Parrot TVDB: ${response.gaps.totalOwned}/${response.gaps.totalEpisodes} episodes, ${response.gaps.completeSeasons}/${response.gaps.totalSeasons} seasons complete`,
+      );
+      injectEpisodePanel(anchor, response.gaps);
+    }
+  } catch (err) {
+    console.error("Parrot TVDB: episode check failed", err);
   }
 }
 

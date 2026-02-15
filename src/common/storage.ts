@@ -1,4 +1,4 @@
-import type { PlexConfig, LibraryIndex, ParrotOptions } from "./types";
+import type { PlexConfig, LibraryIndex, ParrotOptions, EpisodeGapCacheEntry } from "./types";
 import { DEFAULT_OPTIONS } from "./types";
 import type { TMDBCollection } from "../api/tmdb";
 
@@ -6,8 +6,10 @@ const CONFIG_KEY = "plexConfig";
 const INDEX_KEY = "libraryIndex";
 const OPTIONS_KEY = "parrotOptions";
 const COLLECTION_CACHE_KEY = "tmdbCollections";
+const EPISODE_GAP_CACHE_KEY = "episodeGaps";
 
 const COLLECTION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const EPISODE_GAP_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CollectionCacheEntry {
   data: TMDBCollection;
@@ -58,4 +60,24 @@ export async function saveCachedCollection(collection: TMDBCollection): Promise<
   const cache = (result[COLLECTION_CACHE_KEY] as CollectionCache) ?? {};
   cache[String(collection.id)] = { data: collection, fetchedAt: Date.now() };
   await browser.storage.local.set({ [COLLECTION_CACHE_KEY]: cache });
+}
+
+// --- Episode gap cache ---
+
+type EpisodeGapCache = Record<string, EpisodeGapCacheEntry>;
+
+export async function getCachedEpisodeGaps(cacheKey: string): Promise<EpisodeGapCacheEntry | null> {
+  const result = await browser.storage.local.get(EPISODE_GAP_CACHE_KEY);
+  const cache = (result[EPISODE_GAP_CACHE_KEY] as EpisodeGapCache) ?? {};
+  const entry = cache[cacheKey];
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > EPISODE_GAP_TTL_MS) return null;
+  return entry;
+}
+
+export async function saveCachedEpisodeGaps(entry: EpisodeGapCacheEntry): Promise<void> {
+  const result = await browser.storage.local.get(EPISODE_GAP_CACHE_KEY);
+  const cache = (result[EPISODE_GAP_CACHE_KEY] as EpisodeGapCache) ?? {};
+  cache[entry.cacheKey] = entry;
+  await browser.storage.local.set({ [EPISODE_GAP_CACHE_KEY]: cache });
 }
