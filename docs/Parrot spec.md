@@ -2,7 +2,7 @@
 
 ## Overview
 
-Parrot is a browser extension that tells you whether media you're browsing on the web is already in your Plex library. When you land on a movie or TV show page on TMDB, TVDB, or IMDb, Parrot lights up to show "You own this" or stays quiet if you don't.
+Parrot is a browser extension that tells you whether media you're browsing on the web is already in your Plex library. When you land on a movie or TV show page on a supported site, Parrot shows a badge indicating whether you own it or not.
 
 **Companion to ComPlexionist** — ComPlexionist finds gaps in your library; Parrot prevents you from hunting for something you already have.
 
@@ -19,26 +19,39 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 
 ## Supported Sites
 
-| Site | URL Pattern | ID Source |
-|------|-------------|-----------|
-| **TMDB** | `themoviedb.org/movie/{id}` | TMDB numeric ID from URL |
-| **TMDB** | `themoviedb.org/tv/{id}` | TMDB numeric ID from URL |
-| **TVDB** | `thetvdb.com/series/{slug}` | TVDB ID from page metadata |
-| **IMDb** | `imdb.com/title/{ttID}` | IMDb ID (`tt\d+`) from URL |
+| Site | URL Pattern | ID Source | Badge Target |
+|------|-------------|-----------|--------------|
+| **TMDB** | `themoviedb.org/movie/{id}` | TMDB numeric ID from URL | Title heading |
+| **TMDB** | `themoviedb.org/tv/{id}` | TMDB numeric ID from URL | Title heading |
+| **TVDB** | `thetvdb.com/series/{slug}` | TVDB numeric ID from page links | `h1` |
+| **IMDb** | `imdb.com/title/{ttID}` | IMDb ID (`tt\d+`) from URL | Hero title block |
+| **NZBGeek** | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb from page links | `span.overlay_title` |
+| **NZBGeek** | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB from page links | `span.overlay_title` |
+| **RARGB** | `rargb.to/torrent/*` | TMDB/IMDb/TVDB from page links | `h1` |
+| **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links | `h2.topic-title` + `h3.first` |
 
-### ID Extraction Patterns
+### ID Extraction Strategies
 
+**URL-based** (TMDB, IMDb): ID is extracted directly from the page URL.
 ```javascript
-// TMDB: https://www.themoviedb.org/movie/550-fight-club
-const tmdbMatch = url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
-// tmdbMatch[1] = "movie" or "tv", tmdbMatch[2] = "550"
+// TMDB: https://www.themoviedb.org/movie/550-the-sparring-partner
+url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 
 // IMDb: https://www.imdb.com/title/tt0137523/
-const imdbMatch = url.match(/imdb\.com\/title\/(tt\d+)/);
-// imdbMatch[1] = "tt0137523"
-
-// TVDB: ID embedded in page meta tags or API links in DOM
+url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
+
+**Link-scanning** (NZBGeek, RARGB, NZBForYou): The page contains links to external databases (TMDB, IMDb, TVDB). Parrot scans all `<a>` elements for matching hrefs.
+
+**DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page, not the URL slug.
+
+### Media Type Detection
+
+- **TMDB**: URL path (`/movie/` vs `/tv/`) determines type
+- **IMDb**: URL doesn't distinguish — Parrot checks both movie and show indexes
+- **NZBGeek**: URL parameter (`movieid` vs `tvid`) determines type
+- **RARGB**: Inferred from which external link is found (TVDB = show, TMDB path tells us)
+- **NZBForYou**: Breadcrumb (`li.breadcrumb`) text containing "TV" or "Movies"
 
 ---
 
@@ -46,28 +59,29 @@ const imdbMatch = url.match(/imdb\.com\/title\/(tt\d+)/);
 
 ```
 parrot/
-├── manifest.json          # Extension manifest (Manifest V3)
 ├── src/
-│   ├── background/
-│   │   └── service-worker.ts   # Library cache, Plex API proxy
-│   ├── content/
-│   │   ├── tmdb.ts             # TMDB page content script
-│   │   ├── tvdb.ts             # TVDB page content script
-│   │   └── imdb.ts             # IMDb page content script
-│   ├── popup/
-│   │   ├── popup.html          # Settings/status popup
-│   │   └── popup.ts            # Popup logic
+│   ├── entrypoints/
+│   │   ├── background.ts              # Library cache, Plex API proxy, icon rendering
+│   │   ├── tmdb.content.ts            # TMDB content script
+│   │   ├── imdb.content.ts            # IMDb content script
+│   │   ├── tvdb.content.ts            # TVDB content script
+│   │   ├── nzbgeek.content.ts         # NZBGeek content script
+│   │   ├── rargb.content.ts           # RARGB content script
+│   │   ├── nzbforyou.content.ts       # NZBForYou content script
+│   │   └── popup/
+│   │       ├── index.html             # Settings/status UI
+│   │       ├── main.ts                # Popup logic
+│   │       └── style.css              # Popup styles
 │   ├── api/
-│   │   └── plex.ts             # Plex API client
+│   │   └── plex.ts                    # Plex API client
 │   └── common/
-│       ├── types.ts            # Shared types
-│       └── storage.ts          # Storage helpers
-├── assets/
-│   ├── icon-16.png
-│   ├── icon-48.png
-│   └── icon-128.png
-├── tests/
-│   └── ...
+│       ├── types.ts                   # Shared types
+│       ├── storage.ts                 # Storage helpers
+│       └── badge.ts                   # Page badge component
+├── scripts/
+│   ├── bump-build.js                  # Auto-increment build number (B)
+│   └── bump-commit.js                 # Bump commit number (A), reset B
+├── wxt.config.ts                      # WXT/Vite config (manifest auto-generated)
 ├── package.json
 ├── tsconfig.json
 └── CLAUDE.md
@@ -82,10 +96,11 @@ parrot/
 - Refreshes the library index on a configurable interval
 
 **Content Scripts**
-- One per supported site
-- Extracts media ID from URL/DOM on page load
+- One per supported site (7 scripts total)
+- Extracts media ID from URL or by scanning page links
 - Sends ID to service worker for lookup
 - Injects ownership badge into the page
+- SPA-aware: uses MutationObserver on TMDB for client-side navigation
 
 **Popup**
 - Configuration UI (Plex URL, token)
@@ -117,12 +132,10 @@ Base URL: http://{server}:{port}  (default port 32400)
 GET /library/sections
 → Returns all libraries (type: "movie", "show", etc.)
 
-GET /library/sections/{sectionId}/all
-→ Returns all items in a library with metadata
+GET /library/sections/{sectionId}/all?includeGuids=1
+→ Returns all items in a library with external GUIDs
 → Request Accept: application/json for JSON response
-
-GET /library/sections/{sectionId}/all?X-Plex-Token={token}&type=1
-→ Movies (type=1), Shows (type=2)
+→ IMPORTANT: includeGuids=1 is required to get external IDs
 ```
 
 ### External ID System (GUIDs)
@@ -175,13 +188,13 @@ On first setup (and periodic refresh), Parrot fetches all items from each Plex l
 ```typescript
 interface LibraryIndex {
   movies: {
-    byTmdbId: Map<number, OwnedItem>;
-    byImdbId: Map<string, OwnedItem>;
+    byTmdbId: Record<string, OwnedItem>;
+    byImdbId: Record<string, OwnedItem>;
   };
   shows: {
-    byTvdbId: Map<number, OwnedItem>;
-    byTmdbId: Map<number, OwnedItem>;
-    byImdbId: Map<string, OwnedItem>;
+    byTvdbId: Record<string, OwnedItem>;
+    byTmdbId: Record<string, OwnedItem>;
+    byImdbId: Record<string, OwnedItem>;
   };
   lastRefresh: number;  // timestamp
   itemCount: number;
@@ -193,6 +206,8 @@ interface OwnedItem {
   plexKey: string;  // ratingKey for deep linking
 }
 ```
+
+Note: Uses `Record<string, OwnedItem>` instead of `Map` because `browser.storage` only stores JSON-serializable data.
 
 ### Refresh Policy
 
@@ -224,66 +239,48 @@ interface OwnedItem {
 7. Content script injects badge into page
 ```
 
-### Badge Design
+### Page Badge
 
-- **Owned:** Green badge — "In your Plex library"
-- **Not owned:** No badge (silent by default) or subtle grey badge if user enables "show missing" mode
-- **Loading:** Spinner while checking
-- **Error:** Red badge with tooltip (connection failed, etc.)
+A compact pill badge injected next to the title element on each supported page:
 
-Badge placement per site:
-- **TMDB:** Next to the movie/show title
-- **IMDb:** Next to the title in the hero section
-- **TVDB:** Next to the series title
+- **Owned:** Dark pill (`#282828`), gold Plex chevron icon, white "Plex" text, gold border
+- **Not owned:** Dark pill (`#3a3a3a`), gray Plex chevron icon, gray "Plex" text, gray border
+- **Error:** Red pill with "!" text
+
+The badge always shows on qualifying pages so users can confirm the extension is active. The Plex chevron is rendered as inline SVG extracted from the official logo.
+
+### Toolbar Icon
+
+The extension toolbar icon is a rounded "P" drawn dynamically via OffscreenCanvas:
+
+- **Owned:** Black background, gold border, white P
+- **Not owned:** Dark gray background, gray border, gray P
+- **Inactive:** Light gray background, gray border, dark gray P (default state)
+
+Icon state is set per-tab based on CHECK results.
 
 ---
 
 ## Manifest V3
 
-```json
-{
-  "manifest_version": 3,
-  "name": "Parrot",
-  "description": "See if media you're browsing is already in your Plex library",
-  "version": "1.0.0",
-  "permissions": [
-    "storage"
-  ],
-  "host_permissions": [
-    "http://*/library/*",
-    "https://*/library/*"
-  ],
-  "background": {
-    "service_worker": "src/background/service-worker.js",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://*.themoviedb.org/movie/*",
-        "*://*.themoviedb.org/tv/*"
-      ],
-      "js": ["src/content/tmdb.js"]
-    },
-    {
-      "matches": ["*://*.imdb.com/title/*"],
-      "js": ["src/content/imdb.js"]
-    },
-    {
-      "matches": ["*://*.thetvdb.com/series/*"],
-      "js": ["src/content/tvdb.js"]
-    }
-  ],
-  "action": {
-    "default_popup": "src/popup/popup.html",
-    "default_icon": {
-      "16": "assets/icon-16.png",
-      "48": "assets/icon-48.png",
-      "128": "assets/icon-128.png"
-    }
-  }
-}
-```
+The manifest is auto-generated by WXT from `wxt.config.ts` and the entrypoints directory structure. Key permissions:
+
+- `storage` — for `browser.storage.sync` (config) and `browser.storage.local` (library index)
+- `host_permissions: ["http://*/library/*", "https://*/library/*"]` — for Plex API access
+
+Content script URL matches are defined in each `*.content.ts` file via `defineContentScript()`.
+
+### Versioning
+
+Version format: `Major.A.B` (e.g. `1.3.12`)
+
+| Segment | Meaning | How it changes |
+|---------|---------|----------------|
+| Major | Major version | Manual edit in `package.json` |
+| A | Commit number | `npm run version:commit` (resets B to 0) |
+| B | Build number | Auto-incremented on every `npm run build` |
+
+Single source of truth is `package.json`; `wxt.config.ts` reads from it.
 
 ---
 
@@ -302,7 +299,7 @@ Badge placement per site:
 ## Tech Stack
 
 - **Language:** TypeScript
-- **Build:** Vite with CRXJS or WXT (browser extension framework)
+- **Build:** WXT (Vite-based browser extension framework)
 - **Testing:** Vitest
 - **Linting:** ESLint + Prettier
 - **Target browsers:** Chrome (primary), Firefox (secondary)
@@ -313,7 +310,7 @@ Badge placement per site:
 
 - Deep link badge to open the item directly in Plex Web
 - Show which episodes you have for a TV show page
-- Support for Letterboxd, Trakt, JustWatch
+- Support for additional sites (Letterboxd, Trakt, JustWatch)
 - Configurable badge styles/positions
 - Multi-server support
 - Integration with ComPlexionist's ignore lists

@@ -2,14 +2,13 @@ import type { CheckResponse } from "./types";
 
 const BADGE_ATTR = "data-parrot-badge";
 
-type BadgeStatus = "loading" | "owned" | "not-owned" | "error";
+type BadgeStatus = "owned" | "not-owned" | "error";
 
 // Plex chevron icon as inline SVG (extracted from official logo)
 const PLEX_ICON_SVG = (fill: string) =>
   `<svg viewBox="100 10 35 48" width="14" height="14" style="vertical-align:middle;flex-shrink:0"><polygon points="117.9,33.9 104.1,13.5 118.3,13.5 132,33.9 118.3,54.2 104.1,54.2" fill="${fill}"/></svg>`;
 
 const STYLES: Record<BadgeStatus, { bg: string; color: string; border: string; icon: string }> = {
-  loading: { bg: "#e0e0e0", color: "#666", border: "#ccc", icon: "#999" },
   owned: { bg: "#282828", color: "#fff", border: "#ebaf00", icon: "#ebaf00" },
   "not-owned": { bg: "#3a3a3a", color: "#888", border: "#555", icon: "#888" },
   error: { bg: "#f44336", color: "#fff", border: "#d32f2f", icon: "#fff" },
@@ -38,22 +37,18 @@ function applyStyles(el: HTMLElement, status: BadgeStatus) {
 
 function setBadgeContent(badge: HTMLSpanElement, status: BadgeStatus) {
   const s = STYLES[status];
-  if (status === "owned" || status === "not-owned") {
-    badge.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
-  } else if (status === "loading") {
-    badge.innerHTML = "";
-    badge.textContent = "...";
-  } else if (status === "error") {
+  if (status === "error") {
     badge.innerHTML = "";
     badge.textContent = "!";
+  } else {
+    badge.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
 }
 
 export function createBadge(): HTMLSpanElement {
   const badge = document.createElement("span");
   badge.setAttribute(BADGE_ATTR, "true");
-  setBadgeContent(badge, "loading");
-  applyStyles(badge, "loading");
+  badge.style.display = "none";
   return badge;
 }
 
