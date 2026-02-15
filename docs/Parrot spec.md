@@ -29,6 +29,8 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **NZBGeek** | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB from page links | `span.overlay_title` |
 | **RARGB** | `rargb.to/torrent/*` | TMDB/IMDb/TVDB from page links | `h1` |
 | **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links | `h2.topic-title` + `h3.first` |
+| **PSA** | `psa.wf/movie/{slug}` | Title-based matching from URL slug | `h1.post-title` |
+| **PSA** | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug | `h1.post-title` |
 
 ### ID Extraction Strategies
 
@@ -45,6 +47,8 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page, not the URL slug.
 
+**Title-based** (PSA): No external IDs exist on the page. Parrot parses the URL slug into a normalized title and optional year, then matches against a title-based index built from Plex library data. The slug `some-movie-2025` becomes key `"some movie|2025"`. A fallback lookup without the year handles cases where the slug omits it.
+
 ### Media Type Detection
 
 - **TMDB**: URL path (`/movie/` vs `/tv/`) determines type
@@ -52,6 +56,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **NZBGeek**: URL parameter (`movieid` vs `tvid`) determines type
 - **RARGB**: Inferred from which external link is found (TVDB = show, TMDB path tells us)
 - **NZBForYou**: Breadcrumb (`li.breadcrumb`) text containing "TV" or "Movies"
+- **PSA**: URL path (`/movie/` vs `/tv-show/`) determines type
 
 ---
 
@@ -68,6 +73,7 @@ parrot/
 │   │   ├── nzbgeek.content.ts         # NZBGeek content script
 │   │   ├── rargb.content.ts           # RARGB content script
 │   │   ├── nzbforyou.content.ts       # NZBForYou content script
+│   │   ├── psa.content.ts            # PSA content script (title-based)
 │   │   └── popup/
 │   │       ├── index.html             # Settings/status UI
 │   │       ├── main.ts                # Popup logic
@@ -77,7 +83,8 @@ parrot/
 │   └── common/
 │       ├── types.ts                   # Shared types
 │       ├── storage.ts                 # Storage helpers
-│       └── badge.ts                   # Page badge component
+│       ├── badge.ts                   # Page badge component
+│       └── normalize.ts              # Title normalization for slug-based matching
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -96,7 +103,7 @@ parrot/
 - Refreshes the library index on a configurable interval
 
 **Content Scripts**
-- One per supported site (7 scripts total)
+- One per supported site (8 scripts total)
 - Extracts media ID from URL or by scanning page links
 - Sends ID to service worker for lookup
 - Injects ownership badge into the page
@@ -190,11 +197,13 @@ interface LibraryIndex {
   movies: {
     byTmdbId: Record<string, OwnedItem>;
     byImdbId: Record<string, OwnedItem>;
+    byTitle: Record<string, OwnedItem>;
   };
   shows: {
     byTvdbId: Record<string, OwnedItem>;
     byTmdbId: Record<string, OwnedItem>;
     byImdbId: Record<string, OwnedItem>;
+    byTitle: Record<string, OwnedItem>;
   };
   lastRefresh: number;  // timestamp
   itemCount: number;
@@ -308,7 +317,6 @@ Single source of truth is `package.json`; `wxt.config.ts` reads from it.
 
 ## Future Ideas
 
-- Deep link badge to open the item directly in Plex Web
 - Show which episodes you have for a TV show page
 - Support for additional sites (Letterboxd, Trakt, JustWatch)
 - Configurable badge styles/positions

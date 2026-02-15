@@ -97,8 +97,8 @@ src/
 ### Library Index
 
 On setup, Parrot fetches all items from Plex and builds ID lookup maps:
-- `movies.byTmdbId`, `movies.byImdbId`
-- `shows.byTvdbId`, `shows.byTmdbId`, `shows.byImdbId`
+- `movies.byTmdbId`, `movies.byImdbId`, `movies.byTitle`
+- `shows.byTvdbId`, `shows.byTmdbId`, `shows.byImdbId`, `shows.byTitle`
 
 Stored in `browser.storage.local`. Refreshed every 24 hours or on manual trigger.
 
@@ -162,6 +162,9 @@ Version format: `Major.A.B` (e.g. `1.3.12`)
 ### Planning sessions → write a spec
 Whenever we do a planning session (plan mode), always write the finalised specification into `docs/` as a named document. This ensures we have a durable reference if context is lost or the session is interrupted.
 
+### Update docs before committing
+Before committing, check if `docs/Parrot spec.md` and `CLAUDE.md` need updating to reflect the changes (new sites, new features, architectural changes, etc.).
+
 ### Compile/test locally after changes
 1. Make a small, targeted change
 2. Run tests/linting after each change
@@ -201,3 +204,5 @@ Never use real movie or tv show names. Always make up example ones.
 | NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
 | RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
 | NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), breadcrumb for media type |
+| PSA | `psa.wf/movie/{slug}` | Title-based matching from URL slug |
+| PSA | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug |
