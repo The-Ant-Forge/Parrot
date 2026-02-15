@@ -163,7 +163,7 @@ Version format: `Major.A.B` (e.g. `1.3.12`)
 Whenever we do a planning session (plan mode), always write the finalised specification into `docs/` as a named document. This ensures we have a durable reference if context is lost or the session is interrupted.
 
 ### Update docs before committing
-Before committing, check if `docs/Parrot spec.md` and `CLAUDE.md` need updating to reflect the changes (new sites, new features, architectural changes, etc.).
+Before committing, check if `docs/Parrot spec.md`, `README.md` and `CLAUDE.md` need updating to reflect the changes (new sites, new features, architectural changes, etc.) and check whether a `docs/TODO.md` can be checked. If an entire TODO section is completed then move the section to Completed.md in the same folder.
 
 ### Compile/test locally after changes
 1. Make a small, targeted change
@@ -172,6 +172,7 @@ Before committing, check if `docs/Parrot spec.md` and `CLAUDE.md` need updating 
 
 ### Documentation or commentary
 Never use real movie or tv show names. Always make up example ones.
+
 ---
 
 ## Storage
