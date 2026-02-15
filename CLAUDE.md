@@ -137,6 +137,20 @@ npm run lint
 3. Click "Load unpacked"
 4. Select `.output/chrome-mv3/` folder
 
+### Versioning
+
+Version format: `Major.A.B` (e.g. `1.3.12`)
+
+| Segment | Meaning | How it changes |
+|---------|---------|----------------|
+| Major | Major version | Manual edit in `package.json` |
+| A | Commit number | `npm run version:commit` (resets B to 0) |
+| B | Build number | Auto-incremented on every `npm run build` via prebuild script |
+
+- **Single source of truth:** `package.json` → `wxt.config.ts` reads from it
+- **Scripts:** `scripts/bump-build.js` (B++), `scripts/bump-commit.js` (A++, B=0)
+- All segments can be manually edited in `package.json` if needed
+
 ---
 
 ## Working style
@@ -185,3 +199,5 @@ Never use real movie or tv show names. Always make up example ones.
 | TVDB | `thetvdb.com/series/{slug}` | TVDB numeric (from DOM) |
 | NZBGeek | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb (from page links) |
 | NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
+| RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
+| NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), breadcrumb for media type |

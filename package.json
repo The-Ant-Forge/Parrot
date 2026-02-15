@@ -1,14 +1,16 @@
 {
   "name": "parrot",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Browser extension that checks if media you're browsing is already in your Plex library",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt --browser firefox",
+    "prebuild": "node scripts/bump-build.js",
     "build": "wxt build",
     "build:firefox": "wxt build --browser firefox",
+    "version:commit": "node scripts/bump-commit.js",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip --browser firefox",
     "test": "vitest run",

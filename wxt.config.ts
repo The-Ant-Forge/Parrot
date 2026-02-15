@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import pkg from "./package.json";
 
 export default defineConfig({
   srcDir: "src",
@@ -7,7 +8,7 @@ export default defineConfig({
     name: "Parrot",
     description:
       "See if media you're browsing is already in your Plex library",
-    version: "1.0.0",
+    version: pkg.version,
     permissions: ["storage"],
     host_permissions: ["http://*/library/*", "https://*/library/*"],
   },
