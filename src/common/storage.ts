@@ -1,4 +1,4 @@
-import type { PlexConfig, LibraryIndex, ParrotOptions, EpisodeGapCacheEntry } from "./types";
+import type { PlexConfig, LibraryIndex, ParrotOptions, EpisodeGapCacheEntry, SiteDefinition } from "./types";
 import { DEFAULT_OPTIONS } from "./types";
 import type { TMDBCollection } from "../api/tmdb";
 
@@ -80,4 +80,17 @@ export async function saveCachedEpisodeGaps(entry: EpisodeGapCacheEntry): Promis
   const cache = (result[EPISODE_GAP_CACHE_KEY] as EpisodeGapCache) ?? {};
   cache[entry.cacheKey] = entry;
   await browser.storage.local.set({ [EPISODE_GAP_CACHE_KEY]: cache });
+}
+
+// --- Custom sites ---
+
+const CUSTOM_SITES_KEY = "customSites";
+
+export async function getCustomSites(): Promise<SiteDefinition[]> {
+  const result = await browser.storage.sync.get(CUSTOM_SITES_KEY);
+  return (result[CUSTOM_SITES_KEY] as SiteDefinition[]) ?? [];
+}
+
+export async function saveCustomSites(sites: SiteDefinition[]): Promise<void> {
+  await browser.storage.sync.set({ [CUSTOM_SITES_KEY]: sites });
 }

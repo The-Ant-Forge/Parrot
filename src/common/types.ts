@@ -55,7 +55,7 @@ export interface ParrotOptions {
   excludeSpecials: boolean;
   minCollectionSize: number;
   minOwned: number;
-  expandPanels: boolean;
+  showCompletePanels: boolean;
 }
 
 export const DEFAULT_OPTIONS: ParrotOptions = {
@@ -65,7 +65,7 @@ export const DEFAULT_OPTIONS: ParrotOptions = {
   excludeSpecials: true,
   minCollectionSize: 2,
   minOwned: 2,
-  expandPanels: false,
+  showCompletePanels: false,
 };
 
 // --- Messages (popup/content scripts/options → background) ---
@@ -99,6 +99,8 @@ export interface StatusResponse {
   itemCount: number;
   movieCount: number;
   showCount: number;
+  tmdbConfigured: boolean;
+  tvdbConfigured: boolean;
 }
 
 export interface CheckResponse {
@@ -163,6 +165,9 @@ export interface TabMediaInfo {
   seasonCount?: number;
   episodeCount?: number;
   showStatus?: string;
+  collectionName?: string;
+  collectionOwned?: number;
+  collectionTotal?: number;
 }
 
 export interface TabMediaResponse {

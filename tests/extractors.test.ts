@@ -4,6 +4,9 @@ import {
   extractImdbId,
   extractPsaFromUrl,
   extractNzbgeekMediaType,
+  extractTraktMediaType,
+  extractJustWatchMediaType,
+  extractRtMediaType,
 } from "../src/common/extractors";
 
 describe("extractTmdbFromUrl", () => {
@@ -105,5 +108,47 @@ describe("extractNzbgeekMediaType", () => {
 
   it("returns null for empty search string", () => {
     expect(extractNzbgeekMediaType("")).toBeNull();
+  });
+});
+
+describe("extractTraktMediaType", () => {
+  it("returns movie for /movies/ path", () => {
+    expect(extractTraktMediaType("/movies/some-film-2024")).toBe("movie");
+  });
+
+  it("returns show for /shows/ path", () => {
+    expect(extractTraktMediaType("/shows/some-series")).toBe("show");
+  });
+
+  it("returns null for other paths", () => {
+    expect(extractTraktMediaType("/people/someone")).toBeNull();
+  });
+});
+
+describe("extractJustWatchMediaType", () => {
+  it("returns movie for /movie/ path", () => {
+    expect(extractJustWatchMediaType("/us/movie/some-film")).toBe("movie");
+  });
+
+  it("returns show for /tv-show/ path", () => {
+    expect(extractJustWatchMediaType("/us/tv-show/some-series")).toBe("show");
+  });
+
+  it("returns null for other paths", () => {
+    expect(extractJustWatchMediaType("/us/provider/netflix")).toBeNull();
+  });
+});
+
+describe("extractRtMediaType", () => {
+  it("returns movie for /m/ path", () => {
+    expect(extractRtMediaType("/m/some_film")).toBe("movie");
+  });
+
+  it("returns show for /tv/ path", () => {
+    expect(extractRtMediaType("/tv/some_series")).toBe("show");
+  });
+
+  it("returns null for other paths", () => {
+    expect(extractRtMediaType("/celebrity/someone")).toBeNull();
   });
 });

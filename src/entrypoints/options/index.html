@@ -113,8 +113,8 @@
           </div>
 
           <div class="toggle-row">
-            <label for="expandPanels">Auto-expand gap panels</label>
-            <input type="checkbox" id="expandPanels" />
+            <label for="showCompletePanels">Show complete collections/series</label>
+            <input type="checkbox" id="showCompletePanels" />
           </div>
 
           <button id="saveOptionsBtn" class="primary">Save Options</button>
@@ -130,10 +130,36 @@
                 <th>Site</th>
                 <th>Media Type</th>
                 <th>URL Pattern</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="sitesBody"></tbody>
           </table>
+
+          <div id="addSiteForm" class="add-site-form" hidden>
+            <div class="form-row">
+              <input type="text" id="newSiteName" placeholder="Site name" />
+              <select id="newSiteMediaType">
+                <option value="auto">auto</option>
+                <option value="movie">movie</option>
+                <option value="show">show</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <input type="text" id="newSiteUrl" placeholder="*://example.com/movie/*" spellcheck="false" />
+              <input type="text" id="newSiteSelector" placeholder="h1" spellcheck="false" />
+            </div>
+            <div class="button-row">
+              <button id="confirmAddSiteBtn" class="primary">Add</button>
+              <button id="cancelAddSiteBtn">Cancel</button>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="addSiteBtn">Add Site</button>
+            <button id="resetSitesBtn" class="danger">Reset Defaults</button>
+          </div>
+          <div id="sitesFeedback" class="feedback" hidden></div>
         </section>
 
         <!-- Cache Management -->

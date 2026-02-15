@@ -21,13 +21,14 @@ const setupFeedback = $<HTMLDivElement>("setupFeedback");
 // --- Dashboard elements ---
 const dashboardView = $<HTMLDivElement>("dashboardView");
 const settingsLink = $<HTMLAnchorElement>("settingsLink");
-const statusDot = $<HTMLSpanElement>("statusDot");
-const statusText = $<HTMLSpanElement>("statusText");
+const statusPills = $<HTMLDivElement>("statusPills");
 const librarySummary = $<HTMLSpanElement>("librarySummary");
 const mediaCard = $<HTMLDivElement>("mediaCard");
 const mediaPoster = $<HTMLImageElement>("mediaPoster");
 const mediaTitle = $<HTMLDivElement>("mediaTitle");
+const mediaTypeTag = $<HTMLSpanElement>("mediaTypeTag");
 const mediaSubtitle = $<HTMLDivElement>("mediaSubtitle");
+const mediaCollection = $<HTMLDivElement>("mediaCollection");
 const mediaIds = $<HTMLDivElement>("mediaIds");
 const refreshBtn = $<HTMLButtonElement>("refreshBtn");
 const footerInfo = $<HTMLSpanElement>("footerInfo");
@@ -177,14 +178,12 @@ async function initDashboard() {
     type: "GET_STATUS",
   });
 
-  // Connection status
-  if (status.configured && status.lastRefresh) {
-    statusDot.className = "dot connected";
-    statusText.textContent = "Connected";
-  } else {
-    statusDot.className = "dot offline";
-    statusText.textContent = "Offline";
-  }
+  // Service status pills
+  statusPills.innerHTML = "";
+  const plexActive = status.configured && !!status.lastRefresh;
+  addStatusPill("Plex", plexActive);
+  addStatusPill("TMDB", status.tmdbConfigured);
+  if (status.tvdbConfigured) addStatusPill("TVDB", true);
 
   // Library summary
   librarySummary.textContent = `${status.movieCount} Movies \u00B7 ${status.showCount} Shows`;
@@ -205,6 +204,24 @@ async function initDashboard() {
 
     if (response.media) {
       renderMediaCard(response.media);
+
+      // Retry once after 1s if metadata fetch hasn't completed yet (no poster)
+      if (!response.media.posterPath && activeTab.id) {
+        const retryTabId = activeTab.id;
+        setTimeout(async () => {
+          try {
+            const retry: TabMediaResponse = await browser.runtime.sendMessage({
+              type: "GET_TAB_MEDIA",
+              tabId: retryTabId,
+            });
+            if (retry.media?.posterPath) {
+              renderMediaCard(retry.media);
+            }
+          } catch {
+            // ignore retry failure
+          }
+        }, 1000);
+      }
     }
   } catch {
     // Not on a supported page — no media card
@@ -237,15 +254,29 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
     mediaSubtitle.textContent = media.owned ? "In Library" : "Not in Library";
   }
 
+  // Collection summary (movies only)
+  if (media.collectionName && media.collectionTotal) {
+    mediaCollection.hidden = false;
+    mediaCollection.innerHTML = "";
+    mediaCollection.appendChild(document.createTextNode(`${media.collectionName} \u2014 `));
+    const countSpan = document.createElement("span");
+    countSpan.className = "collection-count";
+    countSpan.textContent = `${media.collectionOwned ?? 0} of ${media.collectionTotal} owned`;
+    mediaCollection.appendChild(countSpan);
+  } else {
+    mediaCollection.hidden = true;
+  }
+
+  // Media type tag (title row, floated right)
+  if (media.owned) {
+    mediaTypeTag.textContent = media.mediaType === "movie" ? "Movie" : "Show";
+    mediaTypeTag.hidden = false;
+  } else {
+    mediaTypeTag.hidden = true;
+  }
+
   // Source ID tags
   mediaIds.innerHTML = "";
-
-  if (media.owned) {
-    const ownedTag = document.createElement("span");
-    ownedTag.className = "id-tag owned";
-    ownedTag.textContent = media.mediaType === "movie" ? "Movie" : "Show";
-    mediaIds.appendChild(ownedTag);
-  }
 
   if (media.plexUrl) {
     const plexLink = document.createElement("a");
@@ -257,16 +288,30 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
     mediaIds.appendChild(plexLink);
   }
 
-  if (media.tmdbId) addIdTag(`TMDB ${media.tmdbId}`);
-  if (media.imdbId) addIdTag(media.imdbId);
-  if (media.tvdbId) addIdTag(`TVDB ${media.tvdbId}`);
+  const tmdbPath = media.mediaType === "movie" ? "movie" : "tv";
+  if (media.tmdbId) addIdLink(`TMDB ${media.tmdbId}`, `https://www.themoviedb.org/${tmdbPath}/${media.tmdbId}`);
+  if (media.imdbId) addIdLink(`IMDb ${media.imdbId}`, `https://www.imdb.com/title/${media.imdbId}/`);
+  if (media.tvdbId) addIdLink(`TVDB ${media.tvdbId}`, `https://www.thetvdb.com/dereferrer/series/${media.tvdbId}`);
 }
 
-function addIdTag(text: string) {
-  const tag = document.createElement("span");
-  tag.className = "id-tag";
-  tag.textContent = text;
-  mediaIds.appendChild(tag);
+function addStatusPill(label: string, active: boolean) {
+  const pill = document.createElement("span");
+  pill.className = `status-pill${active ? " active" : ""}`;
+  const dot = document.createElement("span");
+  dot.className = "pill-dot";
+  pill.appendChild(dot);
+  pill.appendChild(document.createTextNode(label));
+  statusPills.appendChild(pill);
+}
+
+function addIdLink(text: string, url: string) {
+  const link = document.createElement("a");
+  link.className = "id-tag";
+  link.textContent = text;
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  mediaIds.appendChild(link);
 }
 
 // --- Init ---

@@ -58,7 +58,7 @@ async function checkAndBadge() {
         id: titleKey,
         anchor,
         response,
-        expandPanels: options.expandPanels,
+        showCompletePanels: options.showCompletePanels,
       });
     }
   } catch (err) {

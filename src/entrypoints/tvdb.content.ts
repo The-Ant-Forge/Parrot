@@ -55,7 +55,7 @@ async function checkAndBadge() {
         id: tvdbId,
         anchor,
         response,
-        expandPanels: options.expandPanels,
+        showCompletePanels: options.showCompletePanels,
       });
     }
   } catch {

@@ -46,7 +46,7 @@ async function checkAndBadge() {
       id: info.id,
       anchor,
       response,
-      expandPanels: options.expandPanels,
+      showCompletePanels: options.showCompletePanels,
     });
   } catch (err) {
     console.error("Parrot TMDB: error", err);

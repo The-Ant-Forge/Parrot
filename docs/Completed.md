@@ -203,3 +203,68 @@ UX polish, broader gap detection coverage, popup redesign, and expanded test sui
 - `tests/badge.test.ts` — 20 tests covering `createBadge`, `updateBadge`, `updateBadgeFromResponse`, `showErrorBadge`, `findExistingBadge`, `injectBadge`, `removeBadge`, `updateBadgeCompleteness`
 - `tests/plex-integration.test.ts` — 6 tests covering `buildLibraryIndex` with mocked fetch (mixed content, enrichment, title keys, section filtering, missing GUIDs, empty library)
 - Total: 70 tests across 5 test files
+
+---
+
+## Phase 11: Bride of QOL
+
+> Spec: [`Phase 11 - Bride of QOL.md`](Phase%2011%20-%20Bride%20of%20QOL.md)
+
+UX polish, dashboard enhancements, dark mode, custom sites, and 5 new content scripts.
+
+### Gap Panel — Show When Complete
+- Replaced `expandPanels` option with `showCompletePanels` (default false)
+- When enabled, collection and episode panels render even when fully owned
+- Background `CHECK_EPISODES` handler now always returns season data (not just when gaps exist)
+
+### Dashboard — IMDb Label & Media Type Tag
+- IMDb IDs now prefixed with "IMDb" for consistency with TMDB/TVDB labels
+- [Movie]/[Show] tag moved from ID pills row to title row (floated right via `.media-title-row` flexbox)
+
+### Dashboard — Clickable ID Pills
+- TMDB, IMDb, TVDB pills are now `<a>` links opening in new tabs
+- URLs: TMDB (`themoviedb.org/{movie|tv}/{id}`), IMDb (`imdb.com/title/{id}`), TVDB (`thetvdb.com/dereferrer/series/{id}`)
+
+### Dashboard — Per-Service Status Pills
+- Replaced single dot + "Connected"/"Offline" with per-service pills: Plex, TMDB, TVDB
+- Each pill shows green dot when active, gray when unconfigured
+- TVDB pill only shown when configured
+- Extended `StatusResponse` with `tmdbConfigured` and `tvdbConfigured`
+
+### Dashboard — Collection Summary for Movies
+- Movies belonging to a TMDB collection show summary below subtitle: "Collection Name — X of Y owned"
+- Extended `TabMediaInfo` with `collectionName`, `collectionOwned`, `collectionTotal`
+- `fetchTabMetadata` now fetches collection data for movies
+
+### Dashboard — Tab Persistence
+- Tab media cache persisted to `browser.storage.session` (survives service worker restarts)
+- Session storage capped at 20 entries to prevent unbounded growth
+- Cleanup on `tabs.onRemoved` removes from both in-memory Map and session storage
+
+### Dashboard — Sparse Info Bridging
+- Popup retries `GET_TAB_MEDIA` after 1 second when metadata (poster) hasn't loaded yet
+- Handles race condition where popup opens before async `fetchTabMetadata` completes
+
+### Options — Dark Mode
+- CSS custom properties for all colors with `@media (prefers-color-scheme: dark)` override
+- Dark values match popup theme (#1a1a1a bg, #eee text, #ebaf00 accent)
+- No JS needed — pure CSS, follows OS setting automatically
+
+### Options — Custom Sites
+- Storage helpers (`getCustomSites`, `saveCustomSites`) in `storage.ts`
+- Add Site form with name, media type, URL pattern, badge selector fields
+- Remove button on each custom site row
+- Reset Defaults button clears all custom sites
+- Custom sites stored in `browser.storage.sync`
+
+### New Content Scripts (5 sites)
+- **Letterboxd** (`letterboxd.com/film/*`) — movies, scans DOM links for TMDB/IMDb
+- **Trakt** (`trakt.tv/movies/*`, `trakt.tv/shows/*`) — SPA-aware with `observeUrlChanges`, scans DOM links
+- **Rotten Tomatoes** (`rottentomatoes.com/m/*`, `rottentomatoes.com/tv/*`) — checks JSON-LD structured data first, then DOM links
+- **JustWatch** (`justwatch.com/*/movie/*`, `justwatch.com/*/tv-show/*`) — SPA-aware, scans DOM links
+- **TVDB Movies** (`thetvdb.com/movies/*`) — scans DOM links for TMDB/IMDb IDs, complements existing TVDB series script
+
+### Test Suite Expansion
+- Added `extractTraktMediaType`, `extractJustWatchMediaType`, `extractRtMediaType` to shared extractors
+- 9 new tests for URL-based media type extraction (Trakt, JustWatch, Rotten Tomatoes)
+- Total: 79 tests across 5 test files

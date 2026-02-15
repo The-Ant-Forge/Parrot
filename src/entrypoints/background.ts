@@ -28,6 +28,57 @@ import type {
 let cachedIndex: LibraryIndex | null = null;
 const tabMediaCache = new Map<number, TabMediaInfo>();
 
+const SESSION_KEY = "tabMedia";
+const MAX_SESSION_ENTRIES = 20;
+
+async function persistTabMedia(tabId: number, info: TabMediaInfo) {
+  tabMediaCache.set(tabId, info);
+  try {
+    const stored: Record<string, TabMediaInfo> =
+      (await browser.storage.session.get(SESSION_KEY))[SESSION_KEY] ?? {};
+    stored[String(tabId)] = info;
+    // Limit entries
+    const keys = Object.keys(stored);
+    if (keys.length > MAX_SESSION_ENTRIES) {
+      for (const k of keys.slice(0, keys.length - MAX_SESSION_ENTRIES)) {
+        delete stored[k];
+      }
+    }
+    await browser.storage.session.set({ [SESSION_KEY]: stored });
+  } catch {
+    // session storage not available (e.g. Firefox MV2 fallback)
+  }
+}
+
+async function getTabMedia(tabId: number): Promise<TabMediaInfo | null> {
+  const cached = tabMediaCache.get(tabId);
+  if (cached) return cached;
+  try {
+    const stored: Record<string, TabMediaInfo> =
+      (await browser.storage.session.get(SESSION_KEY))[SESSION_KEY] ?? {};
+    const info = stored[String(tabId)];
+    if (info) {
+      tabMediaCache.set(tabId, info);
+      return info;
+    }
+  } catch {
+    // session storage not available
+  }
+  return null;
+}
+
+async function removeTabMedia(tabId: number) {
+  tabMediaCache.delete(tabId);
+  try {
+    const stored: Record<string, TabMediaInfo> =
+      (await browser.storage.session.get(SESSION_KEY))[SESSION_KEY] ?? {};
+    delete stored[String(tabId)];
+    await browser.storage.session.set({ [SESSION_KEY]: stored });
+  } catch {
+    // session storage not available
+  }
+}
+
 async function loadIndex(): Promise<LibraryIndex | null> {
   if (!cachedIndex) {
     cachedIndex = await getLibraryIndex();
@@ -173,6 +224,28 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       info.title = details.title;
       info.year = details.release_date ? parseInt(details.release_date.slice(0, 4)) : undefined;
       info.posterPath = details.poster_path;
+
+      // Collection summary
+      if (details.belongs_to_collection) {
+        try {
+          const collId = details.belongs_to_collection.id;
+          let collection = await getCachedCollection(collId);
+          if (!collection) {
+            collection = await getCollection(options.tmdbApiKey, collId);
+            await saveCachedCollection(collection);
+          }
+          const index = await loadIndex();
+          let ownedCount = 0;
+          for (const part of collection.parts) {
+            if (index?.movies.byTmdbId[String(part.id)]) ownedCount++;
+          }
+          info.collectionName = collection.name;
+          info.collectionOwned = ownedCount;
+          info.collectionTotal = collection.parts.length;
+        } catch (err) {
+          console.error("Parrot: collection summary fetch failed", err);
+        }
+      }
     } else {
       const details = await getTvShow(options.tmdbApiKey, tmdbId);
       info.title = details.name;
@@ -181,7 +254,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       info.episodeCount = details.number_of_episodes;
       info.showStatus = details.status;
     }
-    tabMediaCache.set(tabId, info);
+    persistTabMedia(tabId, info);
   } catch (err) {
     console.error("Parrot: metadata fetch failed", err);
   }
@@ -247,6 +320,7 @@ export default defineBackground(() => {
           case "GET_STATUS": {
             const config = await getConfig();
             const index = await loadIndex();
+            const statusOptions = await getOptions();
             // Count unique items by plexKey to avoid duplicates across maps
             let movieCount = 0;
             let showCount = 0;
@@ -270,6 +344,8 @@ export default defineBackground(() => {
               itemCount: index?.itemCount ?? 0,
               movieCount,
               showCount,
+              tmdbConfigured: !!statusOptions.tmdbApiKey,
+              tvdbConfigured: !!statusOptions.tvdbApiKey,
             } satisfies StatusResponse);
             break;
           }
@@ -304,7 +380,7 @@ export default defineBackground(() => {
                 title: result.item?.title,
                 year: result.item?.year,
               };
-              tabMediaCache.set(tabId, mediaInfo);
+              persistTabMedia(tabId, mediaInfo);
               // Fire-and-forget metadata fetch
               fetchTabMetadata(tabId, mediaInfo);
             }
@@ -367,17 +443,17 @@ export default defineBackground(() => {
           }
 
           case "GET_TAB_MEDIA": {
-            const media = tabMediaCache.get(message.tabId) ?? null;
+            const media = await getTabMedia(message.tabId);
             sendResponse({ media } satisfies TabMediaResponse);
             break;
           }
 
           case "GET_STORAGE_USAGE": {
             try {
-              const estimate = await navigator.storage.estimate();
+              const bytesUsed = await browser.storage.local.getBytesInUse(null);
               sendResponse({
-                bytesUsed: estimate.usage ?? 0,
-                quota: estimate.quota ?? null,
+                bytesUsed,
+                quota: (browser.storage.local as unknown as { QUOTA_BYTES?: number }).QUOTA_BYTES ?? 10_485_760,
               } satisfies StorageUsageResponse);
             } catch {
               // Fallback: estimate from index size
@@ -586,13 +662,8 @@ export default defineBackground(() => {
                 `Parrot EPISODES: ${showTitle} — ${totalOwned}/${totalEpisodes} episodes, ${completeSeasons}/${seasonGaps.length} seasons complete`,
               );
 
-              if (!hasAnyGaps) {
-                sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
-                break;
-              }
-
               sendResponse({
-                hasGaps: true,
+                hasGaps: hasAnyGaps,
                 gaps: {
                   showTitle,
                   totalOwned,
@@ -724,6 +795,6 @@ export default defineBackground(() => {
 
   // Clean up stale tab media cache entries
   browser.tabs.onRemoved.addListener((tabId) => {
-    tabMediaCache.delete(tabId);
+    removeTabMedia(tabId);
   });
 });

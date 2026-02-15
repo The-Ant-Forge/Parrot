@@ -144,19 +144,36 @@ button.primary:hover:not(:disabled) {
   margin-bottom: 10px;
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.status-pills {
+  display: flex;
+  gap: 4px;
 }
 
-.dot.connected {
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #333;
+  color: #888;
+}
+
+.status-pill .pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.status-pill.active .pill-dot {
   background: #4caf50;
 }
 
-.dot.offline {
-  background: #888;
+.status-pill.active {
+  color: #ccc;
 }
 
 .spacer {
@@ -199,6 +216,12 @@ button.primary:hover:not(:disabled) {
   gap: 3px;
 }
 
+.media-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .media-title {
   font-size: 14px;
   font-weight: 600;
@@ -206,11 +229,36 @@ button.primary:hover:not(:disabled) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.media-type-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #ebaf00;
+  color: #ebaf00;
+  background: transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .media-subtitle {
   font-size: 11px;
   color: #999;
+}
+
+.media-collection {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 1px;
+}
+
+.media-collection .collection-count {
+  color: #ebaf00;
+  font-weight: 600;
 }
 
 .media-ids {
@@ -238,10 +286,13 @@ button.primary:hover:not(:disabled) {
   cursor: pointer;
 }
 
-.id-tag.owned {
-  border: 1px solid #ebaf00;
-  color: #ebaf00;
-  background: transparent;
+a.id-tag {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.id-tag:hover {
+  background: #444;
 }
 
 /* --- Footer --- */

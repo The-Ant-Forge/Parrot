@@ -1,4 +1,4 @@
-import { getConfig, saveConfig } from "../../common/storage";
+import { getConfig, saveConfig, getCustomSites, saveCustomSites } from "../../common/storage";
 import { DEFAULT_SITES } from "../../common/sites";
 import type {
   PlexConfig,
@@ -41,12 +41,22 @@ const excludeFutureInput = $<HTMLInputElement>("excludeFuture");
 const excludeSpecialsInput = $<HTMLInputElement>("excludeSpecials");
 const minCollectionSizeInput = $<HTMLInputElement>("minCollectionSize");
 const minOwnedInput = $<HTMLInputElement>("minOwned");
-const expandPanelsInput = $<HTMLInputElement>("expandPanels");
+const showCompletePanelsInput = $<HTMLInputElement>("showCompletePanels");
 const saveOptionsBtn = $<HTMLButtonElement>("saveOptionsBtn");
 const optionsFeedback = $<HTMLDivElement>("optionsFeedback");
 
 // --- Sites elements ---
 const sitesBody = $<HTMLTableSectionElement>("sitesBody");
+const addSiteBtn = $<HTMLButtonElement>("addSiteBtn");
+const resetSitesBtn = $<HTMLButtonElement>("resetSitesBtn");
+const addSiteForm = $<HTMLDivElement>("addSiteForm");
+const newSiteNameInput = $<HTMLInputElement>("newSiteName");
+const newSiteMediaTypeSelect = $<HTMLSelectElement>("newSiteMediaType");
+const newSiteUrlInput = $<HTMLInputElement>("newSiteUrl");
+const newSiteSelectorInput = $<HTMLInputElement>("newSiteSelector");
+const confirmAddSiteBtn = $<HTMLButtonElement>("confirmAddSiteBtn");
+const cancelAddSiteBtn = $<HTMLButtonElement>("cancelAddSiteBtn");
+const sitesFeedback = $<HTMLDivElement>("sitesFeedback");
 
 // --- Cache elements ---
 const cacheItemCountEl = $<HTMLSpanElement>("cacheItemCount");
@@ -66,7 +76,7 @@ function gatherOptions(): ParrotOptions {
     excludeSpecials: excludeSpecialsInput.checked,
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
     minOwned: Math.max(1, parseInt(minOwnedInput.value) || 1),
-    expandPanels: expandPanelsInput.checked,
+    showCompletePanels: showCompletePanelsInput.checked,
   };
 }
 
@@ -317,30 +327,104 @@ clearCacheBtn.addEventListener("click", async () => {
 
 // --- Sites table ---
 
+import type { SiteDefinition } from "../../common/types";
+
+let customSites: SiteDefinition[] = [];
+
+function renderSiteRow(site: SiteDefinition) {
+  const tr = document.createElement("tr");
+
+  const nameTd = document.createElement("td");
+  nameTd.textContent = site.name;
+  tr.appendChild(nameTd);
+
+  const typeTd = document.createElement("td");
+  const typeTag = document.createElement("span");
+  typeTag.className = `media-type-tag ${site.mediaType}`;
+  typeTag.textContent = site.mediaType;
+  typeTd.appendChild(typeTag);
+  tr.appendChild(typeTd);
+
+  const urlTd = document.createElement("td");
+  urlTd.className = "url-pattern";
+  urlTd.textContent = site.urlPattern;
+  tr.appendChild(urlTd);
+
+  const actionTd = document.createElement("td");
+  if (!site.isBuiltin) {
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove-btn";
+    removeBtn.textContent = "\u00D7";
+    removeBtn.title = "Remove";
+    removeBtn.addEventListener("click", async () => {
+      customSites = customSites.filter((s) => s.id !== site.id);
+      await saveCustomSites(customSites);
+      renderSitesTable();
+      showFeedback(sitesFeedback, "Site removed", "info");
+    });
+    actionTd.appendChild(removeBtn);
+  }
+  tr.appendChild(actionTd);
+
+  sitesBody.appendChild(tr);
+}
+
 function renderSitesTable() {
   sitesBody.innerHTML = "";
-  for (const site of DEFAULT_SITES) {
-    const tr = document.createElement("tr");
-
-    const nameTd = document.createElement("td");
-    nameTd.textContent = site.name;
-    tr.appendChild(nameTd);
-
-    const typeTd = document.createElement("td");
-    const typeTag = document.createElement("span");
-    typeTag.className = `media-type-tag ${site.mediaType}`;
-    typeTag.textContent = site.mediaType === "auto" ? "auto" : site.mediaType;
-    typeTd.appendChild(typeTag);
-    tr.appendChild(typeTd);
-
-    const urlTd = document.createElement("td");
-    urlTd.className = "url-pattern";
-    urlTd.textContent = site.urlPattern;
-    tr.appendChild(urlTd);
-
-    sitesBody.appendChild(tr);
-  }
+  for (const site of DEFAULT_SITES) renderSiteRow(site);
+  for (const site of customSites) renderSiteRow(site);
 }
+
+// --- Custom sites handlers ---
+
+addSiteBtn.addEventListener("click", () => {
+  addSiteForm.hidden = false;
+  newSiteNameInput.value = "";
+  newSiteUrlInput.value = "";
+  newSiteSelectorInput.value = "h1";
+  newSiteMediaTypeSelect.value = "auto";
+  hideFeedback(sitesFeedback);
+  newSiteNameInput.focus();
+});
+
+cancelAddSiteBtn.addEventListener("click", () => {
+  addSiteForm.hidden = true;
+});
+
+confirmAddSiteBtn.addEventListener("click", async () => {
+  const name = newSiteNameInput.value.trim();
+  const urlPattern = newSiteUrlInput.value.trim();
+  const badgeSelector = newSiteSelectorInput.value.trim() || "h1";
+  const mediaType = newSiteMediaTypeSelect.value as "movie" | "show" | "auto";
+
+  if (!name || !urlPattern) {
+    showFeedback(sitesFeedback, "Name and URL pattern are required", "error");
+    return;
+  }
+
+  const newSite: SiteDefinition = {
+    id: `custom-${Date.now()}`,
+    name,
+    urlPattern,
+    mediaType,
+    badgeSelector,
+    isBuiltin: false,
+    enabled: true,
+  };
+
+  customSites.push(newSite);
+  await saveCustomSites(customSites);
+  addSiteForm.hidden = true;
+  renderSitesTable();
+  showFeedback(sitesFeedback, `Added "${name}"`, "success");
+});
+
+resetSitesBtn.addEventListener("click", async () => {
+  customSites = [];
+  await saveCustomSites([]);
+  renderSitesTable();
+  showFeedback(sitesFeedback, "Custom sites cleared", "info");
+});
 
 // --- Init: load saved config, options, and status ---
 
@@ -363,7 +447,7 @@ function renderSitesTable() {
   excludeSpecialsInput.checked = options.excludeSpecials;
   minCollectionSizeInput.value = String(options.minCollectionSize);
   minOwnedInput.value = String(options.minOwned);
-  expandPanelsInput.checked = options.expandPanels;
+  showCompletePanelsInput.checked = options.showCompletePanels;
 
   // Load status
   const status: StatusResponse = await browser.runtime.sendMessage({
@@ -376,6 +460,7 @@ function renderSitesTable() {
   showCacheStatus(status.itemCount, status.lastRefresh);
   updateStorageUsage();
 
-  // Render sites table
+  // Load custom sites and render sites table
+  customSites = await getCustomSites();
   renderSitesTable();
 })();

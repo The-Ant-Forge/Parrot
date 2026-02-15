@@ -7,8 +7,8 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 ## Future Enhancements
 
 ### User-Configurable Sites (advanced)
+- [x] Custom site CRUD in options page (add/remove/reset)
 - [ ] Universal content script with dynamic registration (`browser.scripting.registerContentScripts`)
-- [ ] Custom site CRUD in options page (add/edit/remove)
 - [ ] Per-site permission request (`browser.permissions.request`)
 
 ### Polish & Reliability (remaining)
@@ -26,10 +26,13 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 
 ## Additional Sites
 
-- [ ] Letterboxd (`letterboxd.com/film/{slug}`)
-- [ ] Trakt (`trakt.tv/movies/{slug}`, `trakt.tv/shows/{slug}`)
-- [ ] JustWatch (`justwatch.com/{locale}/movie/{slug}`)
-- [ ] Rotten Tomatoes (`rottentomatoes.com/m/{slug}`)
+- [x] Letterboxd (`letterboxd.com/film/{slug}`)
+- [x] Trakt (`trakt.tv/movies/{slug}`, `trakt.tv/shows/{slug}`)
+- [x] JustWatch (`justwatch.com/{locale}/movie/{slug}`)
+- [x] Rotten Tomatoes (`rottentomatoes.com/m/{slug}`)
+- [ ] Metacritic (`metacritic.com/movie/*`, `metacritic.com/tv/*`)
+- [ ] TV Time (`tvtime.com/show/*`)
+- [ ] Simkl (`simkl.com/movies/*`, `simkl.com/tv/*`)
 
 ---
 

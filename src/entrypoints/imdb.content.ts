@@ -54,7 +54,7 @@ async function checkAndBadge() {
         id: imdbId,
         anchor,
         response,
-        expandPanels: options.expandPanels,
+        showCompletePanels: options.showCompletePanels,
       });
     }
   } catch {

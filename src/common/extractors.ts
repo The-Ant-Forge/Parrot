@@ -29,6 +29,27 @@ export function extractPsaFromUrl(url: string): { mediaType: "movie" | "show"; s
   };
 }
 
+/** Trakt: extract media type from Trakt URL path. */
+export function extractTraktMediaType(pathname: string): "movie" | "show" | null {
+  if (/\/movies\//.test(pathname)) return "movie";
+  if (/\/shows\//.test(pathname)) return "show";
+  return null;
+}
+
+/** JustWatch: extract media type from JustWatch URL path. */
+export function extractJustWatchMediaType(pathname: string): "movie" | "show" | null {
+  if (/\/movie\//.test(pathname)) return "movie";
+  if (/\/tv-show\//.test(pathname)) return "show";
+  return null;
+}
+
+/** Rotten Tomatoes: extract media type from RT URL path. */
+export function extractRtMediaType(pathname: string): "movie" | "show" | null {
+  if (/\/m\//.test(pathname)) return "movie";
+  if (/\/tv\//.test(pathname)) return "show";
+  return null;
+}
+
 /** NZBGeek: determine media type from URL query parameters. */
 export function extractNzbgeekMediaType(search: string): "movie" | "show" | null {
   const params = new URLSearchParams(search);

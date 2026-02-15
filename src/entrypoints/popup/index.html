@@ -41,8 +41,7 @@
         </div>
 
         <div class="status-bar">
-          <span class="dot" id="statusDot"></span>
-          <span id="statusText"></span>
+          <div class="status-pills" id="statusPills"></div>
           <span class="spacer"></span>
           <span id="librarySummary"></span>
         </div>
@@ -51,8 +50,12 @@
           <div class="media-row">
             <img id="mediaPoster" class="poster" alt="" />
             <div class="media-info">
-              <div id="mediaTitle" class="media-title"></div>
+              <div class="media-title-row">
+                <div id="mediaTitle" class="media-title"></div>
+                <span id="mediaTypeTag" class="media-type-tag" hidden></span>
+              </div>
               <div id="mediaSubtitle" class="media-subtitle"></div>
+              <div id="mediaCollection" class="media-collection" hidden></div>
               <div id="mediaIds" class="media-ids"></div>
             </div>
           </div>

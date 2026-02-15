@@ -9,16 +9,16 @@ interface GapCheckParams {
   id: string;
   anchor: Element;
   response: CheckResponse;
-  expandPanels: boolean;
+  showCompletePanels: boolean;
 }
 
 export async function checkGaps(params: GapCheckParams): Promise<void> {
-  const { mediaType, source, id, anchor, response, expandPanels } = params;
+  const { mediaType, source, id, anchor, response, showCompletePanels } = params;
 
   if (mediaType === "movie") {
-    await checkMovieGaps(source, id, response, anchor, expandPanels);
+    await checkMovieGaps(source, id, response, anchor, showCompletePanels);
   } else if (mediaType === "show" && response.owned) {
-    await checkShowGaps(source, id, response, anchor, expandPanels);
+    await checkShowGaps(source, id, response, anchor, showCompletePanels);
   }
 }
 
@@ -56,7 +56,7 @@ async function checkMovieGaps(
   id: string,
   response: CheckResponse,
   anchor: Element,
-  expandPanels: boolean,
+  showCompletePanels: boolean,
 ) {
   try {
     const tmdbMovieId = await resolveTmdbMovieId(source, id, response);
@@ -68,14 +68,16 @@ async function checkMovieGaps(
     });
 
     if (collResult.hasCollection && collResult.collection) {
-      if (collResult.collection.missingMovies.length > 0) {
-        injectCollectionPanel(anchor, collResult.collection, expandPanels);
+      const hasGaps = collResult.collection.missingMovies.length > 0;
+
+      // Show panel if there are gaps, or if user wants to see complete panels
+      if (hasGaps || showCompletePanels) {
+        injectCollectionPanel(anchor, collResult.collection, showCompletePanels);
       }
+
       // Update badge completeness for owned movies
       if (response.owned) {
-        updateBadgeCompleteness(
-          collResult.collection.missingMovies.length === 0 ? "complete" : "incomplete",
-        );
+        updateBadgeCompleteness(hasGaps ? "incomplete" : "complete");
       }
     }
   } catch (err) {
@@ -88,7 +90,7 @@ async function checkShowGaps(
   id: string,
   response: CheckResponse,
   anchor: Element,
-  expandPanels: boolean,
+  showCompletePanels: boolean,
 ) {
   try {
     // Determine the best source/id for CHECK_EPISODES
@@ -121,8 +123,12 @@ async function checkShowGaps(
     });
 
     if (result.hasGaps && result.gaps) {
-      injectEpisodePanel(anchor, result.gaps, expandPanels);
+      injectEpisodePanel(anchor, result.gaps, showCompletePanels);
       updateBadgeCompleteness("incomplete");
+    } else if (result.gaps && showCompletePanels) {
+      // Show complete panel when user opted in
+      injectEpisodePanel(anchor, result.gaps, true);
+      updateBadgeCompleteness("complete");
     } else {
       updateBadgeCompleteness("complete");
     }
