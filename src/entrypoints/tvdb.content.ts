@@ -1,5 +1,6 @@
-import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { removeEpisodePanel, injectEpisodePanel } from "../common/episode-panel";
+import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse, EpisodeGapResponse } from "../common/types";
 
 function extractTvdbId(): string | null {
@@ -49,7 +50,7 @@ async function checkAndBadge() {
       checkEpisodes(tvdbId, anchor);
     }
   } catch {
-    removeBadge();
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 
@@ -78,12 +79,7 @@ export default defineContentScript({
   main() {
     checkAndBadge();
 
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        checkAndBadge();
-      }
-    }).observe(document.body, { childList: true, subtree: true });
+    // TVDB uses client-side routing (debounced)
+    observeUrlChanges(checkAndBadge);
   },
 });

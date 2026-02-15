@@ -1,20 +1,12 @@
-import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { extractPsaFromUrl } from "../common/extractors";
 import { parseSlug, buildTitleKey } from "../common/normalize";
 import type { CheckResponse } from "../common/types";
-
-function extractFromUrl(url: string): { mediaType: "movie" | "show"; slug: string } | null {
-  const match = url.match(/psa\.wf\/(movie|tv-show)\/([^/?#]+)/);
-  if (!match) return null;
-  return {
-    mediaType: match[1] === "movie" ? "movie" : "show",
-    slug: match[2],
-  };
-}
 
 async function checkAndBadge() {
   removeBadge();
 
-  const info = extractFromUrl(location.href);
+  const info = extractPsaFromUrl(location.href);
   console.log("Parrot PSA: extracted", info, "from", location.href);
   if (!info) return;
 
@@ -52,7 +44,7 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
   } catch (err) {
     console.error("Parrot PSA: error", err);
-    removeBadge();
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 

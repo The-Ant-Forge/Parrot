@@ -107,3 +107,34 @@ Optional TVDB API key for more accurate TV episode numbering on TVDB pages.
 - Source-based routing in `CHECK_EPISODES`: TVDB pages use TVDB API when key is configured, TMDB pages always use TMDB API
 - TVDB `host_permissions` (`https://api4.thetvdb.com/*`) in `wxt.config.ts`
 - Options page: TVDB API key input with validation button (marked optional)
+
+---
+
+## Phase 9: Consolidation — Polish & Reliability
+
+> Spec: [`Phase 9 - Consolidation Polish and Reliability.md`](Phase%209%20-%20Consolidation%20Polish%20and%20Reliability.md)
+
+Test coverage, error feedback, and performance hardening without changing user-facing features.
+
+### Unit Test Suite
+- Vitest configuration (`vitest.config.ts`) with globals and path aliases
+- 44 unit tests across 3 test files:
+  - `tests/extractors.test.ts` — 19 tests for `extractTmdbFromUrl`, `extractImdbId`, `extractPsaFromUrl`, `extractNzbgeekMediaType`
+  - `tests/normalize.test.ts` — 17 tests for `normalizeTitle`, `buildTitleKey`, `parseSlug`
+  - `tests/plex.test.ts` — 8 tests for `extractExternalIds` (GUID parsing)
+
+### Shared Extractors Module
+- Extracted pure URL extraction functions from 4 content scripts into `src/common/extractors.ts`
+- Content scripts now import from shared module instead of defining locally
+- DOM-coupled extractors (TVDB, RARGB, NZBForYou) remain in their content scripts
+
+### Debounced URL Observer
+- `src/common/url-observer.ts` — shared `observeUrlChanges` utility with 150ms trailing-edge debounce
+- Replaced duplicated inline MutationObserver code in TMDB, IMDb, and TVDB content scripts
+- Coalesces SPA mutation bursts while keeping navigation feel instant
+
+### Error Badge with Tooltip
+- Added `tooltip` parameter to `updateBadge` in `src/common/badge.ts`
+- Added `showErrorBadge(badge, reason)` convenience function
+- Updated 6 content scripts to show red "!" error badge with hover tooltip instead of silently removing the badge on failure
+- Exception: NZBForYou keeps `removeAllBadges()` (multi-badge layout)

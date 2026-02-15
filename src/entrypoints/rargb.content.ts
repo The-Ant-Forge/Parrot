@@ -1,4 +1,4 @@
-import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import type { CheckResponse } from "../common/types";
 
 function findExternalId(): {
@@ -68,7 +68,7 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, response);
   } catch {
-    removeBadge();
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 

@@ -1,4 +1,4 @@
-import { createBadge, removeBadge, updateBadge, updateBadgeFromResponse } from "../common/badge";
+import { createBadge, updateBadgeFromResponse } from "../common/badge";
 import type { CheckResponse } from "../common/types";
 
 const BADGE_ATTR = "data-parrot-badge";

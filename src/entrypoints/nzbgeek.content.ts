@@ -1,12 +1,6 @@
-import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { extractNzbgeekMediaType } from "../common/extractors";
 import type { CheckResponse } from "../common/types";
-
-function getMediaType(): "movie" | "show" | null {
-  const params = new URLSearchParams(location.search);
-  if (params.has("movieid")) return "movie";
-  if (params.has("tvid")) return "show";
-  return null;
-}
 
 function findExternalId(): { source: "tmdb" | "imdb" | "tvdb"; id: string } | null {
   const links = document.querySelectorAll<HTMLAnchorElement>("a[href]");
@@ -37,7 +31,7 @@ function findTitleAnchor(): Element | null {
 async function checkAndBadge() {
   removeBadge();
 
-  const mediaType = getMediaType();
+  const mediaType = extractNzbgeekMediaType(location.search);
   if (!mediaType) return;
 
   const extId = findExternalId();
@@ -59,7 +53,7 @@ async function checkAndBadge() {
     console.log("Parrot NZBGeek: response", response);
     updateBadgeFromResponse(badge, response);
   } catch {
-    removeBadge();
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 

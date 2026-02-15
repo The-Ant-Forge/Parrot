@@ -52,9 +52,14 @@ export function createBadge(): HTMLSpanElement {
   return badge;
 }
 
-export function updateBadge(badge: HTMLSpanElement, status: BadgeStatus) {
+export function updateBadge(badge: HTMLSpanElement, status: BadgeStatus, tooltip?: string) {
   setBadgeContent(badge, status);
   applyStyles(badge, status);
+  badge.title = tooltip ?? "";
+}
+
+export function showErrorBadge(badge: HTMLSpanElement, reason: string) {
+  updateBadge(badge, "error", reason);
 }
 
 export function updateBadgeFromResponse(

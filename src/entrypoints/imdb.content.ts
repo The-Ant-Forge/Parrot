@@ -1,10 +1,7 @@
-import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { extractImdbId } from "../common/extractors";
+import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
-
-function extractImdbId(url: string): string | null {
-  const match = url.match(/imdb\.com\/title\/(tt\d+)/);
-  return match ? match[1] : null;
-}
 
 async function checkAndBadge() {
   removeBadge();
@@ -43,7 +40,7 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, showResult);
   } catch {
-    removeBadge();
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 
@@ -53,13 +50,7 @@ export default defineContentScript({
   main() {
     checkAndBadge();
 
-    // IMDb uses client-side routing
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        checkAndBadge();
-      }
-    }).observe(document.body, { childList: true, subtree: true });
+    // IMDb uses client-side routing (debounced)
+    observeUrlChanges(checkAndBadge);
   },
 });

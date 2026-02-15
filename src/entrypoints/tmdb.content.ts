@@ -1,23 +1,16 @@
-import { injectBadge, removeBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { removeCollectionPanel, injectCollectionPanel } from "../common/collection-panel";
 import { removeEpisodePanel, injectEpisodePanel } from "../common/episode-panel";
+import { extractTmdbFromUrl } from "../common/extractors";
+import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse } from "../common/types";
-
-function extractFromUrl(url: string) {
-  const match = url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
-  if (!match) return null;
-  return {
-    mediaType: match[1] === "movie" ? "movie" : "show",
-    id: match[2],
-  } as const;
-}
 
 async function checkAndBadge() {
   removeBadge();
   removeCollectionPanel();
   removeEpisodePanel();
 
-  const info = extractFromUrl(location.href);
+  const info = extractTmdbFromUrl(location.href);
   console.log("Parrot TMDB: extracted", info, "from", location.href);
   if (!info) return;
 
@@ -52,7 +45,7 @@ async function checkAndBadge() {
     }
   } catch (err) {
     console.error("Parrot TMDB: error", err);
-    removeBadge();
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 
@@ -102,13 +95,7 @@ export default defineContentScript({
   main() {
     checkAndBadge();
 
-    // TMDB is an SPA — re-check on navigation
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-      if (location.href !== lastUrl) {
-        lastUrl = location.href;
-        checkAndBadge();
-      }
-    }).observe(document.body, { childList: true, subtree: true });
+    // TMDB is an SPA — re-check on navigation (debounced)
+    observeUrlChanges(checkAndBadge);
   },
 });
