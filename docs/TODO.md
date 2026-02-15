@@ -17,13 +17,13 @@ Part of the [ComPlexionist](https://github.com/StephKoenig/ComPlexionist) family
 
 ### Core Logic (9b.2) — Partial
 - [x] Plex API client (connect, authenticate, fetch libraries, extract GUIDs)
-- [ ] TMDB API client (not needed yet — we match by Plex GUIDs, not TMDB lookups)
-- [ ] TVDB API client (same — matching is Plex-side)
-- [ ] Gap finding logic (this stays in ComPlexionist desktop)
+- [x] TMDB API client (collection + TV show/season endpoints)
+- [ ] TVDB API client (not needed — using TMDB for episode data)
+- [x] Gap finding logic (collection gaps in Phase 6, episode gaps in Phase 7)
 
 ### UI Components (9b.3) — Partial
 - [x] Popup interface (config, test connection, library sync, status)
-- [ ] Options page (separate full settings page with advanced config)
+- [x] Options page (full-tab settings page with API keys, gap detection, cache management)
 - [ ] Results page (not applicable — Parrot shows inline badges, not full gap reports)
 
 ### Storage (9b.4) — Partial
@@ -48,33 +48,50 @@ Part of the [ComPlexionist](https://github.com/StephKoenig/ComPlexionist) family
 
 ---
 
-## Phase 5: Options/Settings Page
+## Phase 5: Options/Settings Page ✓
 
 > Spec: [`docs/Phase 5 - Options Page.md`](Phase%205%20-%20Options%20Page.md)
 
-Full-tab WXT options page for API credentials (Plex, TMDB), gap detection toggles (exclude future, exclude specials, min collection size, min owned), and cache management. Prerequisite for Phase 6.
+Full-tab WXT options page for API credentials (Plex, TMDB), gap detection toggles, and cache management.
 
-- [ ] `ParrotOptions` type + defaults in `types.ts`
-- [ ] Storage helpers (`getOptions`, `saveOptions`) in `storage.ts`
-- [ ] Background handlers (`GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `CLEAR_CACHE`)
-- [ ] TMDB host_permissions in `wxt.config.ts`
-- [ ] Options page UI (`src/entrypoints/options/`)
-- [ ] Settings link in popup
+- [x] `ParrotOptions` type + defaults in `types.ts`
+- [x] Storage helpers (`getOptions`, `saveOptions`) in `storage.ts`
+- [x] Background handlers (`GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `CLEAR_CACHE`)
+- [x] TMDB host_permissions in `wxt.config.ts`
+- [x] Options page UI (`src/entrypoints/options/`)
+- [x] Settings link in popup
 
 ---
 
-## Phase 6: TMDB Collection Gap Detection
+## Phase 6: TMDB Collection Gap Detection ✓
 
 > Spec: [`docs/Phase 6 - TMDB Collection Gaps.md`](Phase%206%20-%20TMDB%20Collection%20Gaps.md)
 
-When browsing a movie on TMDB that belongs to a collection, show a collapsible panel listing owned and missing movies. Uses TMDB API to fetch collection membership, cross-references against Plex library index.
+Collapsible panel on TMDB movie pages showing owned/missing movies from the same collection.
 
-- [ ] TMDB API client (`src/api/tmdb.ts`)
-- [ ] Collection types + `CHECK_COLLECTION` message
-- [ ] Collection cache in `storage.local` (30-day TTL)
-- [ ] `CHECK_COLLECTION` handler in background
-- [ ] Collection panel component (`src/common/collection-panel.ts`)
-- [ ] TMDB content script integration
+- [x] TMDB API client (`src/api/tmdb.ts`)
+- [x] Collection types + `CHECK_COLLECTION` message
+- [x] Collection cache in `storage.local` (30-day TTL)
+- [x] `CHECK_COLLECTION` handler in background
+- [x] Collection panel component (`src/common/collection-panel.ts`)
+- [x] TMDB content script integration
+
+---
+
+## Phase 7: TV Episode Gap Detection
+
+> Spec: [`docs/Phase 7 - TV Episode Gaps.md`](Phase%207%20-%20TV%20Episode%20Gaps.md)
+
+Season-level episode gap panel on TMDB and TVDB TV show pages. Uses TMDB API for episode data (no second API key needed). Compact storage: caches only the gap result (season summaries + missing episodes), never the full owned-episode list.
+
+- [ ] `EpisodeGapResponse`, `SeasonGapInfo` types + `CHECK_EPISODES` message
+- [ ] Episode gap cache helpers in `storage.ts` (24h TTL)
+- [ ] TMDB TV API functions (`getTvShow`, `getTvSeason`, `findByTvdbId`)
+- [ ] Plex episode fetching (`fetchShowEpisodes` via allLeaves)
+- [ ] `CHECK_EPISODES` handler in background
+- [ ] Episode gap panel component (`src/common/episode-panel.ts`)
+- [ ] TVDB content script integration
+- [ ] TMDB content script integration (TV shows)
 
 ---
 
