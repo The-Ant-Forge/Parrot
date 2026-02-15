@@ -43,7 +43,25 @@ export interface PlexSection {
   type: "movie" | "show" | string;
 }
 
-// --- Messages (popup/content scripts → background) ---
+// --- Options (stored in browser.storage.sync) ---
+
+export interface ParrotOptions {
+  tmdbApiKey: string;
+  excludeFuture: boolean;
+  excludeSpecials: boolean;
+  minCollectionSize: number;
+  minOwned: number;
+}
+
+export const DEFAULT_OPTIONS: ParrotOptions = {
+  tmdbApiKey: "",
+  excludeFuture: true,
+  excludeSpecials: true,
+  minCollectionSize: 2,
+  minOwned: 2,
+};
+
+// --- Messages (popup/content scripts/options → background) ---
 
 export type Message =
   | { type: "TEST_CONNECTION"; config: PlexConfig }
@@ -54,7 +72,11 @@ export type Message =
       mediaType: "movie" | "show";
       source: "tmdb" | "imdb" | "tvdb" | "title";
       id: string;
-    };
+    }
+  | { type: "GET_OPTIONS" }
+  | { type: "SAVE_OPTIONS"; options: ParrotOptions }
+  | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
+  | { type: "CLEAR_CACHE" };
 
 // --- Responses ---
 
@@ -81,4 +103,21 @@ export interface BuildIndexResponse {
   success: boolean;
   error?: string;
   itemCount?: number;
+}
+
+export interface ValidateTmdbKeyResponse {
+  valid: boolean;
+  error?: string;
+}
+
+export interface OptionsResponse {
+  options: ParrotOptions;
+}
+
+export interface SaveOptionsResponse {
+  success: boolean;
+}
+
+export interface ClearCacheResponse {
+  success: boolean;
 }

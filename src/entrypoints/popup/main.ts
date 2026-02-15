@@ -9,6 +9,7 @@ import type {
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 
+const settingsLink = $<HTMLAnchorElement>("settingsLink");
 const serverUrlInput = $<HTMLInputElement>("serverUrl");
 const tokenInput = $<HTMLInputElement>("token");
 const testBtn = $<HTMLButtonElement>("testBtn");
@@ -63,6 +64,11 @@ function showStatus(itemCount: number, lastRefresh: number | null) {
 }
 
 // --- Event handlers ---
+
+settingsLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  browser.runtime.openOptionsPage();
+});
 
 testBtn.addEventListener("click", async () => {
   const config = getFormConfig();

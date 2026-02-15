@@ -10,6 +10,10 @@ export default defineConfig({
       "See if media you're browsing is already in your Plex library",
     version: pkg.version,
     permissions: ["storage"],
-    host_permissions: ["http://*/library/*", "https://*/library/*"],
+    host_permissions: [
+      "http://*/library/*",
+      "https://*/library/*",
+      "https://api.themoviedb.org/*",
+    ],
   },
 });

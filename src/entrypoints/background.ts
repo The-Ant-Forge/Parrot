@@ -1,4 +1,4 @@
-import { getConfig, getLibraryIndex, saveLibraryIndex } from "../common/storage";
+import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions } from "../common/storage";
 import { testConnection, buildLibraryIndex } from "../api/plex";
 import type {
   Message,
@@ -6,6 +6,10 @@ import type {
   StatusResponse,
   TestConnectionResponse,
   BuildIndexResponse,
+  ValidateTmdbKeyResponse,
+  OptionsResponse,
+  SaveOptionsResponse,
+  ClearCacheResponse,
   LibraryIndex,
 } from "../common/types";
 
@@ -236,6 +240,45 @@ export default defineBackground(() => {
             );
             if (tabId) await setTabIcon(tabId, result.owned ? "owned" : "not-owned");
             sendResponse(result);
+            break;
+          }
+
+          case "GET_OPTIONS": {
+            const options = await getOptions();
+            sendResponse({ options } satisfies OptionsResponse);
+            break;
+          }
+
+          case "SAVE_OPTIONS": {
+            await saveOptions(message.options);
+            sendResponse({ success: true } satisfies SaveOptionsResponse);
+            break;
+          }
+
+          case "VALIDATE_TMDB_KEY": {
+            try {
+              const res = await fetch(
+                `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(message.apiKey)}`,
+                { headers: { Accept: "application/json" } },
+              );
+              if (res.ok) {
+                sendResponse({ valid: true } satisfies ValidateTmdbKeyResponse);
+              } else if (res.status === 401) {
+                sendResponse({ valid: false, error: "Invalid API key" } satisfies ValidateTmdbKeyResponse);
+              } else {
+                sendResponse({ valid: false, error: `TMDB returned ${res.status}` } satisfies ValidateTmdbKeyResponse);
+              }
+            } catch {
+              sendResponse({ valid: false, error: "Could not reach TMDB — check your connection" } satisfies ValidateTmdbKeyResponse);
+            }
+            break;
+          }
+
+          case "CLEAR_CACHE": {
+            await browser.storage.local.clear();
+            cachedIndex = null;
+            console.log("Parrot: cache cleared");
+            sendResponse({ success: true } satisfies ClearCacheResponse);
             break;
           }
         }

@@ -10,7 +10,25 @@ body {
 
 h1 {
   font-size: 18px;
-  margin: 0 0 12px;
+  margin: 0;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.header-row a {
+  font-size: 18px;
+  color: #888;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.header-row a:hover {
+  color: #e5a00d;
 }
 
 .section {
