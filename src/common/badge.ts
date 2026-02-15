@@ -9,7 +9,7 @@ const PLEX_ICON_SVG = `<svg viewBox="100 10 35 48" width="14" height="14" style=
 
 const STYLES: Record<BadgeStatus, { bg: string; color: string; border: string }> = {
   loading: { bg: "#e0e0e0", color: "#666", border: "#ccc" },
-  owned: { bg: "#282828", color: "#ebaf00", border: "#ebaf00" },
+  owned: { bg: "#282828", color: "#fff", border: "#ebaf00" },
   "not-owned": { bg: "transparent", color: "transparent", border: "transparent" },
   error: { bg: "#f44336", color: "#fff", border: "#d32f2f" },
 };

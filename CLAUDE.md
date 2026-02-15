@@ -183,3 +183,5 @@ Never use real movie or tv show names. Always make up example ones.
 | TMDB | `themoviedb.org/tv/{id}` | TMDB numeric |
 | IMDb | `imdb.com/title/{ttID}` | IMDb string |
 | TVDB | `thetvdb.com/series/{slug}` | TVDB numeric (from DOM) |
+| NZBGeek | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb (from page links) |
+| NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
