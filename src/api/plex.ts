@@ -5,6 +5,7 @@ import type {
   ExternalIds,
   LibraryIndex,
 } from "../common/types";
+import { buildTitleKey } from "../common/normalize";
 
 async function plexFetch(config: PlexConfig, path: string): Promise<Response> {
   const url = `${config.serverUrl.replace(/\/+$/, "")}${path}`;
@@ -101,8 +102,8 @@ export function extractExternalIds(
 
 function emptyIndex(): LibraryIndex {
   return {
-    movies: { byTmdbId: {}, byImdbId: {} },
-    shows: { byTvdbId: {}, byTmdbId: {}, byImdbId: {} },
+    movies: { byTmdbId: {}, byImdbId: {}, byTitle: {} },
+    shows: { byTvdbId: {}, byTmdbId: {}, byImdbId: {}, byTitle: {} },
     lastRefresh: 0,
     itemCount: 0,
   };
@@ -129,10 +130,16 @@ export async function buildLibraryIndex(
       if (section.type === "movie") {
         if (ids.tmdbId) index.movies.byTmdbId[String(ids.tmdbId)] = owned;
         if (ids.imdbId) index.movies.byImdbId[ids.imdbId] = owned;
+        // Title-based keys: precise (with year) and fallback (without)
+        if (item.year) index.movies.byTitle[buildTitleKey(item.title, item.year)] = owned;
+        index.movies.byTitle[buildTitleKey(item.title)] = owned;
       } else if (section.type === "show") {
         if (ids.tvdbId) index.shows.byTvdbId[String(ids.tvdbId)] = owned;
         if (ids.tmdbId) index.shows.byTmdbId[String(ids.tmdbId)] = owned;
         if (ids.imdbId) index.shows.byImdbId[ids.imdbId] = owned;
+        // Title-based keys: precise (with year) and fallback (without)
+        if (item.year) index.shows.byTitle[buildTitleKey(item.title, item.year)] = owned;
+        index.shows.byTitle[buildTitleKey(item.title)] = owned;
       }
 
       totalItems++;

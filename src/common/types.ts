@@ -17,11 +17,13 @@ export interface LibraryIndex {
   movies: {
     byTmdbId: Record<string, OwnedItem>;
     byImdbId: Record<string, OwnedItem>;
+    byTitle: Record<string, OwnedItem>;
   };
   shows: {
     byTvdbId: Record<string, OwnedItem>;
     byTmdbId: Record<string, OwnedItem>;
     byImdbId: Record<string, OwnedItem>;
+    byTitle: Record<string, OwnedItem>;
   };
   lastRefresh: number;
   itemCount: number;
@@ -50,7 +52,7 @@ export type Message =
   | {
       type: "CHECK";
       mediaType: "movie" | "show";
-      source: "tmdb" | "imdb" | "tvdb";
+      source: "tmdb" | "imdb" | "tvdb" | "title";
       id: string;
     };
 

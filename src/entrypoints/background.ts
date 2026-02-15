@@ -44,7 +44,11 @@ async function handleCheck(
 
   let item: import("../common/types").OwnedItem | undefined;
 
-  if (mediaType === "movie") {
+  if (source === "title") {
+    // Title-based lookup: id is a normalized key (e.g. "some title|2025")
+    const map = mediaType === "movie" ? index.movies.byTitle : index.shows.byTitle;
+    item = map[id];
+  } else if (mediaType === "movie") {
     const map =
       source === "tmdb"
         ? index.movies.byTmdbId
