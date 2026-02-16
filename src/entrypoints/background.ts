@@ -1,7 +1,7 @@
 import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId } from "../api/tmdb";
-import { getSeriesEpisodes, validateTvdbKey } from "../api/tvdb";
+import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import type {
   Message,
   CheckResponse,
@@ -206,23 +206,34 @@ function getIconImageData(state: IconState): Record<string, ImageData> {
 async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
   try {
     const options = await getOptions();
-    if (!options.tmdbApiKey) return;
-
     // Resolve TMDB ID if not already known
     let tmdbId = info.tmdbId;
-    if (!tmdbId && info.source === "imdb") {
-      tmdbId = (await findByImdbId(options.tmdbApiKey, info.id)) ?? undefined;
-    } else if (!tmdbId && info.source === "tvdb") {
-      tmdbId = (await findByTvdbId(options.tmdbApiKey, info.id)) ?? undefined;
+    if (options.tmdbApiKey) {
+      if (!tmdbId && info.source === "imdb") {
+        tmdbId = (await findByImdbId(options.tmdbApiKey, info.id)) ?? undefined;
+      } else if (!tmdbId && info.source === "tvdb") {
+        tmdbId = (await findByTvdbId(options.tmdbApiKey, info.id)) ?? undefined;
+      }
+      if (tmdbId) info.tmdbId = tmdbId;
     }
-    if (tmdbId) info.tmdbId = tmdbId;
 
-    if (!tmdbId) return;
+    if (!tmdbId) {
+      // TVDB fallback: fetch metadata directly from TVDB API
+      if (info.source === "tvdb" && info.tvdbId && options.tvdbApiKey) {
+        const tvdbDetails = await getSeriesDetails(options.tvdbApiKey, String(info.tvdbId));
+        info.title = tvdbDetails.name;
+        info.posterUrl = tvdbDetails.image ?? undefined;
+        info.year = tvdbDetails.year ? parseInt(tvdbDetails.year, 10) : undefined;
+        info.showStatus = tvdbDetails.status?.name;
+        persistTabMedia(tabId, info);
+      }
+      return;
+    }
 
     if (info.mediaType === "movie") {
       const details = await getMovie(options.tmdbApiKey, tmdbId);
       info.title = details.title;
-      info.year = details.release_date ? parseInt(details.release_date.slice(0, 4)) : undefined;
+      info.year = details.release_date ? parseInt(details.release_date.slice(0, 4), 10) : undefined;
       info.posterPath = details.poster_path;
 
       // Collection summary
@@ -321,29 +332,12 @@ export default defineBackground(() => {
             const config = await getConfig();
             const index = await loadIndex();
             const statusOptions = await getOptions();
-            // Count unique items by plexKey to avoid duplicates across maps
-            let movieCount = 0;
-            let showCount = 0;
-            if (index) {
-              const movieKeys = new Set<string>();
-              for (const item of Object.values(index.movies.byTmdbId)) movieKeys.add(item.plexKey);
-              for (const item of Object.values(index.movies.byImdbId)) movieKeys.add(item.plexKey);
-              for (const item of Object.values(index.movies.byTitle)) movieKeys.add(item.plexKey);
-              movieCount = movieKeys.size;
-
-              const showKeys = new Set<string>();
-              for (const item of Object.values(index.shows.byTvdbId)) showKeys.add(item.plexKey);
-              for (const item of Object.values(index.shows.byTmdbId)) showKeys.add(item.plexKey);
-              for (const item of Object.values(index.shows.byImdbId)) showKeys.add(item.plexKey);
-              for (const item of Object.values(index.shows.byTitle)) showKeys.add(item.plexKey);
-              showCount = showKeys.size;
-            }
             sendResponse({
               configured: !!config,
               lastRefresh: index?.lastRefresh ?? null,
               itemCount: index?.itemCount ?? 0,
-              movieCount,
-              showCount,
+              movieCount: index?.movieCount ?? 0,
+              showCount: index?.showCount ?? 0,
               tmdbConfigured: !!statusOptions.tmdbApiKey,
               tvdbConfigured: !!statusOptions.tvdbApiKey,
             } satisfies StatusResponse);
@@ -374,15 +368,17 @@ export default defineBackground(() => {
                 id: message.id,
                 owned: result.owned,
                 plexUrl: result.plexUrl,
-                tmdbId: result.item?.tmdbId ?? (message.source === "tmdb" ? parseInt(message.id) : undefined),
+                tmdbId: result.item?.tmdbId ?? (message.source === "tmdb" && /^\d+$/.test(message.id) ? parseInt(message.id, 10) : undefined),
                 imdbId: result.item?.imdbId ?? (message.source === "imdb" ? message.id : undefined),
-                tvdbId: result.item?.tvdbId ?? (message.source === "tvdb" ? parseInt(message.id) : undefined),
+                tvdbId: result.item?.tvdbId ?? (message.source === "tvdb" && /^\d+$/.test(message.id) ? parseInt(message.id, 10) : undefined),
                 title: result.item?.title,
                 year: result.item?.year,
               };
               persistTabMedia(tabId, mediaInfo);
               // Fire-and-forget metadata fetch
-              fetchTabMetadata(tabId, mediaInfo);
+              fetchTabMetadata(tabId, mediaInfo).catch((err) =>
+                console.error("Parrot: metadata fetch failed", err),
+              );
             }
 
             sendResponse(result);
@@ -580,7 +576,7 @@ export default defineBackground(() => {
                 // --- TMDB path: per-season fetching ---
                 let tmdbId: number;
                 if (message.source === "tmdb") {
-                  tmdbId = parseInt(message.id);
+                  tmdbId = parseInt(message.id, 10);
                 } else {
                   const found = await findByTvdbId(options.tmdbApiKey, message.id);
                   if (!found) {
@@ -705,7 +701,7 @@ export default defineBackground(() => {
                 break;
               }
 
-              const movieId = parseInt(message.tmdbMovieId);
+              const movieId = parseInt(message.tmdbMovieId, 10);
               const movieData = await getMovie(options.tmdbApiKey, movieId);
               if (!movieData.belongs_to_collection) {
                 sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
@@ -750,7 +746,7 @@ export default defineBackground(() => {
                     : undefined;
                   ownedMovies.push({
                     title: part.title,
-                    year: part.release_date ? parseInt(part.release_date.slice(0, 4)) : undefined,
+                    year: part.release_date ? parseInt(part.release_date.slice(0, 4), 10) : undefined,
                     plexUrl,
                   });
                 } else {

@@ -30,6 +30,8 @@ export interface LibraryIndex {
   };
   lastRefresh: number;
   itemCount: number;
+  movieCount: number;
+  showCount: number;
 }
 
 /** External IDs extracted from Plex GUID strings */
@@ -162,6 +164,7 @@ export interface TabMediaInfo {
   title?: string;
   year?: number;
   posterPath?: string | null;
+  posterUrl?: string; // full URL (e.g. from TVDB) when posterPath unavailable
   seasonCount?: number;
   episodeCount?: number;
   showStatus?: string;

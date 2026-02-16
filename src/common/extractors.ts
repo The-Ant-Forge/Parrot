@@ -1,6 +1,7 @@
 /**
  * Pure URL/ID extraction functions, shared by content scripts.
- * Extracted to enable unit testing without DOM or browser dependencies.
+ * URL-based extractors are pure functions (no DOM).
+ * scanLinksForExternalId() is the DOM-based link scanner.
  */
 
 /** TMDB: extract mediaType and numeric ID from a TMDB URL. */
@@ -55,5 +56,49 @@ export function extractNzbgeekMediaType(search: string): "movie" | "show" | null
   const params = new URLSearchParams(search);
   if (params.has("movieid")) return "movie";
   if (params.has("tvid")) return "show";
+  return null;
+}
+
+// --- DOM-based link scanner ---
+
+export interface ExternalIdFromLink {
+  source: "tmdb" | "imdb" | "tvdb";
+  id: string;
+  mediaType?: "movie" | "show";
+}
+
+const ALL_SOURCES: ("tmdb" | "imdb" | "tvdb")[] = ["tmdb", "imdb", "tvdb"];
+
+/**
+ * Scan all <a> elements on the page for TMDB, IMDb, or TVDB links.
+ * Returns the first match found, or null if none.
+ *
+ * @param options.sources — restrict which sources to check (default: all three)
+ */
+export function scanLinksForExternalId(
+  options?: { sources?: ("tmdb" | "imdb" | "tvdb")[] },
+): ExternalIdFromLink | null {
+  const sources = options?.sources ?? ALL_SOURCES;
+  const links = document.querySelectorAll<HTMLAnchorElement>("a[href]");
+
+  for (const link of links) {
+    const href = link.href;
+
+    if (sources.includes("tmdb")) {
+      const tmdb = extractTmdbFromUrl(href);
+      if (tmdb) return { source: "tmdb", id: tmdb.id, mediaType: tmdb.mediaType };
+    }
+
+    if (sources.includes("imdb")) {
+      const imdbId = extractImdbId(href);
+      if (imdbId) return { source: "imdb", id: imdbId };
+    }
+
+    if (sources.includes("tvdb")) {
+      const tvdbMatch = href.match(/thetvdb\.com\/series\/(\d+)/);
+      if (tvdbMatch) return { source: "tvdb", id: tvdbMatch[1], mediaType: "show" };
+    }
+  }
+
   return null;
 }

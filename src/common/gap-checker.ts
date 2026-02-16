@@ -43,7 +43,8 @@ async function resolveTmdbMovieId(
         id,
       });
       return result.tmdbId ? String(result.tmdbId) : null;
-    } catch {
+    } catch (err) {
+      console.warn("Parrot: FIND_TMDB_ID failed", err);
       return null;
     }
   }

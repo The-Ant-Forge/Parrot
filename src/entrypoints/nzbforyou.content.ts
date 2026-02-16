@@ -1,4 +1,9 @@
-import { createBadge, updateBadgeFromResponse } from "../common/badge";
+import { createBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { removeCollectionPanel } from "../common/collection-panel";
+import { removeEpisodePanel } from "../common/episode-panel";
+import { extractImdbId } from "../common/extractors";
+import { checkGaps } from "../common/gap-checker";
+import { getOptions } from "../common/storage";
 import type { CheckResponse } from "../common/types";
 
 const BADGE_ATTR = "data-parrot-badge";
@@ -16,8 +21,8 @@ function getMediaType(): "movie" | "show" | null {
 function findImdbId(): string | null {
   const links = document.querySelectorAll<HTMLAnchorElement>("a[href]");
   for (const link of links) {
-    const match = link.href.match(/imdb\.com\/title\/(tt\d+)/);
-    if (match) return match[1];
+    const id = extractImdbId(link.href);
+    if (id) return id;
   }
   return null;
 }
@@ -36,6 +41,8 @@ function injectBadges(anchors: Element[]): HTMLSpanElement[] {
 
 async function checkAndBadge() {
   removeAllBadges();
+  removeCollectionPanel();
+  removeEpisodePanel();
 
   const imdbId = findImdbId();
   if (!imdbId) return;
@@ -48,20 +55,21 @@ async function checkAndBadge() {
   if (anchors.length === 0) return;
 
   const badges = injectBadges(anchors);
-  const mediaType = getMediaType();
+  let resolvedType = getMediaType();
 
   try {
     let response: CheckResponse;
 
-    if (mediaType) {
+    if (resolvedType) {
       response = await browser.runtime.sendMessage({
         type: "CHECK",
-        mediaType,
+        mediaType: resolvedType,
         source: "imdb",
         id: imdbId,
       });
     } else {
       // No breadcrumb hint — try movie first, then show
+      resolvedType = "movie";
       response = await browser.runtime.sendMessage({
         type: "CHECK",
         mediaType: "movie",
@@ -69,6 +77,7 @@ async function checkAndBadge() {
         id: imdbId,
       });
       if (!response.owned) {
+        resolvedType = "show";
         response = await browser.runtime.sendMessage({
           type: "CHECK",
           mediaType: "show",
@@ -81,8 +90,24 @@ async function checkAndBadge() {
     for (const badge of badges) {
       updateBadgeFromResponse(badge, response);
     }
+
+    // Gap detection for owned items
+    if (response.owned && resolvedType) {
+      const anchor = anchors[0];
+      const options = await getOptions();
+      checkGaps({
+        mediaType: resolvedType,
+        source: "imdb",
+        id: imdbId,
+        anchor,
+        response,
+        showCompletePanels: options.showCompletePanels,
+      });
+    }
   } catch {
-    removeAllBadges();
+    for (const badge of badges) {
+      showErrorBadge(badge, "Could not check Plex library");
+    }
   }
 }
 

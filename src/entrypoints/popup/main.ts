@@ -206,7 +206,7 @@ async function initDashboard() {
       renderMediaCard(response.media);
 
       // Retry once after 1s if metadata fetch hasn't completed yet (no poster)
-      if (!response.media.posterPath && activeTab.id) {
+      if (!response.media.posterPath && !response.media.posterUrl && activeTab.id) {
         const retryTabId = activeTab.id;
         setTimeout(async () => {
           try {
@@ -214,7 +214,7 @@ async function initDashboard() {
               type: "GET_TAB_MEDIA",
               tabId: retryTabId,
             });
-            if (retry.media?.posterPath) {
+            if (retry.media?.posterPath || retry.media?.posterUrl) {
               renderMediaCard(retry.media);
             }
           } catch {
@@ -234,6 +234,9 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   // Poster
   if (media.posterPath) {
     mediaPoster.src = `https://image.tmdb.org/t/p/w92${media.posterPath}`;
+    mediaPoster.style.display = "";
+  } else if (media.posterUrl) {
+    mediaPoster.src = media.posterUrl;
     mediaPoster.style.display = "";
   } else {
     mediaPoster.style.display = "none";

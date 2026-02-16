@@ -106,10 +106,10 @@ export function extractExternalIds(
   const ids: ExternalIds = {};
   for (const guid of guids) {
     const tmdbMatch = guid.id.match(/tmdb:\/\/(\d+)/);
-    if (tmdbMatch) ids.tmdbId = parseInt(tmdbMatch[1]);
+    if (tmdbMatch) ids.tmdbId = parseInt(tmdbMatch[1], 10);
 
     const tvdbMatch = guid.id.match(/tvdb:\/\/(\d+)/);
-    if (tvdbMatch) ids.tvdbId = parseInt(tvdbMatch[1]);
+    if (tvdbMatch) ids.tvdbId = parseInt(tvdbMatch[1], 10);
 
     const imdbMatch = guid.id.match(/imdb:\/\/(tt\d+)/);
     if (imdbMatch) ids.imdbId = imdbMatch[1];
@@ -123,6 +123,8 @@ function emptyIndex(): LibraryIndex {
     shows: { byTvdbId: {}, byTmdbId: {}, byImdbId: {}, byTitle: {} },
     lastRefresh: 0,
     itemCount: 0,
+    movieCount: 0,
+    showCount: 0,
   };
 }
 
@@ -132,6 +134,8 @@ export async function buildLibraryIndex(
   const sections = await fetchLibrarySections(config);
   const index = emptyIndex();
   let totalItems = 0;
+  const movieKeys = new Set<string>();
+  const showKeys = new Set<string>();
 
   for (const section of sections) {
     const items = await fetchSectionItems(config, section.key);
@@ -153,6 +157,7 @@ export async function buildLibraryIndex(
         // Title-based keys: precise (with year) and fallback (without)
         if (item.year) index.movies.byTitle[buildTitleKey(item.title, item.year)] = owned;
         index.movies.byTitle[buildTitleKey(item.title)] = owned;
+        movieKeys.add(item.ratingKey);
       } else if (section.type === "show") {
         if (ids.tvdbId) index.shows.byTvdbId[String(ids.tvdbId)] = owned;
         if (ids.tmdbId) index.shows.byTmdbId[String(ids.tmdbId)] = owned;
@@ -160,6 +165,7 @@ export async function buildLibraryIndex(
         // Title-based keys: precise (with year) and fallback (without)
         if (item.year) index.shows.byTitle[buildTitleKey(item.title, item.year)] = owned;
         index.shows.byTitle[buildTitleKey(item.title)] = owned;
+        showKeys.add(item.ratingKey);
       }
 
       totalItems++;
@@ -168,5 +174,7 @@ export async function buildLibraryIndex(
 
   index.lastRefresh = Date.now();
   index.itemCount = totalItems;
+  index.movieCount = movieKeys.size;
+  index.showCount = showKeys.size;
   return index;
 }

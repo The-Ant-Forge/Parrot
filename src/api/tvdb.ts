@@ -114,6 +114,40 @@ export async function getSeriesEpisodes(
   return allEpisodes;
 }
 
+// --- Series details ---
+
+export interface TVDBSeriesDetails {
+  name: string;
+  image: string | null;
+  year: string | null;
+  status: { name: string } | null;
+}
+
+interface TVDBSeriesResponse {
+  data: {
+    name: string;
+    image: string | null;
+    year: string | null;
+    status: { name: string } | null;
+  };
+}
+
+/**
+ * Fetch basic series metadata (name, poster, year, status).
+ */
+export async function getSeriesDetails(
+  apiKey: string,
+  seriesId: string,
+): Promise<TVDBSeriesDetails> {
+  const data = await tvdbFetch<TVDBSeriesResponse>(apiKey, `/series/${seriesId}`);
+  return {
+    name: data.data.name,
+    image: data.data.image ?? null,
+    year: data.data.year ?? null,
+    status: data.data.status ?? null,
+  };
+}
+
 /**
  * Validate a TVDB API key by attempting to log in.
  */

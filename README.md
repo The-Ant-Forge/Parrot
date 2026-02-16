@@ -8,7 +8,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 ## Features
 
-- **Ownership badge** on 7 supported sites -- dark pill with gold/gray Plex chevron
+- **Ownership badge** on 12 supported sites -- dark pill with gold/gray Plex chevron
 - **Deep linking** -- owned badges link directly to the item in Plex Web
 - **Collection gap detection** -- on TMDB movie pages, see which movies from the same collection you own or are missing
 - **Episode gap detection** -- on TMDB and TVDB TV show pages, see a season-by-season breakdown of missing episodes
@@ -31,11 +31,15 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 |------|-------------------|
 | **TMDB** | TMDB ID from URL (movies + TV) |
 | **IMDb** | IMDb ID from URL |
-| **TVDB** | TVDB ID from page links |
+| **TVDB** | TVDB ID from page links (series + movies) |
 | **NZBGeek** | TMDB/IMDb/TVDB from page links |
 | **RARGB** | TMDB/IMDb/TVDB from page links |
 | **NZBForYou** | IMDb from page links |
 | **PSA** | Title matching from URL slug |
+| **Letterboxd** | TMDB/IMDb from page links |
+| **Trakt** | TMDB/IMDb/TVDB from page links |
+| **Rotten Tomatoes** | IMDb from JSON-LD/page links |
+| **JustWatch** | TMDB/IMDb from page links |
 
 ## Badge States
 

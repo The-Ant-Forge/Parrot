@@ -268,3 +268,49 @@ UX polish, dashboard enhancements, dark mode, custom sites, and 5 new content sc
 - Added `extractTraktMediaType`, `extractJustWatchMediaType`, `extractRtMediaType` to shared extractors
 - 9 new tests for URL-based media type extraction (Trakt, JustWatch, Rotten Tomatoes)
 - Total: 79 tests across 5 test files
+
+---
+
+## Phase 12: Code Hygiene
+
+> Spec: [`Phase 12 - Code Hygiene.md`](Phase%2012%20-%20Code%20Hygiene.md)
+
+Post-Phase 11 consolidation: bug fixes, code deduplication, robustness improvements, and cleanup without changing user-facing features.
+
+### Bug Fix: TVDB Metadata Fallback
+- Shows existing only on TVDB (not TMDB) now display metadata in popup dashboard
+- Added `getSeriesDetails()` to `src/api/tvdb.ts` for direct TVDB metadata fetching
+- Added `posterUrl` field to `TabMediaInfo` for TVDB full image URLs
+- Popup renders TVDB poster when TMDB poster path unavailable
+
+### Shared Link Scanner
+- Extracted `scanLinksForExternalId()` to `src/common/extractors.ts`
+- Reuses existing `extractTmdbFromUrl()` and `extractImdbId()` internally
+- Proper TVDB regex `/series/(\d+)/` replaces overly broad `\d{4,}` pattern
+- Updated 8 content scripts to use shared scanner
+
+### Content Script Bug Fixes
+- `tvdb.content.ts` — added `removeCollectionPanel()` call
+- `nzbforyou.content.ts` — added gap detection, error badges, panel cleanup, shared extractors
+- `nzbgeek.content.ts` — removed debug console.log statements
+
+### Panel Code Deduplication
+- Extracted shared panel utilities to `src/common/panel-utils.ts`
+- `createPanelContainer()`, `createPanelHeader()`, `createPanelRow()`, `createStatusIcon()`, `injectPanel()`
+- Both collection-panel and episode-panel now use shared utilities
+
+### Badge Type Safety
+- Changed `setBadgeContent()` to accept `HTMLElement` instead of `HTMLSpanElement`
+- Removed unsafe `as unknown as HTMLSpanElement` cast
+- Unexported `CompletenessState` type (internal to badge.ts)
+
+### Background.ts Efficiency & Robustness
+- Cached `movieCount`/`showCount` in `LibraryIndex` (computed once during build, not on every GET_STATUS)
+- Added `.catch()` to fire-and-forget `fetchTabMetadata()` call
+- Added explicit radix 10 to all `parseInt()` calls
+- Added numeric validation before `parseInt(message.id)`
+- Added `console.warn()` to gap-checker silent catch
+
+### Test Suite Expansion
+- `tests/scan-links.test.ts` — 10 tests for `scanLinksForExternalId()` (DOM-based, happy-dom)
+- Total: 89 tests across 6 test files

@@ -1,30 +1,11 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { removeCollectionPanel } from "../common/collection-panel";
 import { removeEpisodePanel } from "../common/episode-panel";
-import { extractJustWatchMediaType } from "../common/extractors";
+import { extractJustWatchMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
-
-function findExternalId(): {
-  source: "tmdb" | "imdb";
-  id: string;
-} | null {
-  const links = document.querySelectorAll<HTMLAnchorElement>("a[href]");
-
-  for (const link of links) {
-    const href = link.href;
-
-    const tmdbMatch = href.match(/themoviedb\.org\/(?:movie|tv)\/(\d+)/);
-    if (tmdbMatch) return { source: "tmdb", id: tmdbMatch[1] };
-
-    const imdbMatch = href.match(/imdb\.com\/title\/(tt\d+)/);
-    if (imdbMatch) return { source: "imdb", id: imdbMatch[1] };
-  }
-
-  return null;
-}
 
 async function checkAndBadge() {
   removeBadge();
@@ -34,7 +15,7 @@ async function checkAndBadge() {
   const mediaType = extractJustWatchMediaType(location.pathname);
   if (!mediaType) return;
 
-  const extId = findExternalId();
+  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
   if (!extId) return;
 
   const anchor =

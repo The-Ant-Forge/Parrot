@@ -1,4 +1,5 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { removeCollectionPanel } from "../common/collection-panel";
 import { removeEpisodePanel } from "../common/episode-panel";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
@@ -28,6 +29,7 @@ function extractTvdbId(): string | null {
 
 async function checkAndBadge() {
   removeBadge();
+  removeCollectionPanel();
   removeEpisodePanel();
 
   const tvdbId = extractTvdbId();

@@ -35,7 +35,7 @@ function applyStyles(el: HTMLElement, status: BadgeStatus) {
   });
 }
 
-function setBadgeContent(badge: HTMLSpanElement, status: BadgeStatus) {
+function setBadgeContent(badge: HTMLElement, status: BadgeStatus) {
   const s = STYLES[status];
   if (status === "error") {
     badge.innerHTML = "";
@@ -77,7 +77,7 @@ export function updateBadgeFromResponse(
     link.rel = "noopener noreferrer";
     link.style.textDecoration = "none";
     link.style.cursor = "pointer";
-    setBadgeContent(link as unknown as HTMLSpanElement, status);
+    setBadgeContent(link, status);
     applyStyles(link, status);
     badge.replaceWith(link);
   } else {
@@ -86,7 +86,7 @@ export function updateBadgeFromResponse(
   }
 }
 
-export type CompletenessState = "complete" | "incomplete";
+type CompletenessState = "complete" | "incomplete";
 
 export function updateBadgeCompleteness(state: CompletenessState) {
   const badge = findExistingBadge();

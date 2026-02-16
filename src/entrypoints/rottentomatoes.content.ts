@@ -1,21 +1,18 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { removeCollectionPanel } from "../common/collection-panel";
 import { removeEpisodePanel } from "../common/episode-panel";
-import { extractRtMediaType } from "../common/extractors";
+import { extractRtMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
 import type { CheckResponse } from "../common/types";
+import type { ExternalIdFromLink } from "../common/extractors";
 
-function findExternalId(): {
-  source: "tmdb" | "imdb";
-  id: string;
-} | null {
+function findExternalId(): ExternalIdFromLink | null {
   // Try JSON-LD structured data first
   const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
   for (const script of ldScripts) {
     try {
       const data = JSON.parse(script.textContent ?? "");
-      // Look for sameAs URLs that point to external databases
       const sameAs = Array.isArray(data.sameAs) ? data.sameAs : data.sameAs ? [data.sameAs] : [];
       for (const url of sameAs) {
         if (typeof url !== "string") continue;
@@ -28,18 +25,7 @@ function findExternalId(): {
   }
 
   // Fallback: scan DOM links
-  const links = document.querySelectorAll<HTMLAnchorElement>("a[href]");
-  for (const link of links) {
-    const href = link.href;
-
-    const tmdbMatch = href.match(/themoviedb\.org\/(?:movie|tv)\/(\d+)/);
-    if (tmdbMatch) return { source: "tmdb", id: tmdbMatch[1] };
-
-    const imdbMatch = href.match(/imdb\.com\/title\/(tt\d+)/);
-    if (imdbMatch) return { source: "imdb", id: imdbMatch[1] };
-  }
-
-  return null;
+  return scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
 }
 
 async function checkAndBadge() {
