@@ -20,20 +20,21 @@ export function buildTitleKey(title: string, year?: number): string {
   return year ? `${norm}|${year}` : norm;
 }
 
-/** Parse a URL slug into a title string and optional trailing year. */
+/** Parse a URL slug into a title string and optional trailing year.
+ *  Handles both hyphen-separated (PSA) and underscore-separated (Rotten Tomatoes) slugs. */
 export function parseSlug(slug: string): { title: string; year?: number } {
-  const yearMatch = slug.match(/-(\d{4})$/);
+  const yearMatch = slug.match(/[-_](\d{4})$/);
   let year: number | undefined;
   let titleSlug = slug;
 
   if (yearMatch) {
-    const y = parseInt(yearMatch[1]);
+    const y = parseInt(yearMatch[1], 10);
     if (y >= 1900 && y <= 2099) {
       year = y;
       titleSlug = slug.slice(0, -(yearMatch[0].length));
     }
   }
 
-  const title = titleSlug.replace(/-/g, " ").trim();
+  const title = titleSlug.replace(/[-_]/g, " ").trim();
   return { title, year };
 }

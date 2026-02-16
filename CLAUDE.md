@@ -220,8 +220,8 @@ Never use real movie or tv show names. Always make up example ones.
 | Letterboxd | `letterboxd.com/film/{slug}` | TMDB/IMDb (from page links) |
 | Trakt | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB (from page links) |
 | Trakt | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB (from page links) |
-| Rotten Tomatoes | `rottentomatoes.com/m/{slug}` | IMDb (from JSON-LD/page links) |
-| Rotten Tomatoes | `rottentomatoes.com/tv/{slug}` | IMDb (from JSON-LD/page links) |
+| Rotten Tomatoes | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
+| Rotten Tomatoes | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
 | JustWatch | `justwatch.com/*/movie/{slug}` | TMDB/IMDb (from page links) |
 | JustWatch | `justwatch.com/*/tv-show/{slug}` | TMDB/IMDb (from page links) |
 | TVDB Movies | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |

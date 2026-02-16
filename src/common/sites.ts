@@ -96,7 +96,7 @@ export const DEFAULT_SITES: SiteDefinition[] = [
     name: "Rotten Tomatoes",
     urlPattern: "*://*.rottentomatoes.com/m/*, *://*.rottentomatoes.com/tv/*",
     mediaType: "auto",
-    badgeSelector: 'slot[name="title"], h1',
+    badgeSelector: 'div.title slot[name="title"], h1',
     isBuiltin: true,
     enabled: true,
   },

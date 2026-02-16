@@ -43,8 +43,8 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **Letterboxd** | `letterboxd.com/film/{slug}` | TMDB/IMDb from page links | `h1.headline-1` |
 | **Trakt** | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
 | **Trakt** | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
-| **Rotten Tomatoes** | `rottentomatoes.com/m/{slug}` | IMDb from JSON-LD/page links | `h1` |
-| **Rotten Tomatoes** | `rottentomatoes.com/tv/{slug}` | IMDb from JSON-LD/page links | `h1` |
+| **Rotten Tomatoes** | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `div.title slot[name="title"]` or `h1` |
+| **Rotten Tomatoes** | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `div.title slot[name="title"]` or `h1` |
 | **JustWatch** | `justwatch.com/*/movie/{slug}` | TMDB/IMDb from page links | `h1` |
 | **JustWatch** | `justwatch.com/*/tv-show/{slug}` | TMDB/IMDb from page links | `h1` |
 
@@ -59,11 +59,11 @@ url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
 
-**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Rotten Tomatoes, JustWatch, TVDB Movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`). Rotten Tomatoes also checks JSON-LD structured data for IMDb IDs.
+**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, JustWatch, TVDB Movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
-**Title-based** (PSA): No external IDs exist on the page. Parrot parses the URL slug into a normalized title and optional year, then matches against a title-based index built from Plex library data. The slug `some-movie-2025` becomes key `"some movie|2025"`. A fallback lookup without the year handles cases where the slug omits it.
+**Title-based** (PSA, Rotten Tomatoes): No external IDs exist on the page (or they have been removed by the site). Parrot parses the URL slug into a normalized title and optional year, then matches against a title-based index built from Plex library data. The slug `some-movie-2025` becomes key `"some movie|2025"`. A fallback lookup without the year handles cases where the slug omits it. Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes tries JSON-LD/link scanning first and falls back to title-based matching.
 
 ### Media Type Detection
 
@@ -128,7 +128,7 @@ parrot/
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (99 tests)
+├── tests/                             # Vitest test suite (102 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -363,6 +363,7 @@ normalizeTitle("The Sparring Partner") → "the sparring partner"
 normalizeTitle("The-Dark-Corridors") → "the dark corridors"
 buildTitleKey("The Sparring Partner", 1999) → "the sparring partner|1999"
 parseSlug("the-dark-corridors-2008") → { title: "the dark corridors", year: 2008 }
+parseSlug("the_dark_corridors_2008") → { title: "the dark corridors", year: 2008 }
 ```
 
 Lookup tries `"title|year"` first, falls back to `"title"` only.

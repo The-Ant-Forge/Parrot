@@ -38,7 +38,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 | **PSA** | Title matching from URL slug |
 | **Letterboxd** | TMDB/IMDb from page links |
 | **Trakt** | TMDB/IMDb/TVDB from page links |
-| **Rotten Tomatoes** | IMDb from JSON-LD/page links |
+| **Rotten Tomatoes** | Title matching from URL slug |
 | **JustWatch** | TMDB/IMDb from page links |
 
 ## Badge States

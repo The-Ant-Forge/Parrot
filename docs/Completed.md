@@ -351,3 +351,29 @@ Redesigned the badge as a unified smart pill with four states and moved gap pane
 - Added `setBadgeGapData` tests (completeness text, split-click, toggle, click-outside, aria-expanded, cleanup)
 - Added old-style TVDB query parameter URL test
 - Total: 99 tests across 6 test files (up from 89)
+
+---
+
+## Rotten Tomatoes Title-Based Matching
+
+Rotten Tomatoes removed all external database links (IMDb, TMDB) and JSON-LD `sameAs` references from their pages. The existing RT content script relied entirely on these IDs and stopped working.
+
+### Fix: Two-Strategy Approach
+- **Strategy 1 (kept):** JSON-LD `sameAs` + DOM link scanning for external IDs (backward compatibility in case RT re-adds them)
+- **Strategy 2 (new, primary):** Title-based matching from URL slug, same approach as PSA content script
+  - Extracts slug from `/m/{slug}` or `/tv/{slug}` URL paths
+  - Uses `parseSlug()` + `buildTitleKey()` for title normalization and matching
+  - Year-aware fallback: if year present in slug but no match, retries without year
+  - Gap detection supported when owned item has enriched TMDB/TVDB IDs
+
+### `parseSlug()` Underscore Support
+- Updated `parseSlug()` in `normalize.ts` to handle underscore-separated slugs (RT uses `_` not `-`)
+- Year regex updated: `/[-_](\d{4})$/` matches both `some-title-2025` and `some_title_2025`
+- Title regex updated: `/[-_]/g` converts both hyphens and underscores to spaces
+
+### Badge Anchor Update
+- Changed badge anchor from `slot[name="title"]` to `div.title slot[name="title"]` for more precise placement
+
+### Test Suite
+- Added 3 underscore slug tests to `tests/normalize.test.ts`
+- Total: 102 tests across 6 test files (up from 99)

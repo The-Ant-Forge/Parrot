@@ -73,4 +73,16 @@ describe("parseSlug", () => {
   it("handles single-word slug", () => {
     expect(parseSlug("standalone")).toEqual({ title: "standalone", year: undefined });
   });
+
+  it("parses underscore-separated slug with year", () => {
+    expect(parseSlug("the_housemaid_2025")).toEqual({ title: "the housemaid", year: 2025 });
+  });
+
+  it("parses underscore-separated slug without year", () => {
+    expect(parseSlug("cross")).toEqual({ title: "cross", year: undefined });
+  });
+
+  it("parses mixed underscore slug", () => {
+    expect(parseSlug("some_long_title")).toEqual({ title: "some long title", year: undefined });
+  });
 });
