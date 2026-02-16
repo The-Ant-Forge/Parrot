@@ -95,8 +95,12 @@ export function scanLinksForExternalId(
     }
 
     if (sources.includes("tvdb")) {
-      const tvdbMatch = href.match(/thetvdb\.com\/series\/(\d+)/);
-      if (tvdbMatch) return { source: "tvdb", id: tvdbMatch[1], mediaType: "show" };
+      // New-style: /series/121361 or /series/some-slug
+      const tvdbPathMatch = href.match(/thetvdb\.com\/series\/(\d+)/);
+      if (tvdbPathMatch) return { source: "tvdb", id: tvdbPathMatch[1], mediaType: "show" };
+      // Old-style: ?tab=series&id=121361
+      const tvdbQueryMatch = href.match(/thetvdb\.com\/.*[?&]id=(\d+)/);
+      if (tvdbQueryMatch) return { source: "tvdb", id: tvdbQueryMatch[1], mediaType: "show" };
     }
   }
 

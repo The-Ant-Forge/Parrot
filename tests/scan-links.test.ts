@@ -89,4 +89,13 @@ describe("scanLinksForExternalId", () => {
     addLink("https://thetvdb.com/series/some-show-name");
     expect(scanLinksForExternalId()).toBeNull();
   });
+
+  it("finds old-style TVDB query parameter link", () => {
+    addLink("http://www.thetvdb.com/?tab=series&id=121361");
+    expect(scanLinksForExternalId()).toEqual({
+      source: "tvdb",
+      id: "121361",
+      mediaType: "show",
+    });
+  });
 });
