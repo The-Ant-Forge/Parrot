@@ -49,6 +49,8 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **Rotten Tomatoes** | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `rt-text[slot="title"]` or `h1` |
 | **JustWatch** | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) | `h1` |
 | **JustWatch** | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) | `h1` |
+| **Metacritic** | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
+| **Metacritic** | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
 
 ### ID Extraction Strategies
 
@@ -65,7 +67,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
-**Title-based** (PSA, Rotten Tomatoes, JustWatch): No external IDs exist on the page (or they have been removed by the site). Parrot normalizes a title and optional year, then matches against a title-based index built from Plex library data. The key `"some movie|2025"` is tried first, falling back to `"some movie"` without year. PSA and Rotten Tomatoes parse the title from the URL slug; JustWatch parses the h1 text (e.g., `"The Night Manager (2016)"`). Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes and JustWatch try link scanning first and fall back to title-based matching.
+**Title-based** (PSA, Rotten Tomatoes, JustWatch, Metacritic): No external IDs exist on the page (or they have been removed by the site). Parrot normalizes a title and optional year, then matches against a title-based index built from Plex library data. The key `"some movie|2025"` is tried first, falling back to `"some movie"` without year. PSA and Rotten Tomatoes parse the title from the URL slug; JustWatch parses the h1 text (e.g., `"The Night Manager (2016)"`). Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes, JustWatch, and Metacritic try structured data or link scanning first and fall back to title-based matching.
 
 ### Media Type Detection
 
@@ -79,6 +81,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **Trakt**: URL path (`/movies/` vs `/shows/`) determines type
 - **Rotten Tomatoes**: URL path (`/m/` vs `/tv/`) determines type
 - **JustWatch**: URL path (`/movie/` vs `/tv-show/` or `/tv-series/`) determines type
+- **Metacritic**: URL path (`/movie/` vs `/tv/`) determines type
 - **TVDB Movies**: Always movie
 
 ### SPA Navigation
@@ -107,6 +110,7 @@ parrot/
 │   │   ├── trakt-app.content.ts      # Trakt App content script (SvelteKit SPA)
 │   │   ├── rottentomatoes.content.ts  # Rotten Tomatoes content script
 │   │   ├── justwatch.content.ts       # JustWatch content script
+│   │   ├── metacritic.content.ts      # Metacritic content script
 │   │   ├── options/
 │   │   │   ├── index.html             # Options page HTML
 │   │   │   ├── main.ts                # Options page logic
@@ -131,7 +135,7 @@ parrot/
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (110 tests)
+├── tests/                             # Vitest test suite (113 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -150,7 +154,7 @@ parrot/
 - Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
 - Auto-refreshes stale library index on demand (configurable interval, default 7 days)
 
-**Content Scripts (13 scripts)**
+**Content Scripts (15 scripts)**
 - One per supported site
 - Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker
@@ -635,7 +639,7 @@ The external ID extraction from Plex `guids` arrays is identical in both project
 
 See [`docs/TODO.md`](TODO.md) for the full roadmap. Key areas:
 
-- **Additional Sites:** Metacritic, TV Time, Simkl
+- **Additional Sites:** TV Time, Simkl
 - **Multi-Server Support:** Allow multiple Plex server configurations
 - **Advanced Settings:** Per-site toggles, badge position, refresh interval
 - **Publishing:** Chrome Web Store and Firefox Add-ons submission

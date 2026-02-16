@@ -30,7 +30,7 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 - [x] Trakt (`trakt.tv/movies/{slug}`, `trakt.tv/shows/{slug}`)
 - [x] JustWatch (`justwatch.com/{locale}/movie/{slug}`)
 - [x] Rotten Tomatoes (`rottentomatoes.com/m/{slug}`)
-- [ ] Metacritic (`metacritic.com/movie/*`, `metacritic.com/tv/*`)
+- [x] Metacritic (`metacritic.com/movie/*`, `metacritic.com/tv/*`)
 - [ ] TV Time (`tvtime.com/show/*`)
 - [ ] Simkl (`simkl.com/movies/*`, `simkl.com/tv/*`)
 

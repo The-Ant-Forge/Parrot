@@ -295,7 +295,13 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
     }
     persistTabMedia(tabId, info);
   } catch (err) {
-    console.error("Parrot: metadata fetch failed", err);
+    // 404 = TMDB ID doesn't exist (stale/merged); not worth alarming about
+    const msg = String(err);
+    if (msg.includes("404")) {
+      console.log(`Parrot: metadata not found on TMDB for ${info.mediaType} tmdb:${info.tmdbId} — skipping enrichment`);
+    } else {
+      console.error("Parrot: metadata fetch failed", err);
+    }
   }
 }
 

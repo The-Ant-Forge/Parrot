@@ -73,7 +73,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/)
 src/
 ├── entrypoints/
 │   ├── background.ts              # Library index cache, Plex API proxy
-│   ├── *.content.ts               # 12 content scripts (one per supported site)
+│   ├── *.content.ts               # 15 content scripts (one per supported site)
 │   ├── options/                   # Full-tab options page
 │   └── popup/                     # Settings/status popup
 ├── api/
@@ -227,3 +227,5 @@ Never use real movie or tv show names. Always make up example ones.
 | JustWatch | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) |
 | JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
 | TVDB Movies | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |
+| Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
+| Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |

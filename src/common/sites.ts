@@ -118,4 +118,13 @@ export const DEFAULT_SITES: SiteDefinition[] = [
     isBuiltin: true,
     enabled: true,
   },
+  {
+    id: "metacritic",
+    name: "Metacritic",
+    urlPattern: "*://*.metacritic.com/movie/*, *://*.metacritic.com/tv/*",
+    mediaType: "auto",
+    badgeSelector: "h1",
+    isBuiltin: true,
+    enabled: true,
+  },
 ];

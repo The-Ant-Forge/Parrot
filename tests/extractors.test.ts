@@ -7,6 +7,7 @@ import {
   extractTraktMediaType,
   extractJustWatchMediaType,
   extractRtMediaType,
+  extractMetacriticMediaType,
 } from "../src/common/extractors";
 
 describe("extractTmdbFromUrl", () => {
@@ -154,5 +155,19 @@ describe("extractRtMediaType", () => {
 
   it("returns null for other paths", () => {
     expect(extractRtMediaType("/celebrity/someone")).toBeNull();
+  });
+});
+
+describe("extractMetacriticMediaType", () => {
+  it("returns movie for /movie/ path", () => {
+    expect(extractMetacriticMediaType("/movie/some-film-2026")).toBe("movie");
+  });
+
+  it("returns show for /tv/ path", () => {
+    expect(extractMetacriticMediaType("/tv/some-series")).toBe("show");
+  });
+
+  it("returns null for other paths", () => {
+    expect(extractMetacriticMediaType("/person/some-actor")).toBeNull();
   });
 });

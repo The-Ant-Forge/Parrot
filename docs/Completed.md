@@ -439,3 +439,23 @@ New content script for `app.trakt.tv` (SvelteKit SPA with fully dynamic renderin
 - `autoRefreshing` flag prevents duplicate concurrent refreshes
 - No alarms permission needed — zero overhead when browser/extension is idle
 - Options page: toggle + days input in Cache section, auto-saves on change
+
+---
+
+## Metacritic Support
+
+New content script for Metacritic movie and TV show pages.
+
+- **New file:** `src/entrypoints/metacritic.content.ts`
+- URL patterns: `*://*.metacritic.com/movie/*` and `*://*.metacritic.com/tv/*`
+- Media type determined from URL path (`/movie/` vs `/tv/`)
+- Two-strategy matching:
+  - **Strategy 1 (primary):** JSON-LD `sameAs` for IMDb IDs — parses structured data on the page for external references
+  - **Strategy 2 (fallback):** Slug-based title matching from URL path, same approach as PSA and Rotten Tomatoes
+- Badge insertion target: `h1`
+- Gap detection supported when owned item has enriched TMDB/TVDB IDs
+- Added `metacritic` site definition in `sites.ts`
+
+### Test Suite
+- Added 3 Metacritic-related tests
+- Total: 113 tests across 7 test files (up from 110)

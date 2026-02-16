@@ -51,6 +51,13 @@ export function extractRtMediaType(pathname: string): "movie" | "show" | null {
   return null;
 }
 
+/** Metacritic: extract media type from URL path (/movie/ or /tv/). */
+export function extractMetacriticMediaType(pathname: string): "movie" | "show" | null {
+  if (/^\/movie\//.test(pathname)) return "movie";
+  if (/^\/tv\//.test(pathname)) return "show";
+  return null;
+}
+
 /** NZBGeek: determine media type from URL query parameters. */
 export function extractNzbgeekMediaType(search: string): "movie" | "show" | null {
   const params = new URLSearchParams(search);
