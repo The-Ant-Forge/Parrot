@@ -134,6 +134,10 @@ describe("extractJustWatchMediaType", () => {
     expect(extractJustWatchMediaType("/us/tv-show/some-series")).toBe("show");
   });
 
+  it("returns show for /tv-series/ path", () => {
+    expect(extractJustWatchMediaType("/uk/tv-series/some-series")).toBe("show");
+  });
+
   it("returns null for other paths", () => {
     expect(extractJustWatchMediaType("/us/provider/netflix")).toBeNull();
   });

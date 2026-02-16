@@ -372,8 +372,41 @@ Rotten Tomatoes removed all external database links (IMDb, TMDB) and JSON-LD `sa
 - Title regex updated: `/[-_]/g` converts both hyphens and underscores to spaces
 
 ### Badge Anchor Update
-- Changed badge anchor from `slot[name="title"]` to `div.title slot[name="title"]` for more precise placement
+- Changed badge anchor to `rt-text[slot="title"]` for correct placement on RT's web component DOM
 
 ### Test Suite
 - Added 3 underscore slug tests to `tests/normalize.test.ts`
 - Total: 102 tests across 6 test files (up from 99)
+
+---
+
+## Trakt App Support
+
+New content script for `app.trakt.tv` (SvelteKit SPA with fully dynamic rendering).
+
+- **New file:** `src/entrypoints/trakt-app.content.ts`
+- `waitForElement()` utility waits up to 10s for `h1.short-title` to appear via MutationObserver
+- Brief delay after anchor appears for links to populate, then scans for TMDB/IMDb/TVDB links
+- SPA-aware via `observeUrlChanges()`
+- Existing `trakt.content.ts` skips `app.trakt.tv` hostname to avoid conflicts
+- Added `trakt-app` site definition in `sites.ts`
+
+---
+
+## JustWatch & Extractor Fixes
+
+### JustWatch `/tv-series/` URL Pattern
+- JustWatch uses `/tv-series/` in URLs but the match pattern and extractor only handled `/tv-show/`
+- Added `/tv-series/` to content script match patterns, site definition, and `extractJustWatchMediaType()`
+- Added test for `/tv-series/` path extraction
+
+### JustWatch Title-Based Matching
+- JustWatch pages load dynamically and don't expose standard `<a>` tags with IMDb/TMDB URLs
+- Added SPA-aware waiting (`waitForAnchor()` with MutationObserver) for h1 to render
+- Added two-strategy approach: link scanning first, title-based matching from h1 text as fallback
+- `parseTitleFromH1()` extracts title and year from h1 text like `"The Night Manager (2016)"`
+- Year-aware fallback: if year present but no match, retries without year
+
+### Test Suite
+- Added `/tv-series/` extractor test
+- Total: 103 tests across 6 test files (up from 102)

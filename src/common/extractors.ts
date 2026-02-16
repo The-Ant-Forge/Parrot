@@ -40,7 +40,7 @@ export function extractTraktMediaType(pathname: string): "movie" | "show" | null
 /** JustWatch: extract media type from JustWatch URL path. */
 export function extractJustWatchMediaType(pathname: string): "movie" | "show" | null {
   if (/\/movie\//.test(pathname)) return "movie";
-  if (/\/tv-show\//.test(pathname)) return "show";
+  if (/\/tv-show\//.test(pathname) || /\/tv-series\//.test(pathname)) return "show";
   return null;
 }
 

@@ -43,10 +43,12 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **Letterboxd** | `letterboxd.com/film/{slug}` | TMDB/IMDb from page links | `h1.headline-1` |
 | **Trakt** | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
 | **Trakt** | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
-| **Rotten Tomatoes** | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `div.title slot[name="title"]` or `h1` |
-| **Rotten Tomatoes** | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `div.title slot[name="title"]` or `h1` |
-| **JustWatch** | `justwatch.com/*/movie/{slug}` | TMDB/IMDb from page links | `h1` |
-| **JustWatch** | `justwatch.com/*/tv-show/{slug}` | TMDB/IMDb from page links | `h1` |
+| **Trakt App** | `app.trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB from page links | `h1.short-title` |
+| **Trakt App** | `app.trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB from page links | `h1.short-title` |
+| **Rotten Tomatoes** | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `rt-text[slot="title"]` or `h1` |
+| **Rotten Tomatoes** | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) | `rt-text[slot="title"]` or `h1` |
+| **JustWatch** | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) | `h1` |
+| **JustWatch** | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) | `h1` |
 
 ### ID Extraction Strategies
 
@@ -59,11 +61,11 @@ url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
 
-**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, JustWatch, TVDB Movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
+**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB Movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
-**Title-based** (PSA, Rotten Tomatoes): No external IDs exist on the page (or they have been removed by the site). Parrot parses the URL slug into a normalized title and optional year, then matches against a title-based index built from Plex library data. The slug `some-movie-2025` becomes key `"some movie|2025"`. A fallback lookup without the year handles cases where the slug omits it. Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes tries JSON-LD/link scanning first and falls back to title-based matching.
+**Title-based** (PSA, Rotten Tomatoes, JustWatch): No external IDs exist on the page (or they have been removed by the site). Parrot normalizes a title and optional year, then matches against a title-based index built from Plex library data. The key `"some movie|2025"` is tried first, falling back to `"some movie"` without year. PSA and Rotten Tomatoes parse the title from the URL slug; JustWatch parses the h1 text (e.g., `"The Night Manager (2016)"`). Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes and JustWatch try link scanning first and fall back to title-based matching.
 
 ### Media Type Detection
 
@@ -76,12 +78,12 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **Letterboxd**: Always movie (film-only site)
 - **Trakt**: URL path (`/movies/` vs `/shows/`) determines type
 - **Rotten Tomatoes**: URL path (`/m/` vs `/tv/`) determines type
-- **JustWatch**: URL path (`/movie/` vs `/tv-show/`) determines type
+- **JustWatch**: URL path (`/movie/` vs `/tv-show/` or `/tv-series/`) determines type
 - **TVDB Movies**: Always movie
 
 ### SPA Navigation
 
-TMDB, IMDb, TVDB, Trakt, and JustWatch are single-page applications. Content scripts use a shared `observeUrlChanges()` utility (debounced `MutationObserver`) to detect client-side navigation and re-run the check-and-badge flow when the URL changes.
+TMDB, IMDb, TVDB, Trakt, Trakt App, and JustWatch are single-page applications. Content scripts use a shared `observeUrlChanges()` utility (debounced `MutationObserver`) to detect client-side navigation and re-run the check-and-badge flow when the URL changes.
 
 ---
 
@@ -102,6 +104,7 @@ parrot/
 │   │   ├── psa.content.ts             # PSA content script (title-based)
 │   │   ├── letterboxd.content.ts      # Letterboxd content script
 │   │   ├── trakt.content.ts           # Trakt content script
+│   │   ├── trakt-app.content.ts      # Trakt App content script (SvelteKit SPA)
 │   │   ├── rottentomatoes.content.ts  # Rotten Tomatoes content script
 │   │   ├── justwatch.content.ts       # JustWatch content script
 │   │   ├── options/
@@ -128,7 +131,7 @@ parrot/
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (102 tests)
+├── tests/                             # Vitest test suite (103 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -147,7 +150,7 @@ parrot/
 - Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
 - Auto-refreshes stale cache on startup (>24h threshold)
 
-**Content Scripts (12 scripts)**
+**Content Scripts (13 scripts)**
 - One per supported site
 - Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker

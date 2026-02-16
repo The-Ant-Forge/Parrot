@@ -39,7 +39,7 @@ async function checkAndBadge() {
   if (!mediaType) return;
 
   const anchor =
-    document.querySelector('div.title slot[name="title"]') ??
+    document.querySelector('rt-text[slot="title"]') ??
     document.querySelector("h1");
   if (!anchor) return;
 

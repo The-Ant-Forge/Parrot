@@ -5,20 +5,42 @@ import { getOptions } from "../common/storage";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
+/** Wait for a selector to appear in the DOM (SvelteKit renders async). */
+function waitForElement(selector: string, timeout = 10000): Promise<Element | null> {
+  const existing = document.querySelector(selector);
+  if (existing) return Promise.resolve(existing);
+
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector);
+      if (el) {
+        observer.disconnect();
+        resolve(el);
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, timeout);
+  });
+}
+
 async function checkAndBadge() {
   removeBadge();
-
-  // app.trakt.tv is handled by trakt-app.content.ts (SvelteKit SPA)
-  if (location.hostname === "app.trakt.tv") return;
 
   const mediaType = extractTraktMediaType(location.pathname);
   if (!mediaType) return;
 
+  // Wait for SvelteKit to render the title
+  const anchor = await waitForElement("h1.short-title");
+  if (!anchor) return;
+
+  // Brief delay for remaining DOM (links) to populate
+  await new Promise((r) => setTimeout(r, 500));
+
   const extId = scanLinksForExternalId();
   if (!extId) return;
-
-  const anchor = document.querySelector("h1");
-  if (!anchor) return;
 
   const badge = injectBadge(anchor);
 
@@ -60,7 +82,7 @@ async function checkAndBadge() {
 }
 
 export default defineContentScript({
-  matches: ["*://*.trakt.tv/movies/*", "*://*.trakt.tv/shows/*"],
+  matches: ["*://app.trakt.tv/movies/*", "*://app.trakt.tv/shows/*"],
   runAt: "document_idle",
   main() {
     checkAndBadge();
