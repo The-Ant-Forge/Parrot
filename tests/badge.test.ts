@@ -8,7 +8,7 @@ import {
   findExistingBadge,
   injectBadge,
   removeBadge,
-  updateBadgeCompleteness,
+  setBadgeGapData,
 } from "../src/common/badge";
 
 beforeEach(() => {
@@ -16,10 +16,22 @@ beforeEach(() => {
 });
 
 describe("createBadge", () => {
-  it("creates a span with data-parrot-badge attribute", () => {
+  it("creates a wrapper span with data-parrot-badge attribute", () => {
     const badge = createBadge();
     expect(badge.tagName).toBe("SPAN");
     expect(badge.getAttribute("data-parrot-badge")).toBe("true");
+  });
+
+  it("has position relative for floating panel anchoring", () => {
+    const badge = createBadge();
+    expect(badge.style.position).toBe("relative");
+  });
+
+  it("contains an inner .parrot-pill span", () => {
+    const badge = createBadge();
+    const pill = badge.querySelector(".parrot-pill");
+    expect(pill).not.toBeNull();
+    expect(pill?.tagName).toBe("SPAN");
   });
 
   it("starts hidden", () => {
@@ -29,32 +41,35 @@ describe("createBadge", () => {
 });
 
 describe("updateBadge", () => {
-  it("applies owned styling", () => {
+  it("applies owned styling to inner pill", () => {
     const badge = createBadge();
     updateBadge(badge, "owned");
-    expect(badge.style.backgroundColor).toBe("#282828");
-    expect(badge.style.borderColor).toBe("#ebaf00");
-    expect(badge.innerHTML).toContain("Plex");
-    expect(badge.innerHTML).toContain("svg");
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.style.backgroundColor).toBe("#282828");
+    expect(pill.style.borderColor).toBe("#ebaf00");
+    expect(pill.innerHTML).toContain("Plex");
+    expect(pill.innerHTML).toContain("svg");
   });
 
-  it("applies not-owned styling", () => {
+  it("applies not-owned styling to inner pill", () => {
     const badge = createBadge();
     updateBadge(badge, "not-owned");
-    expect(badge.style.backgroundColor).toBe("#3a3a3a");
-    expect(badge.style.borderColor).toBe("#555");
-    expect(badge.innerHTML).toContain("Plex");
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.style.backgroundColor).toBe("#3a3a3a");
+    expect(pill.style.borderColor).toBe("#555");
+    expect(pill.innerHTML).toContain("Plex");
   });
 
   it("applies error styling with ! text", () => {
     const badge = createBadge();
     updateBadge(badge, "error", "Something went wrong");
-    expect(badge.style.backgroundColor).toBe("#f44336");
-    expect(badge.textContent).toBe("!");
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.style.backgroundColor).toBe("#f44336");
+    expect(pill.textContent).toBe("!");
     expect(badge.title).toBe("Something went wrong");
   });
 
-  it("sets tooltip when provided", () => {
+  it("sets tooltip on wrapper when provided", () => {
     const badge = createBadge();
     updateBadge(badge, "owned", "Found in library");
     expect(badge.title).toBe("Found in library");
@@ -68,34 +83,37 @@ describe("updateBadge", () => {
 });
 
 describe("showErrorBadge", () => {
-  it("shows error state with reason", () => {
+  it("shows error state with reason on inner pill", () => {
     const badge = createBadge();
     showErrorBadge(badge, "Connection failed");
-    expect(badge.textContent).toBe("!");
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.textContent).toBe("!");
     expect(badge.title).toBe("Connection failed");
-    expect(badge.style.backgroundColor).toBe("#f44336");
+    expect(pill.style.backgroundColor).toBe("#f44336");
   });
 });
 
 describe("updateBadgeFromResponse", () => {
-  it("shows not-owned badge for unowned media", () => {
+  it("shows not-owned styling on inner pill", () => {
     const badge = createBadge();
     document.body.appendChild(badge);
     updateBadgeFromResponse(badge, { owned: false });
-    expect(badge.style.borderColor).toBe("#555");
-    expect(badge.innerHTML).toContain("Plex");
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.style.borderColor).toBe("#555");
+    expect(pill.innerHTML).toContain("Plex");
   });
 
-  it("shows owned badge without link when no plexUrl", () => {
+  it("shows owned styling without link when no plexUrl", () => {
     const badge = createBadge();
     document.body.appendChild(badge);
     updateBadgeFromResponse(badge, { owned: true });
-    // Should remain a span (no replacement)
-    expect(badge.tagName).toBe("SPAN");
-    expect(badge.style.borderColor).toBe("#ebaf00");
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.style.borderColor).toBe("#ebaf00");
+    // No anchor inside pill
+    expect(pill.querySelector("a")).toBeNull();
   });
 
-  it("replaces span with anchor when plexUrl is provided", () => {
+  it("wrapper stays stable when plexUrl is provided (no replaceWith)", () => {
     const container = document.createElement("div");
     const badge = createBadge();
     container.appendChild(badge);
@@ -106,12 +124,26 @@ describe("updateBadgeFromResponse", () => {
       plexUrl: "https://app.plex.tv/desktop/#!/server/abc/details?key=123",
     });
 
-    // The span should be replaced with an <a>
-    const link = container.querySelector("a[data-parrot-badge]") as HTMLAnchorElement;
+    // Wrapper span should still be in the container
+    expect(container.querySelector("[data-parrot-badge]")).toBe(badge);
+    expect(badge.tagName).toBe("SPAN");
+  });
+
+  it("creates plex link inside pill when plexUrl is provided", () => {
+    const badge = createBadge();
+    document.body.appendChild(badge);
+
+    updateBadgeFromResponse(badge, {
+      owned: true,
+      plexUrl: "https://app.plex.tv/desktop/#!/server/abc/details?key=123",
+    });
+
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    const link = pill.querySelector(".parrot-plex-link") as HTMLAnchorElement;
     expect(link).not.toBeNull();
     expect(link.href).toContain("plex.tv");
     expect(link.target).toBe("_blank");
-    expect(link.style.borderColor).toBe("#ebaf00");
+    expect(pill.style.borderColor).toBe("#ebaf00");
   });
 });
 
@@ -139,6 +171,28 @@ describe("removeBadge", () => {
   it("does nothing when no badge exists", () => {
     expect(() => removeBadge()).not.toThrow();
   });
+
+  it("cleans up panel state on removal", () => {
+    const badge = createBadge();
+    document.body.appendChild(badge);
+    updateBadgeFromResponse(badge, {
+      owned: true,
+      plexUrl: "https://app.plex.tv/desktop/#!/server/abc/details?key=123",
+    });
+
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "incomplete", panelElement: panel });
+
+    // Open the panel
+    const toggle = badge.querySelector(".parrot-gap-toggle") as HTMLElement;
+    toggle.click();
+    expect(badge.contains(panel)).toBe(true);
+
+    // Remove badge — should clean up everything
+    removeBadge();
+    expect(findExistingBadge()).toBeNull();
+    expect(document.body.contains(panel)).toBe(false);
+  });
 });
 
 describe("injectBadge", () => {
@@ -164,26 +218,108 @@ describe("injectBadge", () => {
   });
 });
 
-describe("updateBadgeCompleteness", () => {
-  it("updates badge text to 'Plex : Complete'", () => {
+describe("setBadgeGapData", () => {
+  function setupOwnedBadge(plexUrl?: string) {
     const badge = createBadge();
     document.body.appendChild(badge);
-    updateBadge(badge, "owned");
-    updateBadgeCompleteness("complete");
-    const textSpan = badge.querySelector("span");
-    expect(textSpan?.textContent).toBe("Plex : Complete");
+    updateBadgeFromResponse(badge, {
+      owned: true,
+      plexUrl: plexUrl ?? "https://app.plex.tv/desktop/#!/server/abc/details?key=123",
+    });
+    return badge;
+  }
+
+  it("adds Complete text to pill", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "complete", panelElement: panel });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle");
+    expect(toggle).not.toBeNull();
+    expect(toggle?.textContent).toBe(" : Complete");
   });
 
-  it("updates badge text to 'Plex : Incomplete'", () => {
-    const badge = createBadge();
-    document.body.appendChild(badge);
-    updateBadge(badge, "owned");
-    updateBadgeCompleteness("incomplete");
-    const textSpan = badge.querySelector("span");
-    expect(textSpan?.textContent).toBe("Plex : Incomplete");
+  it("adds Incomplete text to pill", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "incomplete", panelElement: panel });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle");
+    expect(toggle?.textContent).toBe(" : Incomplete");
+  });
+
+  it("preserves plex link as split-click zone", () => {
+    const badge = setupOwnedBadge("https://app.plex.tv/desktop/#!/server/abc/details?key=123");
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "complete", panelElement: panel });
+
+    const link = badge.querySelector(".parrot-plex-link") as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.href).toContain("plex.tv");
+  });
+
+  it("toggle click shows floating panel", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    panel.textContent = "Panel content";
+    setBadgeGapData({ state: "incomplete", panelElement: panel });
+
+    // Panel should not be in DOM yet
+    expect(badge.contains(panel)).toBe(false);
+
+    // Click toggle to show panel
+    const toggle = badge.querySelector(".parrot-gap-toggle") as HTMLElement;
+    toggle.click();
+    expect(badge.contains(panel)).toBe(true);
+  });
+
+  it("toggle click again hides floating panel", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "incomplete", panelElement: panel });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle") as HTMLElement;
+
+    // Show
+    toggle.click();
+    expect(badge.contains(panel)).toBe(true);
+
+    // Hide
+    toggle.click();
+    expect(badge.contains(panel)).toBe(false);
+  });
+
+  it("click outside dismisses panel", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "incomplete", panelElement: panel });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle") as HTMLElement;
+    toggle.click();
+    expect(badge.contains(panel)).toBe(true);
+
+    // Click outside the badge wrapper
+    document.body.click();
+    expect(badge.contains(panel)).toBe(false);
+  });
+
+  it("sets aria-expanded on toggle", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "complete", panelElement: panel });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle") as HTMLElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    toggle.click();
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    toggle.click();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("does nothing when no badge exists", () => {
-    expect(() => updateBadgeCompleteness("complete")).not.toThrow();
+    const panel = document.createElement("div");
+    expect(() => setBadgeGapData({ state: "complete", panelElement: panel })).not.toThrow();
   });
 });

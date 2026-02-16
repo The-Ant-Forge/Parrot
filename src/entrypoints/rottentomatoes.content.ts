@@ -1,6 +1,4 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
 import { extractRtMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
@@ -30,8 +28,6 @@ function findExternalId(): ExternalIdFromLink | null {
 
 async function checkAndBadge() {
   removeBadge();
-  removeCollectionPanel();
-  removeEpisodePanel();
 
   const mediaType = extractRtMediaType(location.pathname);
   if (!mediaType) return;
@@ -74,7 +70,6 @@ async function checkAndBadge() {
         mediaType: resolvedType,
         source: extId.source,
         id: extId.id,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });

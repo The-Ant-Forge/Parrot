@@ -1,6 +1,4 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
 import { extractJustWatchMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
@@ -9,8 +7,6 @@ import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
-  removeCollectionPanel();
-  removeEpisodePanel();
 
   const mediaType = extractJustWatchMediaType(location.pathname);
   if (!mediaType) return;
@@ -53,7 +49,6 @@ async function checkAndBadge() {
         mediaType: resolvedType,
         source: extId.source,
         id: extId.id,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });

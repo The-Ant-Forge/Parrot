@@ -43,9 +43,13 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 ## Badge States
 
-- **Owned** -- Dark pill with gold Plex chevron icon (links to item in Plex)
-- **Not owned** -- Dark pill with gray Plex chevron icon
-- **Error** -- Red pill
+- **Not owned** -- Dark pill with gray Plex chevron: `[Plex]`
+- **Owned** -- Dark pill with gold Plex chevron, click opens Plex: `[Plex]`
+- **Owned + complete** -- Split-click pill: "Plex" opens Plex, "Complete" toggles gap panel: `[Plex : Complete]`
+- **Owned + incomplete** -- Split-click pill: "Plex" opens Plex, "Incomplete" toggles gap panel: `[Plex : Incomplete]`
+- **Error** -- Red pill with tooltip
+
+Gap panels float as overlays anchored to the badge (no page layout shift).
 
 The toolbar icon also changes per-tab: gold border when owned, gray when not, light gray when inactive.
 

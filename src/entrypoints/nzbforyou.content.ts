@@ -1,12 +1,8 @@
-import { createBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractImdbId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
 import type { CheckResponse } from "../common/types";
-
-const BADGE_ATTR = "data-parrot-badge";
 
 function getMediaType(): "movie" | "show" | null {
   const breadcrumb = document.querySelector("li.breadcrumb");
@@ -27,34 +23,16 @@ function findImdbId(): string | null {
   return null;
 }
 
-function removeAllBadges() {
-  document.querySelectorAll(`[${BADGE_ATTR}]`).forEach((el) => el.remove());
-}
-
-function injectBadges(anchors: Element[]): HTMLSpanElement[] {
-  return anchors.map((anchor) => {
-    const badge = createBadge();
-    anchor.appendChild(badge);
-    return badge;
-  });
-}
-
 async function checkAndBadge() {
-  removeAllBadges();
-  removeCollectionPanel();
-  removeEpisodePanel();
+  removeBadge();
 
   const imdbId = findImdbId();
   if (!imdbId) return;
 
-  const anchors = [
-    document.querySelector("h2.topic-title"),
-    document.querySelector("h3.first"),
-  ].filter((el): el is Element => el !== null);
+  const anchor = document.querySelector("h3.first");
+  if (!anchor) return;
 
-  if (anchors.length === 0) return;
-
-  const badges = injectBadges(anchors);
+  const badge = injectBadge(anchor);
   let resolvedType = getMediaType();
 
   try {
@@ -87,27 +65,21 @@ async function checkAndBadge() {
       }
     }
 
-    for (const badge of badges) {
-      updateBadgeFromResponse(badge, response);
-    }
+    updateBadgeFromResponse(badge, response);
 
     // Gap detection for owned items
     if (response.owned && resolvedType) {
-      const anchor = anchors[0];
       const options = await getOptions();
       checkGaps({
         mediaType: resolvedType,
         source: "imdb",
         id: imdbId,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });
     }
   } catch {
-    for (const badge of badges) {
-      showErrorBadge(badge, "Could not check Plex library");
-    }
+    showErrorBadge(badge, "Could not check Plex library");
   }
 }
 

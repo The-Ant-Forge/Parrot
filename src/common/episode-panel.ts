@@ -1,13 +1,9 @@
 import type { EpisodeGapResponse } from "./types";
-import { createPanelContainer, createPanelHeader, createPanelRow, createStatusIcon, injectPanel } from "./panel-utils";
+import { createPanelContainer, createPanelHeader, createPanelRow, createStatusIcon } from "./panel-utils";
 
 const PANEL_ATTR = "data-parrot-episodes";
 
 type GapData = NonNullable<EpisodeGapResponse["gaps"]>;
-
-export function removeEpisodePanel() {
-  document.querySelector(`[${PANEL_ATTR}]`)?.remove();
-}
 
 export function createEpisodePanel(gaps: GapData, expanded = false): HTMLDivElement {
   const panel = createPanelContainer(PANEL_ATTR);
@@ -43,8 +39,3 @@ export function createEpisodePanel(gaps: GapData, expanded = false): HTMLDivElem
   return panel;
 }
 
-export function injectEpisodePanel(anchor: Element, gaps: GapData, expanded = false) {
-  removeEpisodePanel();
-  const panel = createEpisodePanel(gaps, expanded);
-  injectPanel(anchor, panel);
-}

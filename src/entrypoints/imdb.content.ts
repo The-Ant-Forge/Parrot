@@ -1,6 +1,4 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
 import { extractImdbId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
@@ -9,8 +7,6 @@ import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
-  removeCollectionPanel();
-  removeEpisodePanel();
 
   const imdbId = extractImdbId(location.href);
   if (!imdbId) return;
@@ -52,7 +48,6 @@ async function checkAndBadge() {
         mediaType,
         source: "imdb",
         id: imdbId,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });

@@ -1,6 +1,4 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
 import { extractPsaFromUrl } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { parseSlug, buildTitleKey } from "../common/normalize";
@@ -9,8 +7,6 @@ import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
-  removeCollectionPanel();
-  removeEpisodePanel();
 
   const info = extractPsaFromUrl(location.href);
   console.log("Parrot PSA: extracted", info, "from", location.href);
@@ -56,7 +52,6 @@ async function checkAndBadge() {
         mediaType: info.mediaType,
         source: "title",
         id: titleKey,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });

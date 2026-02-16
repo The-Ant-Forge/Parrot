@@ -1,6 +1,9 @@
 import type { CheckResponse } from "./types";
 
 const BADGE_ATTR = "data-parrot-badge";
+const PILL_CLASS = "parrot-pill";
+const PLEX_LINK_CLASS = "parrot-plex-link";
+const GAP_TOGGLE_CLASS = "parrot-gap-toggle";
 
 type BadgeStatus = "owned" | "not-owned" | "error";
 
@@ -14,7 +17,15 @@ const STYLES: Record<BadgeStatus, { bg: string; color: string; border: string; i
   error: { bg: "#f44336", color: "#fff", border: "#d32f2f", icon: "#fff" },
 };
 
-function applyStyles(el: HTMLElement, status: BadgeStatus) {
+// --- Module-level state for floating panel ---
+let currentPanelElement: HTMLDivElement | null = null;
+let clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
+let panelVisible = false;
+let currentPlexUrl: string | undefined;
+
+// --- Internal helpers ---
+
+function applyPillStyles(el: HTMLElement, status: BadgeStatus) {
   const s = STYLES[status];
   Object.assign(el.style, {
     display: "inline-flex",
@@ -28,85 +39,276 @@ function applyStyles(el: HTMLElement, status: BadgeStatus) {
     backgroundColor: s.bg,
     color: s.color,
     border: `1px solid ${s.border}`,
-    marginLeft: "8px",
     verticalAlign: "middle",
     fontFamily: "system-ui, -apple-system, sans-serif",
     whiteSpace: "nowrap",
   });
 }
 
-function setBadgeContent(badge: HTMLElement, status: BadgeStatus) {
+function ensurePill(wrapper: HTMLElement): HTMLSpanElement {
+  let pill = wrapper.querySelector<HTMLSpanElement>(`.${PILL_CLASS}`);
+  if (!pill) {
+    pill = document.createElement("span");
+    pill.className = PILL_CLASS;
+    wrapper.appendChild(pill);
+  }
+  return pill;
+}
+
+function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string) {
+  pill.innerHTML = "";
+
   const s = STYLES[status];
   if (status === "error") {
-    badge.innerHTML = "";
-    badge.textContent = "!";
+    pill.textContent = "!";
+    return;
+  }
+
+  if (status === "owned" && plexUrl) {
+    // Entire pill content is a link
+    const link = document.createElement("a");
+    link.className = PLEX_LINK_CLASS;
+    link.href = plexUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    Object.assign(link.style, {
+      textDecoration: "none",
+      cursor: "pointer",
+      color: "inherit",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "3px",
+    });
+    link.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
+    pill.appendChild(link);
   } else {
-    badge.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
+    pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
 }
 
-export function createBadge(): HTMLSpanElement {
-  const badge = document.createElement("span");
-  badge.setAttribute(BADGE_ATTR, "true");
-  badge.style.display = "none";
-  return badge;
+// --- Floating panel positioning ---
+
+function positionPanel(wrapper: HTMLElement, panel: HTMLDivElement) {
+  // Default: below, left-aligned
+  Object.assign(panel.style, {
+    position: "absolute",
+    top: "100%",
+    bottom: "",
+    left: "0",
+    right: "",
+    marginTop: "4px",
+    marginBottom: "",
+    zIndex: "99999",
+    minWidth: "280px",
+    maxWidth: "400px",
+    maxHeight: "400px",
+    overflowY: "auto",
+  });
+
+  // Adjust after layout
+  requestAnimationFrame(() => {
+    const panelRect = panel.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    // If panel extends below viewport, flip to above
+    if (panelRect.bottom > viewportHeight) {
+      panel.style.top = "";
+      panel.style.bottom = "100%";
+      panel.style.marginTop = "";
+      panel.style.marginBottom = "4px";
+    }
+
+    // If panel extends past right edge, right-align
+    if (panelRect.right > viewportWidth) {
+      panel.style.left = "";
+      panel.style.right = "0";
+    }
+  });
 }
 
+// --- Click-outside dismissal ---
+
+function setupClickOutside(wrapper: HTMLElement) {
+  const handler = (e: MouseEvent) => {
+    if (!wrapper.contains(e.target as Node)) {
+      hidePanel();
+    }
+  };
+  document.addEventListener("click", handler, true);
+  clickOutsideHandler = handler;
+}
+
+function teardownClickOutside() {
+  if (clickOutsideHandler) {
+    document.removeEventListener("click", clickOutsideHandler, true);
+    clickOutsideHandler = null;
+  }
+}
+
+// --- Panel toggle ---
+
+function showPanel() {
+  const wrapper = findExistingBadge();
+  if (!wrapper || !currentPanelElement) return;
+
+  wrapper.appendChild(currentPanelElement);
+  positionPanel(wrapper, currentPanelElement);
+  panelVisible = true;
+
+  const toggle = wrapper.querySelector<HTMLElement>(`.${GAP_TOGGLE_CLASS}`);
+  if (toggle) toggle.setAttribute("aria-expanded", "true");
+
+  setupClickOutside(wrapper);
+}
+
+function hidePanel() {
+  if (currentPanelElement?.parentElement) {
+    currentPanelElement.remove();
+  }
+  panelVisible = false;
+
+  const wrapper = findExistingBadge();
+  const toggle = wrapper?.querySelector<HTMLElement>(`.${GAP_TOGGLE_CLASS}`);
+  if (toggle) toggle.setAttribute("aria-expanded", "false");
+
+  teardownClickOutside();
+}
+
+function togglePanel() {
+  if (panelVisible) {
+    hidePanel();
+  } else {
+    showPanel();
+  }
+}
+
+function resetPanelState() {
+  hidePanel();
+  currentPanelElement = null;
+  currentPlexUrl = undefined;
+}
+
+// --- Exported API ---
+
+export interface GapPanelData {
+  state: "complete" | "incomplete";
+  panelElement: HTMLDivElement;
+}
+
+/** Create the stable badge wrapper (hidden initially). */
+export function createBadge(): HTMLSpanElement {
+  const wrapper = document.createElement("span");
+  wrapper.setAttribute(BADGE_ATTR, "true");
+  Object.assign(wrapper.style, {
+    position: "relative",
+    display: "none",
+    marginLeft: "8px",
+  });
+  // Create inner pill
+  const pill = document.createElement("span");
+  pill.className = PILL_CLASS;
+  wrapper.appendChild(pill);
+  return wrapper;
+}
+
+/** Update badge with owned/not-owned/error status and optional tooltip. */
 export function updateBadge(badge: HTMLSpanElement, status: BadgeStatus, tooltip?: string) {
-  setBadgeContent(badge, status);
-  applyStyles(badge, status);
+  const pill = ensurePill(badge);
+  setPillContent(pill, status);
+  applyPillStyles(pill, status);
   badge.title = tooltip ?? "";
 }
 
+/** Show red error badge with tooltip. */
 export function showErrorBadge(badge: HTMLSpanElement, reason: string) {
-  updateBadge(badge, "error", reason);
+  const pill = ensurePill(badge);
+  setPillContent(pill, "error");
+  applyPillStyles(pill, "error");
+  badge.title = reason;
 }
 
+/** Update badge from CHECK response. Stores plexUrl for later split-click. */
 export function updateBadgeFromResponse(
   badge: HTMLSpanElement,
   response: CheckResponse,
 ) {
   const status = response.owned ? "owned" : "not-owned";
+  currentPlexUrl = response.plexUrl;
 
-  if (response.owned && response.plexUrl) {
-    // Replace span with a clickable <a> link
+  const pill = ensurePill(badge);
+  setPillContent(pill, status, response.plexUrl);
+  applyPillStyles(pill, status);
+}
+
+/**
+ * Set gap data on the badge. Transitions to split-click mode:
+ * "Plex" part links to Plex, ": Complete/Incomplete" part toggles the floating panel.
+ */
+export function setBadgeGapData(data: GapPanelData) {
+  const wrapper = findExistingBadge();
+  if (!wrapper) return;
+
+  // Clean up any previous panel state
+  hidePanel();
+  currentPanelElement = data.panelElement;
+
+  const pill = ensurePill(wrapper);
+  const s = STYLES.owned;
+
+  // Rebuild pill content with split-click zones
+  pill.innerHTML = "";
+
+  // Left zone: Plex link (or plain text if no plexUrl)
+  if (currentPlexUrl) {
     const link = document.createElement("a");
-    link.setAttribute(BADGE_ATTR, "true");
-    link.href = response.plexUrl;
+    link.className = PLEX_LINK_CLASS;
+    link.href = currentPlexUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.style.textDecoration = "none";
-    link.style.cursor = "pointer";
-    setBadgeContent(link, status);
-    applyStyles(link, status);
-    badge.replaceWith(link);
+    Object.assign(link.style, {
+      textDecoration: "none",
+      cursor: "pointer",
+      color: "inherit",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "3px",
+    });
+    link.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
+    pill.appendChild(link);
   } else {
-    setBadgeContent(badge, status);
-    applyStyles(badge, status);
+    pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
+
+  // Right zone: completeness toggle
+  const toggle = document.createElement("span");
+  toggle.className = GAP_TOGGLE_CLASS;
+  toggle.setAttribute("aria-expanded", "false");
+  Object.assign(toggle.style, {
+    cursor: "pointer",
+    marginTop: "1px",
+  });
+  toggle.textContent = data.state === "complete" ? " : Complete" : " : Incomplete";
+  toggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    togglePanel();
+  });
+  pill.appendChild(toggle);
 }
 
-type CompletenessState = "complete" | "incomplete";
-
-export function updateBadgeCompleteness(state: CompletenessState) {
-  const badge = findExistingBadge();
-  if (!badge) return;
-
-  // Find the text span inside the badge (after the SVG icon)
-  const textSpan = badge.querySelector("span");
-  if (!textSpan) return;
-
-  textSpan.textContent = state === "complete" ? "Plex : Complete" : "Plex : Incomplete";
-}
-
+/** Find existing badge wrapper in DOM. */
 export function findExistingBadge(): HTMLSpanElement | null {
   return document.querySelector(`[${BADGE_ATTR}]`);
 }
 
+/** Remove badge and clean up all associated state. */
 export function removeBadge() {
+  resetPanelState();
   findExistingBadge()?.remove();
 }
 
+/** Inject badge into anchor element (singleton — returns existing if found). */
 export function injectBadge(anchor: Element): HTMLSpanElement {
   const existing = findExistingBadge();
   if (existing) return existing;

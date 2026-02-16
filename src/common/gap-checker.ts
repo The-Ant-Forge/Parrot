@@ -1,24 +1,23 @@
-import { updateBadgeCompleteness } from "./badge";
-import { injectCollectionPanel } from "./collection-panel";
-import { injectEpisodePanel } from "./episode-panel";
+import { setBadgeGapData } from "./badge";
+import { createCollectionPanel } from "./collection-panel";
+import { createEpisodePanel } from "./episode-panel";
 import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse, FindTmdbIdResponse } from "./types";
 
 interface GapCheckParams {
   mediaType: "movie" | "show";
   source: "tmdb" | "imdb" | "tvdb" | "title";
   id: string;
-  anchor: Element;
   response: CheckResponse;
   showCompletePanels: boolean;
 }
 
 export async function checkGaps(params: GapCheckParams): Promise<void> {
-  const { mediaType, source, id, anchor, response, showCompletePanels } = params;
+  const { mediaType, source, id, response, showCompletePanels } = params;
 
   if (mediaType === "movie") {
-    await checkMovieGaps(source, id, response, anchor, showCompletePanels);
+    await checkMovieGaps(source, id, response, showCompletePanels);
   } else if (mediaType === "show" && response.owned) {
-    await checkShowGaps(source, id, response, anchor, showCompletePanels);
+    await checkShowGaps(source, id, response, showCompletePanels);
   }
 }
 
@@ -56,7 +55,6 @@ async function checkMovieGaps(
   source: string,
   id: string,
   response: CheckResponse,
-  anchor: Element,
   showCompletePanels: boolean,
 ) {
   try {
@@ -71,14 +69,12 @@ async function checkMovieGaps(
     if (collResult.hasCollection && collResult.collection) {
       const hasGaps = collResult.collection.missingMovies.length > 0;
 
-      // Show panel if there are gaps, or if user wants to see complete panels
-      if (hasGaps || showCompletePanels) {
-        injectCollectionPanel(anchor, collResult.collection, showCompletePanels);
-      }
-
-      // Update badge completeness for owned movies
       if (response.owned) {
-        updateBadgeCompleteness(hasGaps ? "incomplete" : "complete");
+        const panelElement = createCollectionPanel(collResult.collection, hasGaps || showCompletePanels);
+        setBadgeGapData({
+          state: hasGaps ? "incomplete" : "complete",
+          panelElement,
+        });
       }
     }
   } catch (err) {
@@ -90,7 +86,6 @@ async function checkShowGaps(
   source: string,
   id: string,
   response: CheckResponse,
-  anchor: Element,
   showCompletePanels: boolean,
 ) {
   try {
@@ -123,15 +118,18 @@ async function checkShowGaps(
       id: episodeId,
     });
 
-    if (result.hasGaps && result.gaps) {
-      injectEpisodePanel(anchor, result.gaps, showCompletePanels);
-      updateBadgeCompleteness("incomplete");
-    } else if (result.gaps && showCompletePanels) {
-      // Show complete panel when user opted in
-      injectEpisodePanel(anchor, result.gaps, true);
-      updateBadgeCompleteness("complete");
+    if (result.gaps) {
+      const hasGaps = result.hasGaps;
+      const panelElement = createEpisodePanel(result.gaps, hasGaps || showCompletePanels);
+      setBadgeGapData({
+        state: hasGaps ? "incomplete" : "complete",
+        panelElement,
+      });
     } else {
-      updateBadgeCompleteness("complete");
+      setBadgeGapData({
+        state: "complete",
+        panelElement: document.createElement("div"), // empty placeholder
+      });
     }
   } catch (err) {
     console.error("Parrot: episode gap check failed", err);

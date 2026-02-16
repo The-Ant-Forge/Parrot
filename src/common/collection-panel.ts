@@ -1,13 +1,9 @@
 import type { CollectionCheckResponse } from "./types";
-import { createPanelContainer, createPanelHeader, createPanelRow, createStatusIcon, injectPanel } from "./panel-utils";
+import { createPanelContainer, createPanelHeader, createPanelRow, createStatusIcon } from "./panel-utils";
 
 const PANEL_ATTR = "data-parrot-collection";
 
 type CollectionData = NonNullable<CollectionCheckResponse["collection"]>;
-
-export function removeCollectionPanel() {
-  document.querySelector(`[${PANEL_ATTR}]`)?.remove();
-}
 
 export function createCollectionPanel(collection: CollectionData, expanded = false): HTMLDivElement {
   const panel = createPanelContainer(PANEL_ATTR);
@@ -67,8 +63,3 @@ export function createCollectionPanel(collection: CollectionData, expanded = fal
   return panel;
 }
 
-export function injectCollectionPanel(anchor: Element, collection: CollectionData, expanded = false) {
-  removeCollectionPanel();
-  const panel = createCollectionPanel(collection, expanded);
-  injectPanel(anchor, panel);
-}

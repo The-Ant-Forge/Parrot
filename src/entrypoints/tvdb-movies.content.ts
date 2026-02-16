@@ -1,6 +1,4 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
 import { scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
@@ -9,8 +7,6 @@ import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
-  removeCollectionPanel();
-  removeEpisodePanel();
 
   const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
   if (!extId) return;
@@ -36,7 +32,6 @@ async function checkAndBadge() {
         mediaType: "movie",
         source: extId.source,
         id: extId.id,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });

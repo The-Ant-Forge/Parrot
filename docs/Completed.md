@@ -314,3 +314,34 @@ Post-Phase 11 consolidation: bug fixes, code deduplication, robustness improveme
 ### Test Suite Expansion
 - `tests/scan-links.test.ts` — 10 tests for `scanLinksForExternalId()` (DOM-based, happy-dom)
 - Total: 89 tests across 6 test files
+
+---
+
+## Phase 13: Smart Badge with Floating Gap Panel
+
+> Spec: [`Phase 13 - Smart Badge.md`](Phase%2013%20-%20Smart%20Badge.md)
+
+Redesigned the badge as a unified smart pill with four states and moved gap panels to floating overlays anchored to the badge. Zero layout shift, lighter DOM footprint.
+
+### Badge Redesign
+- Wrapper+pill architecture: outer `<span data-parrot-badge>` is stable (never replaced), inner `.parrot-pill` rebuilds on state changes
+- Four states: gray (not owned), gold (owned), gold with ": Complete" (owned + all gaps filled), gold with ": Incomplete" (owned + gaps exist)
+- Split-click interaction: "Plex" part links to Plex Web, ": Complete/Incomplete" part toggles floating gap panel
+- `setBadgeGapData()` replaces `updateBadgeCompleteness()` + panel injection
+
+### Floating Gap Panel
+- Panels are `position: absolute` children of the badge wrapper instead of block-level DOM elements
+- Smart viewport positioning: drops down by default, flips up near bottom, right-aligns near right edge
+- Click-outside dismissal via capture-phase document listener
+- Panel DOM stays in memory when hidden (preserves expand/collapse state)
+
+### Code Cleanup
+- Removed `injectCollectionPanel()`, `removeCollectionPanel()`, `injectEpisodePanel()`, `removeEpisodePanel()`, `injectPanel()` exports
+- Removed `anchor` parameter from `GapCheckParams` and all `checkGaps()` calls
+- `removeBadge()` now handles all cleanup (panel is a child of badge wrapper)
+- Simplified `nzbforyou.content.ts` from multi-badge to single-badge pattern
+
+### Test Suite
+- Rewrote `tests/badge.test.ts` for wrapper+pill architecture
+- Added `setBadgeGapData` tests (completeness text, split-click, toggle, click-outside, aria-expanded, cleanup)
+- Total: 98 tests across 6 test files (up from 89)

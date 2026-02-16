@@ -1,6 +1,4 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { removeCollectionPanel } from "../common/collection-panel";
-import { removeEpisodePanel } from "../common/episode-panel";
 import { extractNzbgeekMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { getOptions } from "../common/storage";
@@ -12,8 +10,6 @@ function findTitleAnchor(): Element | null {
 
 async function checkAndBadge() {
   removeBadge();
-  removeCollectionPanel();
-  removeEpisodePanel();
 
   const mediaType = extractNzbgeekMediaType(location.search);
   if (!mediaType) return;
@@ -41,7 +37,6 @@ async function checkAndBadge() {
         mediaType,
         source: extId.source,
         id: extId.id,
-        anchor,
         response,
         showCompletePanels: options.showCompletePanels,
       });

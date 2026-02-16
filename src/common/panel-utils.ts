@@ -9,7 +9,6 @@ export function createPanelContainer(attr: string): HTMLDivElement {
   const panel = document.createElement("div");
   panel.setAttribute(attr, "true");
   Object.assign(panel.style, {
-    marginTop: "8px",
     borderRadius: "8px",
     border: "1px solid #444",
     backgroundColor: "#282828",
@@ -100,11 +99,3 @@ export function createStatusIcon(complete: boolean): HTMLSpanElement {
   return icon;
 }
 
-/** Insert a panel after an anchor element, removing any existing panel with the same attribute. */
-export function injectPanel(anchor: Element, panel: HTMLDivElement) {
-  if (anchor.parentElement) {
-    anchor.parentElement.insertBefore(panel, anchor.nextSibling);
-  } else {
-    anchor.appendChild(panel);
-  }
-}
