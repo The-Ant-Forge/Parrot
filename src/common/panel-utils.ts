@@ -4,15 +4,31 @@
 
 const ACCENT = "#ebaf00";
 
+/** CSS reset properties to prevent host-site styles from bleeding in. */
+const CSS_RESET = {
+  fontFamily: "system-ui, -apple-system, sans-serif",
+  fontWeight: "400",
+  fontStyle: "normal",
+  lineHeight: "1.4",
+  letterSpacing: "normal",
+  wordSpacing: "normal",
+  textTransform: "none",
+  textDecoration: "none",
+  textIndent: "0",
+  textAlign: "left",
+  textShadow: "none",
+  whiteSpace: "normal",
+} as const;
+
 /** Create a styled panel container div. */
 export function createPanelContainer(attr: string): HTMLDivElement {
   const panel = document.createElement("div");
   panel.setAttribute(attr, "true");
   Object.assign(panel.style, {
+    ...CSS_RESET,
     borderRadius: "8px",
     border: "1px solid #444",
     backgroundColor: "#282828",
-    fontFamily: "system-ui, -apple-system, sans-serif",
     fontSize: "13px",
     overflow: "hidden",
     width: "fit-content",
@@ -83,6 +99,8 @@ export function createPanelRow(): HTMLDivElement {
     gap: "6px",
     padding: "4px 12px",
     fontSize: "12px",
+    lineHeight: "1.4",
+    fontWeight: "400",
   });
   return row;
 }
@@ -93,6 +111,7 @@ export function createStatusIcon(complete: boolean): HTMLSpanElement {
   icon.textContent = complete ? "\u2713" : "\u2717";
   icon.style.color = complete ? ACCENT : "#666";
   icon.style.fontSize = "13px";
+  icon.style.lineHeight = "1";
   icon.style.flexShrink = "0";
   icon.style.width = "14px";
   icon.style.textAlign = "center";
