@@ -32,7 +32,7 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **TMDB** | `themoviedb.org/movie/{id}` | TMDB numeric ID from URL | `section.inner_content h2 a` |
 | **TMDB** | `themoviedb.org/tv/{id}` | TMDB numeric ID from URL | `section.inner_content h2 a` |
 | **TVDB** | `thetvdb.com/series/{slug}` | TVDB numeric ID from page links | `h1` |
-| **TVDB Movies** | `thetvdb.com/movies/{slug}` | TMDB/IMDb from page links | `h1` |
+| **TVDB** | `thetvdb.com/movies/{slug}` | TMDB/IMDb from page links | `h1` |
 | **IMDb** | `imdb.com/title/{ttID}` | IMDb ID (`tt\d+`) from URL | `h1[data-testid="hero-title-block__title"]` |
 | **NZBGeek** | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb from page links | `span.overlay_title` |
 | **NZBGeek** | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB from page links | `span.overlay_title` |
@@ -63,7 +63,7 @@ url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
 
-**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB Movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
+**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
@@ -82,7 +82,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **Rotten Tomatoes**: URL path (`/m/` vs `/tv/`) determines type
 - **JustWatch**: URL path (`/movie/` vs `/tv-show/` or `/tv-series/`) determines type
 - **Metacritic**: URL path (`/movie/` vs `/tv/`) determines type
-- **TVDB Movies**: Always movie
+- **TVDB**: URL path (`/series/` vs `/movies/`) determines type
 
 ### SPA Navigation
 

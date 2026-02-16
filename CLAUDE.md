@@ -211,10 +211,11 @@ Never use real movie or tv show names. Always make up example ones.
 | TMDB | `themoviedb.org/tv/{id}` | TMDB numeric |
 | IMDb | `imdb.com/title/{ttID}` | IMDb string |
 | TVDB | `thetvdb.com/series/{slug}` | TVDB numeric (from DOM) |
+| TVDB | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |
 | NZBGeek | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb (from page links) |
 | NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
-| RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
 | NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), breadcrumb for media type |
+| RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
 | PSA | `psa.wf/movie/{slug}` | Title-based matching from URL slug |
 | PSA | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug |
 | Letterboxd | `letterboxd.com/film/{slug}` | TMDB/IMDb (from page links) |
@@ -226,6 +227,5 @@ Never use real movie or tv show names. Always make up example ones.
 | Rotten Tomatoes | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
 | JustWatch | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) |
 | JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
-| TVDB Movies | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |
 | Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
 | Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
