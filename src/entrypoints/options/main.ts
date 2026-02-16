@@ -1,9 +1,10 @@
-import { getConfig, saveConfig, getCustomSites, saveCustomSites } from "../../common/storage";
+import { getServers, saveServers, getCustomSites, saveCustomSites } from "../../common/storage";
 import { DEFAULT_SITES } from "../../common/sites";
 import type {
-  PlexConfig,
+  PlexServerConfig,
   ParrotOptions,
   TestConnectionResponse,
+  TestAllServersResponse,
   BuildIndexResponse,
   StatusResponse,
   ValidateTmdbKeyResponse,
@@ -16,15 +17,23 @@ import type {
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 
-// --- Plex elements ---
+// --- Server elements ---
+const serverListEl = $<HTMLDivElement>("serverList");
+const addServerLabel = $<HTMLDivElement>("addServerLabel");
 const serverUrlInput = $<HTMLInputElement>("serverUrl");
 const tokenInput = $<HTMLInputElement>("token");
-const testBtn = $<HTMLButtonElement>("testBtn");
-const saveBtn = $<HTMLButtonElement>("saveBtn");
+const saveServerBtn = $<HTMLButtonElement>("saveServerBtn");
+const cancelEditBtn = $<HTMLButtonElement>("cancelEditBtn");
 const plexFeedback = $<HTMLDivElement>("plexFeedback");
-const plexStatus = $<HTMLDivElement>("plexStatus");
-const itemCountEl = $<HTMLSpanElement>("itemCount");
-const lastSyncEl = $<HTMLSpanElement>("lastSync");
+const testAllBtn = $<HTMLButtonElement>("testAllBtn");
+const refreshBtn = $<HTMLButtonElement>("refreshBtn");
+const clearCacheBtn = $<HTMLButtonElement>("clearCacheBtn");
+const libraryItemCountEl = $<HTMLSpanElement>("libraryItemCount");
+const libraryLastSyncEl = $<HTMLSpanElement>("libraryLastSync");
+const storageUsageEl = $<HTMLSpanElement>("storageUsage");
+const autoRefreshInput = $<HTMLInputElement>("autoRefresh");
+const autoRefreshDaysInput = $<HTMLInputElement>("autoRefreshDays");
+const autoRefreshDaysRow = $<HTMLDivElement>("autoRefreshDaysRow");
 
 // --- TMDB elements ---
 const tmdbApiKeyInput = $<HTMLInputElement>("tmdbApiKey");
@@ -58,16 +67,10 @@ const confirmAddSiteBtn = $<HTMLButtonElement>("confirmAddSiteBtn");
 const cancelAddSiteBtn = $<HTMLButtonElement>("cancelAddSiteBtn");
 const sitesFeedback = $<HTMLDivElement>("sitesFeedback");
 
-// --- Cache elements ---
-const cacheItemCountEl = $<HTMLSpanElement>("cacheItemCount");
-const cacheLastSyncEl = $<HTMLSpanElement>("cacheLastSync");
-const storageUsageEl = $<HTMLSpanElement>("storageUsage");
-const autoRefreshInput = $<HTMLInputElement>("autoRefresh");
-const autoRefreshDaysInput = $<HTMLInputElement>("autoRefreshDays");
-const autoRefreshDaysRow = $<HTMLDivElement>("autoRefreshDaysRow");
-const refreshBtn = $<HTMLButtonElement>("refreshBtn");
-const clearCacheBtn = $<HTMLButtonElement>("clearCacheBtn");
-const cacheFeedback = $<HTMLDivElement>("cacheFeedback");
+// --- State ---
+let servers: PlexServerConfig[] = [];
+let editingServerId: string | null = null; // null = adding new, string = editing existing
+const serverStatuses = new Map<string, boolean>(); // serverId → connected
 
 // --- Helpers ---
 
@@ -90,13 +93,6 @@ async function saveAllOptions(): Promise<void> {
     type: "SAVE_OPTIONS",
     options: gatherOptions(),
   });
-}
-
-function getFormConfig(): PlexConfig {
-  return {
-    serverUrl: serverUrlInput.value.trim(),
-    token: tokenInput.value.trim(),
-  };
 }
 
 function showFeedback(el: HTMLDivElement, message: string, type: "success" | "error" | "info") {
@@ -128,21 +124,15 @@ function formatTimestamp(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
-function showPlexStatus(count: number, lastRefresh: number | null) {
-  plexStatus.hidden = false;
-  itemCountEl.textContent = String(count);
-  lastSyncEl.textContent = lastRefresh ? formatTimestamp(lastRefresh) : "never";
-}
-
-function showCacheStatus(count: number, lastRefresh: number | null) {
-  cacheItemCountEl.textContent = count > 0 ? `${count} items` : "empty";
-  cacheLastSyncEl.textContent = lastRefresh ? formatTimestamp(lastRefresh) : "never";
-}
-
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function showLibraryInfo(count: number, lastRefresh: number | null) {
+  libraryItemCountEl.textContent = count > 0 ? `${count} items` : "empty";
+  libraryLastSyncEl.textContent = lastRefresh ? formatTimestamp(lastRefresh) : "never";
 }
 
 async function updateStorageUsage() {
@@ -156,72 +146,278 @@ async function updateStorageUsage() {
   storageUsageEl.textContent = text;
 }
 
-// --- Plex handlers ---
+// --- Server list rendering ---
 
-testBtn.addEventListener("click", async () => {
-  const config = getFormConfig();
-  if (!config.serverUrl || !config.token) {
-    showFeedback(plexFeedback, "Enter both server URL and token", "error");
-    return;
+function renderServerList() {
+  serverListEl.innerHTML = "";
+  for (const server of servers) {
+    const row = document.createElement("div");
+    row.className = "server-row";
+
+    const dot = document.createElement("span");
+    dot.className = "status-dot";
+    if (serverStatuses.has(server.id)) {
+      dot.classList.add(serverStatuses.get(server.id) ? "connected" : "failed");
+    }
+    row.appendChild(dot);
+
+    const name = document.createElement("span");
+    name.className = "server-name";
+    name.textContent = server.name;
+    if (server.libraryCount || server.itemCount) {
+      const info = document.createElement("span");
+      info.className = "server-info";
+      const parts: string[] = [];
+      if (server.libraryCount) parts.push(`${server.libraryCount} libraries`);
+      if (server.itemCount) parts.push(`${server.itemCount} items`);
+      info.textContent = `\u2014 ${parts.join(", ")}`;
+      name.appendChild(info);
+    }
+    row.appendChild(name);
+
+    const actions = document.createElement("span");
+    actions.className = "server-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "server-action-btn edit-btn";
+    editBtn.textContent = "\u270E"; // pencil
+    editBtn.title = "Edit";
+    editBtn.addEventListener("click", () => startEditServer(server));
+    actions.appendChild(editBtn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "server-action-btn delete-btn";
+    deleteBtn.textContent = "\u00D7"; // ×
+    deleteBtn.title = "Delete";
+    deleteBtn.addEventListener("click", () => deleteServer(server.id));
+    actions.appendChild(deleteBtn);
+
+    row.appendChild(actions);
+    serverListEl.appendChild(row);
+  }
+}
+
+function startEditServer(server: PlexServerConfig) {
+  editingServerId = server.id;
+  addServerLabel.textContent = `Edit Server: ${server.name}`;
+  serverUrlInput.value = server.serverUrl;
+  tokenInput.value = server.token;
+  cancelEditBtn.hidden = false;
+  hideFeedback(plexFeedback);
+  serverUrlInput.focus();
+}
+
+function resetServerForm() {
+  editingServerId = null;
+  addServerLabel.textContent = "Add Server";
+  serverUrlInput.value = "";
+  tokenInput.value = "";
+  cancelEditBtn.hidden = true;
+  hideFeedback(plexFeedback);
+}
+
+async function deleteServer(serverId: string) {
+  servers = servers.filter((s) => s.id !== serverId);
+  serverStatuses.delete(serverId);
+  await saveServers(servers);
+  renderServerList();
+
+  if (editingServerId === serverId) {
+    resetServerForm();
   }
 
-  hideFeedback(plexFeedback);
-  setButtonLoading(testBtn, true);
-
-  const result: TestConnectionResponse = await browser.runtime.sendMessage({
-    type: "TEST_CONNECTION",
-    config,
-  });
-
-  setButtonLoading(testBtn, false);
-
-  if (result.success) {
-    showFeedback(
-      plexFeedback,
-      `Connected! Found ${result.libraryCount} ${result.libraryCount === 1 ? "library" : "libraries"}`,
-      "success",
-    );
+  // Rebuild index without the deleted server
+  if (servers.length > 0) {
+    showFeedback(plexFeedback, "Rebuilding library...", "info");
+    const result: BuildIndexResponse = await browser.runtime.sendMessage({
+      type: "BUILD_INDEX",
+    });
+    if (result.success) {
+      showFeedback(plexFeedback, `Library updated — ${result.itemCount} items`, "success");
+      showLibraryInfo(result.itemCount ?? 0, Date.now());
+    } else {
+      showFeedback(plexFeedback, result.error ?? "Rebuild failed", "error");
+    }
   } else {
-    showFeedback(plexFeedback, result.error ?? "Connection failed", "error");
+    showFeedback(plexFeedback, "All servers removed", "info");
+    showLibraryInfo(0, null);
   }
-});
+  updateStorageUsage();
+}
 
-saveBtn.addEventListener("click", async () => {
-  const config = getFormConfig();
-  if (!config.serverUrl || !config.token) {
+// --- Server save handler ---
+
+saveServerBtn.addEventListener("click", async () => {
+  const serverUrl = serverUrlInput.value.trim();
+  const token = tokenInput.value.trim();
+
+  if (!serverUrl || !token) {
     showFeedback(plexFeedback, "Enter both server URL and token", "error");
     return;
   }
 
   hideFeedback(plexFeedback);
-  setButtonLoading(saveBtn, true);
+  setButtonLoading(saveServerBtn, true);
 
-  // Fetch machineIdentifier before saving
+  // Test connection to get machineIdentifier + friendlyName
   const testResult: TestConnectionResponse = await browser.runtime.sendMessage({
     type: "TEST_CONNECTION",
-    config,
+    config: { serverUrl, token },
   });
-  if (testResult.machineIdentifier) {
-    config.machineIdentifier = testResult.machineIdentifier;
+
+  if (!testResult.success) {
+    setButtonLoading(saveServerBtn, false);
+    showFeedback(plexFeedback, testResult.error ?? "Connection failed", "error");
+    return;
   }
 
-  await saveConfig(config);
+  const serverId = testResult.machineIdentifier ?? `server-${Date.now()}`;
+  const serverName = testResult.friendlyName ?? new URL(serverUrl).hostname;
+
+  const newServer: PlexServerConfig = {
+    id: serverId,
+    name: serverName,
+    serverUrl,
+    token,
+    libraryCount: testResult.libraryCount,
+  };
+
+  if (editingServerId) {
+    // Update existing server
+    const idx = servers.findIndex((s) => s.id === editingServerId);
+    if (idx >= 0) {
+      servers[idx] = newServer;
+    } else {
+      servers.push(newServer);
+    }
+  } else {
+    // Check for duplicate machineIdentifier
+    const existingIdx = servers.findIndex((s) => s.id === serverId);
+    if (existingIdx >= 0) {
+      servers[existingIdx] = newServer;
+    } else {
+      servers.push(newServer);
+    }
+  }
+
+  await saveServers(servers);
+  serverStatuses.set(serverId, true);
+  renderServerList();
+  resetServerForm();
+
   showFeedback(plexFeedback, "Syncing library...", "info");
 
   const result: BuildIndexResponse = await browser.runtime.sendMessage({
     type: "BUILD_INDEX",
   });
 
-  setButtonLoading(saveBtn, false);
+  setButtonLoading(saveServerBtn, false);
 
   if (result.success) {
     showFeedback(plexFeedback, `Synced ${result.itemCount} items`, "success");
-    showPlexStatus(result.itemCount ?? 0, Date.now());
-    showCacheStatus(result.itemCount ?? 0, Date.now());
+    showLibraryInfo(result.itemCount ?? 0, Date.now());
     updateStorageUsage();
+    // Re-read servers to pick up itemCount updated by background
+    servers = await getServers();
+    renderServerList();
   } else {
     showFeedback(plexFeedback, result.error ?? "Sync failed", "error");
   }
+});
+
+cancelEditBtn.addEventListener("click", () => {
+  resetServerForm();
+});
+
+// --- Test All handler ---
+
+testAllBtn.addEventListener("click", async () => {
+  if (servers.length === 0) {
+    showFeedback(plexFeedback, "No servers configured", "info");
+    return;
+  }
+
+  hideFeedback(plexFeedback);
+  setButtonLoading(testAllBtn, true);
+
+  const result: TestAllServersResponse = await browser.runtime.sendMessage({
+    type: "TEST_ALL_SERVERS",
+  });
+
+  setButtonLoading(testAllBtn, false);
+
+  for (const r of result.results) {
+    serverStatuses.set(r.serverId, r.success);
+  }
+  renderServerList();
+
+  const passed = result.results.filter((r) => r.success).length;
+  const total = result.results.length;
+  if (passed === total) {
+    showFeedback(plexFeedback, `All ${total} servers connected`, "success");
+  } else {
+    const failed = result.results
+      .filter((r) => !r.success)
+      .map((r) => r.name)
+      .join(", ");
+    showFeedback(plexFeedback, `${passed}/${total} connected. Failed: ${failed}`, "error");
+  }
+});
+
+// --- Refresh / Clear handlers ---
+
+refreshBtn.addEventListener("click", async () => {
+  if (servers.length === 0) {
+    showFeedback(plexFeedback, "No servers configured", "info");
+    return;
+  }
+
+  hideFeedback(plexFeedback);
+  setButtonLoading(refreshBtn, true);
+
+  const result: BuildIndexResponse = await browser.runtime.sendMessage({
+    type: "BUILD_INDEX",
+  });
+
+  setButtonLoading(refreshBtn, false);
+
+  if (result.success) {
+    showFeedback(plexFeedback, `Refreshed — ${result.itemCount} items`, "success");
+    showLibraryInfo(result.itemCount ?? 0, Date.now());
+    updateStorageUsage();
+    servers = await getServers();
+    renderServerList();
+  } else {
+    showFeedback(plexFeedback, result.error ?? "Refresh failed", "error");
+  }
+});
+
+clearCacheBtn.addEventListener("click", async () => {
+  hideFeedback(plexFeedback);
+  setButtonLoading(clearCacheBtn, true);
+
+  const result: ClearCacheResponse = await browser.runtime.sendMessage({
+    type: "CLEAR_CACHE",
+  });
+
+  setButtonLoading(clearCacheBtn, false);
+
+  if (result.success) {
+    showFeedback(plexFeedback, "Library cache cleared", "success");
+    showLibraryInfo(0, null);
+    updateStorageUsage();
+  }
+});
+
+// --- Auto-refresh handlers ---
+
+autoRefreshInput.addEventListener("change", async () => {
+  autoRefreshDaysRow.hidden = !autoRefreshInput.checked;
+  await saveAllOptions();
+});
+
+autoRefreshDaysInput.addEventListener("change", async () => {
+  await saveAllOptions();
 });
 
 // --- TMDB handlers ---
@@ -288,55 +484,6 @@ saveOptionsBtn.addEventListener("click", async () => {
 
   setButtonLoading(saveOptionsBtn, false);
   showFeedback(optionsFeedback, "Options saved", "success");
-});
-
-// --- Cache handlers ---
-
-autoRefreshInput.addEventListener("change", async () => {
-  autoRefreshDaysRow.hidden = !autoRefreshInput.checked;
-  await saveAllOptions();
-});
-
-autoRefreshDaysInput.addEventListener("change", async () => {
-  await saveAllOptions();
-});
-
-refreshBtn.addEventListener("click", async () => {
-  hideFeedback(cacheFeedback);
-  setButtonLoading(refreshBtn, true);
-
-  const result: BuildIndexResponse = await browser.runtime.sendMessage({
-    type: "BUILD_INDEX",
-  });
-
-  setButtonLoading(refreshBtn, false);
-
-  if (result.success) {
-    showFeedback(cacheFeedback, `Refreshed — ${result.itemCount} items`, "success");
-    showCacheStatus(result.itemCount ?? 0, Date.now());
-    showPlexStatus(result.itemCount ?? 0, Date.now());
-    updateStorageUsage();
-  } else {
-    showFeedback(cacheFeedback, result.error ?? "Refresh failed", "error");
-  }
-});
-
-clearCacheBtn.addEventListener("click", async () => {
-  hideFeedback(cacheFeedback);
-  setButtonLoading(clearCacheBtn, true);
-
-  const result: ClearCacheResponse = await browser.runtime.sendMessage({
-    type: "CLEAR_CACHE",
-  });
-
-  setButtonLoading(clearCacheBtn, false);
-
-  if (result.success) {
-    showFeedback(cacheFeedback, "Cache cleared", "success");
-    showCacheStatus(0, null);
-    showPlexStatus(0, null);
-    updateStorageUsage();
-  }
 });
 
 // --- Sites table ---
@@ -440,15 +587,12 @@ resetSitesBtn.addEventListener("click", async () => {
   showFeedback(sitesFeedback, "Custom sites cleared", "info");
 });
 
-// --- Init: load saved config, options, and status ---
+// --- Init: load saved servers, options, and status ---
 
 (async () => {
-  // Load Plex config
-  const config = await getConfig();
-  if (config) {
-    serverUrlInput.value = config.serverUrl;
-    tokenInput.value = config.token;
-  }
+  // Load servers
+  servers = await getServers();
+  renderServerList();
 
   // Load options
   const optionsResult: OptionsResponse = await browser.runtime.sendMessage({
@@ -470,14 +614,21 @@ resetSitesBtn.addEventListener("click", async () => {
   const status: StatusResponse = await browser.runtime.sendMessage({
     type: "GET_STATUS",
   });
-
-  if (status.configured && status.lastRefresh) {
-    showPlexStatus(status.itemCount, status.lastRefresh);
-  }
-  showCacheStatus(status.itemCount, status.lastRefresh);
+  showLibraryInfo(status.itemCount, status.lastRefresh);
   updateStorageUsage();
 
   // Load custom sites and render sites table
   customSites = await getCustomSites();
   renderSitesTable();
+
+  // Test all servers on page load
+  if (servers.length > 0) {
+    const testResult: TestAllServersResponse = await browser.runtime.sendMessage({
+      type: "TEST_ALL_SERVERS",
+    });
+    for (const r of testResult.results) {
+      serverStatuses.set(r.serverId, r.success);
+    }
+    renderServerList();
+  }
 })();

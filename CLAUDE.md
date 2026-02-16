@@ -104,13 +104,15 @@ src/
 6. For owned items, `gap-checker.ts` triggers collection or episode gap detection
 7. Gap data delivered to badge via `setBadgeGapData()` as floating panel
 
-### Library Index
+### Library Index (Compact, Multi-Server)
 
-On setup, Parrot fetches all items from Plex and builds ID lookup maps:
+Parrot supports N Plex servers. On setup/refresh, it fetches all items from each server and builds a merged index. Items are stored once in `items[]`; lookup maps hold numeric indices (two-step lookup). Items existing on multiple servers share a single `OwnedItem` with `plexKeys: Record<serverId, ratingKey>`. Servers are priority-ordered (first = primary for deep linking).
+
+Lookup maps:
 - `movies.byTmdbId`, `movies.byImdbId`, `movies.byTitle`
 - `shows.byTvdbId`, `shows.byTmdbId`, `shows.byImdbId`, `shows.byTitle`
 
-Stored in `browser.storage.local`. Refreshed every 24 hours or on manual trigger.
+Stored in `browser.storage.local` (with `unlimitedStorage` permission). Auto-refreshed on configurable interval (default 7 days).
 
 ---
 
@@ -189,8 +191,8 @@ Never use real movie or tv show names. Always make up example ones.
 
 | Store | Contents | Notes |
 |-------|----------|-------|
-| `browser.storage.sync` | Plex URL, token | Syncs across devices |
-| `browser.storage.local` | Library index cache | Can be large (1000+ items) |
+| `browser.storage.sync` | Plex servers array, options, custom sites | Syncs across devices |
+| `browser.storage.local` | Library index (compact), collection/episode caches | `unlimitedStorage` removes 10MB cap |
 
 ---
 

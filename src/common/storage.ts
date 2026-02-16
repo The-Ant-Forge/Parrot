@@ -1,8 +1,9 @@
-import type { PlexConfig, LibraryIndex, ParrotOptions, EpisodeGapCacheEntry, SiteDefinition } from "./types";
+import type { PlexServerConfig, PlexConfig, LibraryIndex, ParrotOptions, EpisodeGapCacheEntry, SiteDefinition } from "./types";
 import { DEFAULT_OPTIONS } from "./types";
 import type { TMDBCollection } from "../api/tmdb";
 
-const CONFIG_KEY = "plexConfig";
+const SERVERS_KEY = "plexServers";
+const OLD_CONFIG_KEY = "plexConfig"; // legacy single-server key (for migration)
 const INDEX_KEY = "libraryIndex";
 const OPTIONS_KEY = "parrotOptions";
 const COLLECTION_CACHE_KEY = "tmdbCollections";
@@ -18,13 +19,46 @@ interface CollectionCacheEntry {
 
 type CollectionCache = Record<string, CollectionCacheEntry>;
 
-export async function getConfig(): Promise<PlexConfig | null> {
-  const result = await browser.storage.sync.get(CONFIG_KEY);
-  return (result[CONFIG_KEY] as PlexConfig) ?? null;
+// --- Plex server config (multi-server) ---
+
+export async function getServers(): Promise<PlexServerConfig[]> {
+  const result = await browser.storage.sync.get(SERVERS_KEY);
+  return (result[SERVERS_KEY] as PlexServerConfig[]) ?? [];
 }
 
-export async function saveConfig(config: PlexConfig): Promise<void> {
-  await browser.storage.sync.set({ [CONFIG_KEY]: config });
+export async function saveServers(servers: PlexServerConfig[]): Promise<void> {
+  await browser.storage.sync.set({ [SERVERS_KEY]: servers });
+}
+
+/**
+ * One-time migration from old single-server `plexConfig` to `plexServers[]`.
+ * Idempotent — safe to call on every startup.
+ */
+export async function migrateConfig(): Promise<void> {
+  const result = await browser.storage.sync.get([OLD_CONFIG_KEY, SERVERS_KEY]);
+  const oldConfig = result[OLD_CONFIG_KEY] as PlexConfig | undefined;
+  const newServers = result[SERVERS_KEY] as PlexServerConfig[] | undefined;
+
+  if (oldConfig && !newServers) {
+    // Derive a friendly name from the URL hostname
+    let name = "Server 1";
+    try {
+      name = new URL(oldConfig.serverUrl).hostname;
+    } catch { /* keep default */ }
+
+    const server: PlexServerConfig = {
+      id: oldConfig.machineIdentifier ?? `legacy-${Date.now()}`,
+      name,
+      serverUrl: oldConfig.serverUrl,
+      token: oldConfig.token,
+    };
+
+    await browser.storage.sync.set({ [SERVERS_KEY]: [server] });
+    await browser.storage.sync.remove(OLD_CONFIG_KEY);
+    // Clear library index — structure changed (compact index), will rebuild
+    await browser.storage.local.remove(INDEX_KEY);
+    console.log("Parrot: migrated single-server config to multi-server format");
+  }
 }
 
 export async function getLibraryIndex(): Promise<LibraryIndex | null> {

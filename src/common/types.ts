@@ -1,4 +1,14 @@
-/** Plex server connection settings (stored in browser.storage.sync) */
+/** Plex server connection settings (stored in browser.storage.sync as PlexServerConfig[]) */
+export interface PlexServerConfig {
+  id: string;           // machineIdentifier (stable Plex server ID)
+  name: string;         // friendlyName from Plex API
+  serverUrl: string;
+  token: string;
+  libraryCount?: number; // cached section count from test connection
+  itemCount?: number;    // cached item count from last index build
+}
+
+/** @deprecated Use PlexServerConfig. Kept temporarily for migration from single-server format. */
 export interface PlexConfig {
   serverUrl: string;
   token: string;
@@ -9,7 +19,7 @@ export interface PlexConfig {
 export interface OwnedItem {
   title: string;
   year?: number;
-  plexKey: string;
+  plexKeys: Record<string, string>; // serverId → plexKey
   tmdbId?: number;
   tvdbId?: number;
   imdbId?: string;
@@ -17,16 +27,17 @@ export interface OwnedItem {
 
 /** Cached index of the user's Plex library (stored in browser.storage.local) */
 export interface LibraryIndex {
+  items: OwnedItem[];
   movies: {
-    byTmdbId: Record<string, OwnedItem>;
-    byImdbId: Record<string, OwnedItem>;
-    byTitle: Record<string, OwnedItem>;
+    byTmdbId: Record<string, number>;  // value = index into items[]
+    byImdbId: Record<string, number>;
+    byTitle: Record<string, number>;
   };
   shows: {
-    byTvdbId: Record<string, OwnedItem>;
-    byTmdbId: Record<string, OwnedItem>;
-    byImdbId: Record<string, OwnedItem>;
-    byTitle: Record<string, OwnedItem>;
+    byTvdbId: Record<string, number>;
+    byTmdbId: Record<string, number>;
+    byImdbId: Record<string, number>;
+    byTitle: Record<string, number>;
   };
   lastRefresh: number;
   itemCount: number;
@@ -77,7 +88,8 @@ export const DEFAULT_OPTIONS: ParrotOptions = {
 // --- Messages (popup/content scripts/options → background) ---
 
 export type Message =
-  | { type: "TEST_CONNECTION"; config: PlexConfig }
+  | { type: "TEST_CONNECTION"; config: { serverUrl: string; token: string } }
+  | { type: "TEST_ALL_SERVERS" }
   | { type: "BUILD_INDEX" }
   | { type: "GET_STATUS" }
   | {
@@ -101,6 +113,7 @@ export type Message =
 
 export interface StatusResponse {
   configured: boolean;
+  serverCount: number;
   lastRefresh: number | null;
   itemCount: number;
   movieCount: number;
@@ -120,6 +133,16 @@ export interface TestConnectionResponse {
   error?: string;
   libraryCount?: number;
   machineIdentifier?: string;
+  friendlyName?: string;
+}
+
+export interface TestAllServersResponse {
+  results: Array<{
+    serverId: string;
+    name: string;
+    success: boolean;
+    error?: string;
+  }>;
 }
 
 export interface BuildIndexResponse {

@@ -1,6 +1,6 @@
-import { getConfig, saveConfig } from "../../common/storage";
+import { getServers, saveServers } from "../../common/storage";
 import type {
-  PlexConfig,
+  PlexServerConfig,
   TestConnectionResponse,
   BuildIndexResponse,
   StatusResponse,
@@ -65,7 +65,7 @@ function formatTimestamp(ts: number): string {
   return `${Math.floor(diffMin / 1440)}d ago`;
 }
 
-function getFormConfig(): PlexConfig {
+function getFormConfig(): { serverUrl: string; token: string } {
   return {
     serverUrl: serverUrlInput.value.trim(),
     token: tokenInput.value.trim(),
@@ -121,11 +121,20 @@ saveBtn.addEventListener("click", async () => {
     type: "TEST_CONNECTION",
     config,
   });
-  if (testResult.machineIdentifier) {
-    config.machineIdentifier = testResult.machineIdentifier;
-  }
 
-  await saveConfig(config);
+  const serverId = testResult.machineIdentifier ?? `server-${Date.now()}`;
+  const serverName = testResult.friendlyName ?? (() => {
+    try { return new URL(config.serverUrl).hostname; } catch { return "Server 1"; }
+  })();
+
+  const newServer: PlexServerConfig = {
+    id: serverId,
+    name: serverName,
+    serverUrl: config.serverUrl,
+    token: config.token,
+  };
+
+  await saveServers([newServer]);
   showFeedback(setupFeedback, "Syncing library...", "info");
 
   const result: BuildIndexResponse = await browser.runtime.sendMessage({
@@ -320,18 +329,18 @@ function addIdLink(text: string, url: string) {
 // --- Init ---
 
 (async () => {
-  const config = await getConfig();
+  const servers = await getServers();
   const status: StatusResponse = await browser.runtime.sendMessage({
     type: "GET_STATUS",
   });
 
-  if (status.configured && config) {
+  if (status.configured && servers.length > 0) {
     initDashboard();
   } else {
     setupView.hidden = false;
-    if (config) {
-      serverUrlInput.value = config.serverUrl;
-      tokenInput.value = config.token;
+    if (servers.length > 0) {
+      serverUrlInput.value = servers[0].serverUrl;
+      tokenInput.value = servers[0].token;
     }
   }
 })();

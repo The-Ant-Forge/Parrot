@@ -1,4 +1,4 @@
-import { getConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
+import { getServers, saveServers, migrateConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
@@ -11,6 +11,7 @@ import type {
   EpisodeGapCacheEntry,
   StatusResponse,
   TestConnectionResponse,
+  TestAllServersResponse,
   BuildIndexResponse,
   ValidateTmdbKeyResponse,
   ValidateTvdbKeyResponse,
@@ -23,14 +24,24 @@ import type {
   TabMediaResponse,
   LibraryIndex,
   OwnedItem,
+  PlexServerConfig,
 } from "../common/types";
 
 let cachedIndex: LibraryIndex | null = null;
+let cachedServers: PlexServerConfig[] | null = null;
 let autoRefreshing = false;
+let migrated = false;
 const tabMediaCache = new Map<number, TabMediaInfo>();
 
 const SESSION_KEY = "tabMedia";
 const MAX_SESSION_ENTRIES = 20;
+
+async function loadServers(): Promise<PlexServerConfig[]> {
+  if (!cachedServers) {
+    cachedServers = await getServers();
+  }
+  return cachedServers;
+}
 
 async function persistTabMedia(tabId: number, info: TabMediaInfo) {
   tabMediaCache.set(tabId, info);
@@ -81,6 +92,12 @@ async function removeTabMedia(tabId: number) {
 }
 
 async function loadIndex(): Promise<LibraryIndex | null> {
+  // One-time migration from single-server to multi-server format
+  if (!migrated) {
+    migrated = true;
+    await migrateConfig();
+  }
+
   if (!cachedIndex) {
     cachedIndex = await getLibraryIndex();
     if (cachedIndex) {
@@ -105,11 +122,11 @@ async function loadIndex(): Promise<LibraryIndex | null> {
       const thresholdMs = options.autoRefreshDays * 24 * 60 * 60 * 1000;
       if (ageMs >= thresholdMs) {
         autoRefreshing = true;
-        getConfig().then(async (config) => {
-          if (!config) { autoRefreshing = false; return; }
+        loadServers().then(async (servers) => {
+          if (servers.length === 0) { autoRefreshing = false; return; }
           try {
             console.log(`Parrot: auto-refresh — index is ${Math.floor(ageMs / 86400000)}d old, refreshing`);
-            const newIndex = await buildLibraryIndex(config);
+            const newIndex = await buildLibraryIndex(servers);
             await saveLibraryIndex(newIndex);
             cachedIndex = newIndex;
             console.log(`Parrot: auto-refresh complete — ${newIndex.itemCount} items`);
@@ -130,41 +147,51 @@ function buildPlexUrl(machineIdentifier: string, plexKey: string): string {
   return `https://app.plex.tv/desktop/#!/server/${machineIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${plexKey}`;
 }
 
+/**
+ * Resolve the best Plex URL for an owned item, using server priority order.
+ * Returns the URL for the highest-priority server that owns the item.
+ */
+function resolveItemPlexUrl(item: OwnedItem, servers: PlexServerConfig[]): string | undefined {
+  for (const server of servers) {
+    const plexKey = item.plexKeys[server.id];
+    if (plexKey) return buildPlexUrl(server.id, plexKey);
+  }
+  return undefined;
+}
+
+/**
+ * Two-step lookup: map[id] → index number → items[index] → OwnedItem
+ */
+function lookupItem(index: LibraryIndex, mediaType: "movie" | "show", source: string, id: string): OwnedItem | undefined {
+  let idx: number | undefined;
+
+  if (source === "title") {
+    const map = mediaType === "movie" ? index.movies.byTitle : index.shows.byTitle;
+    idx = map[id];
+  } else if (mediaType === "movie") {
+    const map = source === "tmdb" ? index.movies.byTmdbId : index.movies.byImdbId;
+    idx = map[id];
+  } else {
+    const map = source === "tvdb"
+      ? index.shows.byTvdbId
+      : source === "tmdb"
+        ? index.shows.byTmdbId
+        : index.shows.byImdbId;
+    idx = map[id];
+  }
+
+  return idx !== undefined ? index.items[idx] : undefined;
+}
+
 async function handleCheck(
   message: Extract<Message, { type: "CHECK" }>,
   index: LibraryIndex,
 ): Promise<CheckResponse> {
-  const { mediaType, source, id } = message;
-
-  let item: OwnedItem | undefined;
-
-  if (source === "title") {
-    // Title-based lookup: id is a normalized key (e.g. "some title|2025")
-    const map = mediaType === "movie" ? index.movies.byTitle : index.shows.byTitle;
-    item = map[id];
-  } else if (mediaType === "movie") {
-    const map =
-      source === "tmdb"
-        ? index.movies.byTmdbId
-        : index.movies.byImdbId;
-    item = map[id];
-  } else {
-    const map =
-      source === "tvdb"
-        ? index.shows.byTvdbId
-        : source === "tmdb"
-          ? index.shows.byTmdbId
-          : index.shows.byImdbId;
-    item = map[id];
-  }
-
+  const item = lookupItem(index, message.mediaType, message.source, message.id);
   if (!item) return { owned: false };
 
-  // Build deep link if machineIdentifier is available
-  const config = await getConfig();
-  const plexUrl = config?.machineIdentifier
-    ? buildPlexUrl(config.machineIdentifier, item.plexKey)
-    : undefined;
+  const servers = await loadServers();
+  const plexUrl = resolveItemPlexUrl(item, servers);
 
   return { owned: true, item, plexUrl };
 }
@@ -276,7 +303,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
           const index = await loadIndex();
           let ownedCount = 0;
           for (const part of collection.parts) {
-            if (index?.movies.byTmdbId[String(part.id)]) ownedCount++;
+            if (index && index.movies.byTmdbId[String(part.id)] !== undefined) ownedCount++;
           }
           info.collectionName = collection.name;
           info.collectionOwned = ownedCount;
@@ -333,19 +360,44 @@ export default defineBackground(() => {
             break;
           }
 
+          case "TEST_ALL_SERVERS": {
+            const servers = await loadServers();
+            const results = await Promise.all(servers.map(async (s) => {
+              const r = await testConnection(s);
+              return { serverId: s.id, name: s.name, success: r.success, error: r.error };
+            }));
+            sendResponse({ results } satisfies TestAllServersResponse);
+            break;
+          }
+
           case "BUILD_INDEX": {
-            const config = await getConfig();
-            if (!config) {
+            const servers = await loadServers();
+            if (servers.length === 0) {
               sendResponse({
                 success: false,
-                error: "Not configured",
+                error: "No servers configured",
               } satisfies BuildIndexResponse);
               break;
             }
             try {
-              const index = await buildLibraryIndex(config);
+              const index = await buildLibraryIndex(servers);
               await saveLibraryIndex(index);
               cachedIndex = index;
+
+              // Update per-server item counts
+              const counts = new Map<string, number>();
+              for (const item of index.items) {
+                for (const sid of Object.keys(item.plexKeys)) {
+                  counts.set(sid, (counts.get(sid) ?? 0) + 1);
+                }
+              }
+              const updatedServers = servers.map(s => ({
+                ...s,
+                itemCount: counts.get(s.id) ?? 0,
+              }));
+              await saveServers(updatedServers);
+              cachedServers = updatedServers;
+
               sendResponse({
                 success: true,
                 itemCount: index.itemCount,
@@ -360,11 +412,12 @@ export default defineBackground(() => {
           }
 
           case "GET_STATUS": {
-            const config = await getConfig();
+            const servers = await loadServers();
             const index = await loadIndex();
             const statusOptions = await getOptions();
             sendResponse({
-              configured: !!config,
+              configured: servers.length > 0,
+              serverCount: servers.length,
               lastRefresh: index?.lastRefresh ?? null,
               itemCount: index?.itemCount ?? 0,
               movieCount: index?.movieCount ?? 0,
@@ -505,7 +558,7 @@ export default defineBackground(() => {
                 break;
               }
 
-              // Look up show in library index
+              // Look up show in library index (two-step lookup)
               const index = await loadIndex();
               if (!index) {
                 sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
@@ -516,43 +569,56 @@ export default defineBackground(() => {
                 message.source === "tmdb"
                   ? index.shows.byTmdbId
                   : index.shows.byTvdbId;
-              const ownedShow: OwnedItem | undefined = showMap[message.id];
-              if (!ownedShow) {
+              const itemIdx = showMap[message.id];
+              if (itemIdx === undefined) {
                 sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
                 break;
               }
+              const ownedShow = index.items[itemIdx];
 
               // Build cache key based on source
               const cacheKey = `${message.source}:${message.id}`;
 
               // Check cache
-              const cached = await getCachedEpisodeGaps(cacheKey);
-              if (cached) {
+              const cachedGaps = await getCachedEpisodeGaps(cacheKey);
+              if (cachedGaps) {
                 console.log(`Parrot EPISODES: cache hit for ${cacheKey}`);
                 sendResponse({
-                  hasGaps: cached.seasons.some((s) => s.missing.length > 0),
+                  hasGaps: cachedGaps.seasons.some((s) => s.missing.length > 0),
                   gaps: {
-                    showTitle: cached.showTitle,
-                    totalOwned: cached.totalOwned,
-                    totalEpisodes: cached.totalEpisodes,
-                    completeSeasons: cached.completeSeasons,
-                    totalSeasons: cached.totalSeasons,
-                    seasons: cached.seasons,
+                    showTitle: cachedGaps.showTitle,
+                    totalOwned: cachedGaps.totalOwned,
+                    totalEpisodes: cachedGaps.totalEpisodes,
+                    completeSeasons: cachedGaps.completeSeasons,
+                    totalSeasons: cachedGaps.totalSeasons,
+                    seasons: cachedGaps.seasons,
                   },
                 } satisfies EpisodeGapResponse);
                 break;
               }
 
-              // Fetch Plex episodes (transient — not stored)
-              const config = await getConfig();
-              if (!config) {
+              // Fetch Plex episodes from ALL servers that own this show (merge for most accurate gaps)
+              const servers = await loadServers();
+              const ownedSet = new Set<string>();
+
+              for (const server of servers) {
+                const plexKey = ownedShow.plexKeys[server.id];
+                if (!plexKey) continue;
+                try {
+                  const plexEpisodes = await fetchShowEpisodes(server, plexKey);
+                  for (const ep of plexEpisodes) {
+                    ownedSet.add(`S${ep.seasonNumber}E${ep.episodeNumber}`);
+                  }
+                } catch (err) {
+                  console.error(`Parrot: failed to fetch episodes from server ${server.name}`, err);
+                }
+              }
+
+              if (ownedSet.size === 0) {
+                // Couldn't fetch from any server
                 sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
                 break;
               }
-              const plexEpisodes = await fetchShowEpisodes(config, ownedShow.plexKey);
-              const ownedSet = new Set(
-                plexEpisodes.map((ep) => `S${ep.seasonNumber}E${ep.episodeNumber}`),
-              );
 
               const today = new Date().toISOString().split("T")[0];
               let seasonGaps: SeasonGapInfo[];
@@ -761,20 +827,19 @@ export default defineBackground(() => {
                 break;
               }
 
-              // Check ownership against library index
+              // Check ownership against library index (two-step lookup)
               const index = await loadIndex();
-              const config = await getConfig();
+              const servers = await loadServers();
               const ownedMovies: { title: string; year?: number; plexUrl?: string }[] = [];
               const missingMovies: { title: string; releaseDate?: string; tmdbId: number }[] = [];
 
               for (const part of parts) {
                 const tmdbId = String(part.id);
-                const ownedItem: OwnedItem | undefined = index?.movies.byTmdbId[tmdbId];
+                const itemIdx = index?.movies.byTmdbId[tmdbId];
 
-                if (ownedItem) {
-                  const plexUrl = config?.machineIdentifier
-                    ? buildPlexUrl(config.machineIdentifier, ownedItem.plexKey)
-                    : undefined;
+                if (itemIdx !== undefined && index) {
+                  const ownedItem = index.items[itemIdx];
+                  const plexUrl = resolveItemPlexUrl(ownedItem, servers);
                   ownedMovies.push({
                     title: part.title,
                     year: part.release_date ? parseInt(part.release_date.slice(0, 4), 10) : undefined,
@@ -823,5 +888,12 @@ export default defineBackground(() => {
   // Clean up stale tab media cache entries
   browser.tabs.onRemoved.addListener((tabId) => {
     removeTabMedia(tabId);
+  });
+
+  // Invalidate cached servers when storage changes (e.g. options page saves)
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "sync" && changes.plexServers) {
+      cachedServers = null;
+    }
   });
 });

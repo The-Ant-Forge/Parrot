@@ -14,37 +14,68 @@
       </header>
 
       <main>
-        <!-- Plex Server -->
+        <!-- Plex Servers (combined server management + cache) -->
         <section class="card">
-          <h2>Plex Server</h2>
+          <h2>Plex Servers</h2>
 
-          <label for="serverUrl">Server URL</label>
-          <input
-            type="text"
-            id="serverUrl"
-            placeholder="http://192.168.1.100:32400"
-            spellcheck="false"
-          />
+          <div id="serverList" class="server-list"></div>
 
-          <label for="token">Plex Token</label>
-          <input type="password" id="token" placeholder="Your Plex token" />
+          <div id="addServerSection" class="add-server-section">
+            <div id="addServerLabel" class="add-server-label">Add Server</div>
 
-          <div class="button-row">
-            <button id="testBtn">Test Connection</button>
-            <button id="saveBtn" class="primary">Save &amp; Sync</button>
+            <div class="server-form-row">
+              <div class="server-form-field server-form-url">
+                <label for="serverUrl">Server URL</label>
+                <input
+                  type="text"
+                  id="serverUrl"
+                  placeholder="http://192.168.1.100:32400"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="server-form-field">
+                <label for="token">Plex Token</label>
+                <input type="password" id="token" placeholder="Your Plex token" />
+              </div>
+            </div>
+
+            <div class="button-row">
+              <button id="saveServerBtn" class="primary">Save Server</button>
+              <button id="cancelEditBtn" hidden>Cancel</button>
+            </div>
           </div>
 
           <div id="plexFeedback" class="feedback" hidden></div>
 
-          <div id="plexStatus" class="status-block" hidden>
+          <div id="libraryInfo" class="status-block">
             <div class="status-row">
-              <span>Library items:</span>
-              <span id="itemCount">—</span>
+              <span>Library index:</span>
+              <span id="libraryItemCount">--</span>
             </div>
             <div class="status-row">
               <span>Last synced:</span>
-              <span id="lastSync">—</span>
+              <span id="libraryLastSync">--</span>
             </div>
+            <div class="status-row">
+              <span>Storage:</span>
+              <span id="storageUsage">--</span>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="testAllBtn">Test All</button>
+            <button id="refreshBtn">Refresh Library</button>
+            <button id="clearCacheBtn" class="danger">Clear Library</button>
+          </div>
+
+          <div class="toggle-row">
+            <label for="autoRefresh">Auto-refresh library</label>
+            <input type="checkbox" id="autoRefresh" />
+          </div>
+
+          <div class="number-row" id="autoRefreshDaysRow">
+            <label for="autoRefreshDays">Refresh interval (days)</label>
+            <input type="number" id="autoRefreshDays" min="1" max="30" />
           </div>
         </section>
 
@@ -160,42 +191,6 @@
             <button id="resetSitesBtn" class="danger">Reset Defaults</button>
           </div>
           <div id="sitesFeedback" class="feedback" hidden></div>
-        </section>
-
-        <!-- Cache Management -->
-        <section class="card">
-          <h2>Cache</h2>
-
-          <div id="cacheStatus" class="status-block">
-            <div class="status-row">
-              <span>Library index:</span>
-              <span id="cacheItemCount">—</span>
-            </div>
-            <div class="status-row">
-              <span>Last synced:</span>
-              <span id="cacheLastSync">—</span>
-            </div>
-            <div class="status-row">
-              <span>Storage:</span>
-              <span id="storageUsage">—</span>
-            </div>
-          </div>
-
-          <div class="toggle-row">
-            <label for="autoRefresh">Auto-refresh library</label>
-            <input type="checkbox" id="autoRefresh" />
-          </div>
-
-          <div class="number-row" id="autoRefreshDaysRow">
-            <label for="autoRefreshDays">Refresh interval (days)</label>
-            <input type="number" id="autoRefreshDays" min="1" max="30" />
-          </div>
-
-          <div class="button-row">
-            <button id="refreshBtn">Refresh Library</button>
-            <button id="clearCacheBtn" class="danger">Clear All Cache</button>
-          </div>
-          <div id="cacheFeedback" class="feedback" hidden></div>
         </section>
       </main>
     </div>

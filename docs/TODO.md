@@ -39,14 +39,17 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 ## Multi-Server & Advanced Settings
 
 **Multi-Server Support**
-- [ ] Allow multiple Plex server configurations
-- [ ] Merge indexes from multiple servers
-- [ ] Per-server sync status in popup
+- [x] Allow multiple Plex server configurations
+- [x] Merge indexes from multiple servers
+- [x] Per-server sync status in options page (status dots, Test All)
+- [x] Compact index (items stored once, maps hold numeric indices)
+- [x] Multi-server episode aggregation for gap detection
+- [x] Server priority ordering (first = primary for deep linking)
 
 **Advanced Settings**
 - [ ] Configurable badge position (before/after title)
 - [ ] Toggle per-site enablement
-- [ ] Custom refresh interval (default 24h)
+- [x] Custom refresh interval (configurable days, default 7)
 - [ ] Show/hide "not owned" badge (default: hidden)
 - [ ] Dark/light badge theme override
 

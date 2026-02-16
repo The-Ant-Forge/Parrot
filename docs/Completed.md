@@ -459,3 +459,56 @@ New content script for Metacritic movie and TV show pages.
 ### Test Suite
 - Added 3 Metacritic-related tests
 - Total: 113 tests across 7 test files (up from 110)
+
+---
+
+## Multi-Server Plex Support
+
+> Spec: [`Multi-Server Support.md`](Multi-Server%20Support.md)
+
+Support for N Plex servers with priority ordering, compact index storage, and combined server management UI.
+
+### Type System Updates
+- `PlexServerConfig` type (id, name, serverUrl, token) replaces `PlexConfig`
+- `OwnedItem.plexKeys: Record<string, string>` (serverId -> ratingKey) replaces single `plexKey`
+- Compact `LibraryIndex`: `items: OwnedItem[]` with lookup maps holding numeric indices (~60% storage reduction)
+- `TestAllServersResponse`, `friendlyName` in `TestConnectionResponse`, `serverCount` in `StatusResponse`
+- `TEST_ALL_SERVERS` message type
+
+### Storage Layer
+- `getServers()` / `saveServers()` for multi-server config (`browser.storage.sync`)
+- `migrateConfig()` — one-time migration from old single-server `plexConfig` to `plexServers[]`
+- `unlimitedStorage` manifest permission (removes 10MB `storage.local` cap)
+
+### Plex API
+- `buildLibraryIndex(servers[])` — iterates servers in priority order, merges items by shared external IDs, enriches with new IDs from secondary servers
+- `findExistingItem()` helper — matches across servers by any shared TMDB/IMDb/TVDB ID
+- `testConnection()` now returns `friendlyName` from Plex root endpoint
+
+### Background Service Worker
+- Two-step lookup: `map[id]` -> index -> `items[index]` -> OwnedItem
+- `resolveItemPlexUrl(item, servers)` — iterates servers in priority order for deep linking
+- Multi-server episode aggregation: fetches episodes from ALL servers that own a show, merges into single set before gap comparison
+- `TEST_ALL_SERVERS` handler (parallel server testing)
+- `browser.storage.onChanged` listener to invalidate cached server configs
+
+### Options Page Redesign
+- Combined "Plex Servers" section (replaces separate Plex Server + Cache sections)
+- Server list: status dot (green/red), server name, edit (pen) and delete (X) buttons
+- Add/Edit Server form with validation on save (extracts machineIdentifier + friendlyName)
+- Library info box: item count, last synced, storage usage
+- Buttons: Test All, Refresh Library, Clear Library
+- Auto-refresh toggle + interval (days)
+- On page load: TEST_ALL_SERVERS runs, status dots update
+
+### Popup Update
+- `getServers()` replaces `getConfig()` for init check
+- Setup saves first server as `plexServers[0]` with machineIdentifier + friendlyName
+
+### Test Suite
+- Updated all integration tests for compact index (two-step lookup, `plexKeys`)
+- Added multi-server merge test (shared TMDB ID = same item, both plexKeys present)
+- Added ID enrichment test (server 2 adds imdbId to existing item)
+- Added separate items test (different IDs = separate items)
+- Added empty servers test
+- Total: 116 tests across 7 test files (up from 113)

@@ -9,7 +9,7 @@ export default defineConfig({
     description:
       "See if media you're browsing is already in your Plex library",
     version: pkg.version,
-    permissions: ["storage"],
+    permissions: ["storage", "unlimitedStorage"],
     host_permissions: [
       "http://*/library/*",
       "https://*/library/*",

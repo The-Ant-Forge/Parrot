@@ -135,7 +135,7 @@ parrot/
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (113 tests)
+├── tests/                             # Vitest test suite (116 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -164,10 +164,10 @@ parrot/
 
 **Options Page (`options/`)**
 - Full-tab settings page (4 card sections)
-- Plex server configuration (URL, token, test, save & sync)
+- Plex Servers: multi-server management (add/edit/delete), server list with status dots, library info, Test All/Refresh/Clear, auto-refresh settings
 - API key management (TMDB required, TVDB optional) with validation buttons
 - Gap detection toggles (exclude future, exclude specials, minimum thresholds)
-- Cache management (refresh, clear, auto-refresh toggle with configurable interval)
+- Supported sites table with custom site CRUD
 
 **Popup (`popup/`)**
 - Quick-access configuration UI (Plex URL, token)
@@ -194,7 +194,8 @@ Badge + Panel + Icon ← Content Script
 
 ```typescript
 type Message =
-  | { type: "TEST_CONNECTION"; config: PlexConfig }
+  | { type: "TEST_CONNECTION"; config: { serverUrl: string; token: string } }
+  | { type: "TEST_ALL_SERVERS" }
   | { type: "BUILD_INDEX" }
   | { type: "GET_STATUS" }
   | { type: "CHECK"; mediaType: "movie"|"show"; source: "tmdb"|"imdb"|"tvdb"|"title"; id: string }
@@ -286,7 +287,7 @@ When a user owns media, the badge links directly to it in Plex Web:
 https://app.plex.tv/desktop/#!/server/{machineIdentifier}/details?key=%2Flibrary%2Fmetadata%2F{ratingKey}
 ```
 
-The `machineIdentifier` is fetched once during setup (from `GET /`) and stored alongside the config. The `ratingKey` comes from the library item data.
+The `machineIdentifier` is fetched once during server setup (from `GET /`) and used as the stable server ID (`PlexServerConfig.id`). When an item exists on multiple servers, the deep link points to the first (highest-priority) server that owns it. The `ratingKey` comes from the library item data.
 
 ---
 
@@ -322,44 +323,57 @@ Used only when a TVDB API key is configured **and** the source page is TVDB. TMD
 
 ## Library Index Cache
 
-### Structure
+### Structure (Compact Index)
 
 ```typescript
 interface LibraryIndex {
+  items: OwnedItem[];                          // single source of truth
   movies: {
-    byTmdbId: Record<string, OwnedItem>;
-    byImdbId: Record<string, OwnedItem>;
-    byTitle: Record<string, OwnedItem>;
+    byTmdbId: Record<string, number>;          // value = index into items[]
+    byImdbId: Record<string, number>;
+    byTitle: Record<string, number>;
   };
   shows: {
-    byTvdbId: Record<string, OwnedItem>;
-    byTmdbId: Record<string, OwnedItem>;
-    byImdbId: Record<string, OwnedItem>;
-    byTitle: Record<string, OwnedItem>;
+    byTvdbId: Record<string, number>;
+    byTmdbId: Record<string, number>;
+    byImdbId: Record<string, number>;
+    byTitle: Record<string, number>;
   };
   lastRefresh: number;
   itemCount: number;
+  movieCount: number;
+  showCount: number;
 }
 
 interface OwnedItem {
   title: string;
   year?: number;
-  plexKey: string;  // ratingKey for deep linking
+  plexKeys: Record<string, string>;  // serverId → ratingKey (supports multiple Plex servers)
+  tmdbId?: number;
+  tvdbId?: number;
+  imdbId?: string;
 }
 ```
 
-Uses `Record<string, OwnedItem>` instead of `Map` because `browser.storage` only stores JSON-serializable data.
+Items are stored once in a flat `items[]` array. Lookup maps hold numeric indices into `items[]` instead of duplicating the full `OwnedItem`, reducing storage usage by ~60%. Uses `Record` instead of `Map` because `browser.storage` only stores JSON-serializable data.
 
-### Index Building
+Two-step lookup: `map[id]` → index → `items[index]` → `OwnedItem`.
 
-1. Fetch all library sections via `GET /library/sections`
-2. Filter to `movie` and `show` types only
-3. For each section, fetch all items with `includeGuids=1`
-4. Extract external IDs from the `guids` array on each item
-5. Build lookup maps for each ID type
-6. For title-based matching, store both `"title|year"` and `"title"` keys
-7. Store the full index in `browser.storage.local`
-8. Cache in-memory for fast lookups (avoid hitting storage on every CHECK)
+### Index Building (Multi-Server Merge)
+
+1. For each configured server (in priority order):
+   a. Fetch all library sections via `GET /library/sections`
+   b. Filter to `movie` and `show` types only
+   c. For each section, fetch all items with `includeGuids=1`
+   d. Extract external IDs from the `guids` array on each item
+   e. Try to find existing item in index by matching any shared external ID
+   f. If found: add this server's plexKey to existing item's `plexKeys`, enrich with any new IDs
+   g. If new: create OwnedItem, push to `items[]`, set all lookup map entries to the new index
+2. For title-based matching, store both `"title|year"` and `"title"` keys
+3. Store the full index in `browser.storage.local`
+4. Cache in-memory for fast lookups (avoid hitting storage on every CHECK)
+
+When resolving a Plex deep link, servers are checked in priority order (array position). The first server that owns the item provides the link.
 
 ### Title Normalization
 
@@ -388,8 +402,8 @@ Lookup tries `"title|year"` first, falls back to `"title"` only.
 
 | Store | Contents | Notes |
 |-------|----------|-------|
-| `browser.storage.sync` | Plex URL, token, machineIdentifier, options | Syncs across devices |
-| `browser.storage.local` | Library index, collection cache (30d TTL), episode gap cache (24h TTL) | Can be large |
+| `browser.storage.sync` | Plex servers array (`PlexServerConfig[]`), options, custom sites | Syncs across devices |
+| `browser.storage.local` | Library index (compact), collection cache (30d TTL), episode gap cache (24h TTL) | `unlimitedStorage` removes 10MB cap |
 
 ---
 
@@ -528,12 +542,14 @@ Icon state is set per-tab based on CHECK results.
 
 Full-tab settings page with four sections:
 
-### 1. Plex Server
-- Server URL input
-- Token input (password field)
-- Test Connection button with feedback
-- Save & Sync button (validates, saves config, builds library index)
-- Status display (item count, last sync timestamp)
+### 1. Plex Servers
+- Server list: each server displayed as a row with status dot (green/red), name, edit (pen) and delete (X) buttons
+- Add/Edit Server form: Server URL input, Token input (password), Save button (validates via TEST_CONNECTION, extracts machineIdentifier + friendlyName)
+- Library info: item count, last synced, storage usage
+- Buttons: Test All (tests all servers in parallel), Refresh Library (rebuilds merged index), Clear Library
+- Auto-refresh toggle with configurable interval (days)
+- Servers are stored in priority order (first = primary for deep linking)
+- On page load, TEST_ALL_SERVERS runs and status dots update
 
 ### 2. API Keys
 - TMDB API key input + Validate button (required for collection/episode gap features)
@@ -545,10 +561,9 @@ Full-tab settings page with four sections:
 - Number input: "Minimum collection size" (default: 2, min: 2)
 - Number input: "Minimum owned to show gaps" (default: 2, min: 1)
 
-### 4. Cache Management
-- Display: "Library index: X items, last synced Y"
-- Button: "Refresh Library" (rebuilds index)
-- Button: "Clear All Cache" (clears `storage.local`)
+### 4. Supported Sites
+- Table of built-in and custom site definitions
+- Add/remove custom sites
 
 ---
 
@@ -558,6 +573,7 @@ The manifest is auto-generated by WXT from `wxt.config.ts` and the entrypoints d
 
 Key permissions:
 - `storage` — for `browser.storage.sync` (config, options) and `browser.storage.local` (index, caches)
+- `unlimitedStorage` — removes 10MB cap on `storage.local` for large multi-server indexes
 - `host_permissions`:
   - `http://*/library/*`, `https://*/library/*` — Plex API access
   - `https://api.themoviedb.org/*` — TMDB API
@@ -640,7 +656,6 @@ The external ID extraction from Plex `guids` arrays is identical in both project
 See [`docs/TODO.md`](TODO.md) for the full roadmap. Key areas:
 
 - **Additional Sites:** TV Time, Simkl
-- **Multi-Server Support:** Allow multiple Plex server configurations
-- **Advanced Settings:** Per-site toggles, badge position, refresh interval
+- **Advanced Settings:** Per-site toggles, badge position
 - **Publishing:** Chrome Web Store and Firefox Add-ons submission
 - **Integration:** Shared ignore lists with ComPlexionist
