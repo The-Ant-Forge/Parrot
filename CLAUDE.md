@@ -73,26 +73,36 @@ url.match(/imdb\.com\/title\/(tt\d+)/)
 src/
 ├── entrypoints/
 │   ├── background.ts              # Library index cache, Plex API proxy
-│   ├── tmdb.content.ts            # TMDB page content script
-│   ├── imdb.content.ts            # IMDb page content script
-│   ├── tvdb.content.ts            # TVDB page content script
-│   └── popup/
-│       ├── index.html             # Settings/status UI
-│       ├── main.ts                # Popup logic
-│       └── style.css              # Popup styles
-├── api/plex.ts                    # Plex API client
+│   ├── *.content.ts               # 12 content scripts (one per supported site)
+│   ├── options/                   # Full-tab options page
+│   └── popup/                     # Settings/status popup
+├── api/
+│   ├── plex.ts                    # Plex API client
+│   ├── tmdb.ts                    # TMDB v3 API client
+│   └── tvdb.ts                    # TVDB v4 API client (optional)
 └── common/
     ├── types.ts                   # Shared types
-    └── storage.ts                 # Storage helpers
+    ├── storage.ts                 # Storage helpers
+    ├── badge.ts                   # Smart badge (wrapper+pill, floating panel)
+    ├── gap-checker.ts             # Shared gap detection orchestration
+    ├── collection-panel.ts        # Collection gap panel component
+    ├── episode-panel.ts           # Episode gap panel component
+    ├── panel-utils.ts             # Shared panel styling utilities
+    ├── extractors.ts              # URL/ID extractors + DOM link scanner
+    ├── url-observer.ts            # Debounced URL change observer for SPAs
+    ├── normalize.ts               # Title normalization
+    └── sites.ts                   # Supported site definitions
 ```
 
 ### Data Flow
 
-1. Content script extracts media ID from URL/DOM
-2. Sends message to service worker: `{ type: "CHECK", mediaType: "movie", tmdbId: 550 }`
+1. Content script extracts media ID from URL/DOM (via `extractors.ts`)
+2. Sends message to service worker: `{ type: "CHECK", mediaType: "movie", source: "tmdb", id: "550" }`
 3. Service worker checks cached library index
-4. Returns ownership status
-5. Content script injects badge into page
+4. Returns ownership status + plexUrl
+5. Content script injects smart badge (wrapper+pill architecture)
+6. For owned items, `gap-checker.ts` triggers collection or episode gap detection
+7. Gap data delivered to badge via `setBadgeGapData()` as floating panel
 
 ### Library Index
 

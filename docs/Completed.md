@@ -341,7 +341,13 @@ Redesigned the badge as a unified smart pill with four states and moved gap pane
 - `removeBadge()` now handles all cleanup (panel is a child of badge wrapper)
 - Simplified `nzbforyou.content.ts` from multi-badge to single-badge pattern
 
+### Post-Release Bug Fixes
+- **Badge visibility:** `createBadge()` set `display: none` but update functions never made wrapper visible. All three (`updateBadge`, `updateBadgeFromResponse`, `showErrorBadge`) now set `display: inline-flex`.
+- **Badge vertical alignment:** Added `vertical-align: middle` to wrapper for proper centering within title elements.
+- **TVDB old-style URLs:** Link scanner regex `/series/(\d+)/` only matched new-style TVDB URLs. Added second pattern for old-style query parameter format (`?tab=series&id=12345`) used by NZBGeek.
+
 ### Test Suite
 - Rewrote `tests/badge.test.ts` for wrapper+pill architecture
 - Added `setBadgeGapData` tests (completeness text, split-click, toggle, click-outside, aria-expanded, cleanup)
-- Total: 98 tests across 6 test files (up from 89)
+- Added old-style TVDB query parameter URL test
+- Total: 99 tests across 6 test files (up from 89)

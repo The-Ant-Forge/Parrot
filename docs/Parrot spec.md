@@ -32,13 +32,21 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **TMDB** | `themoviedb.org/movie/{id}` | TMDB numeric ID from URL | `section.inner_content h2 a` |
 | **TMDB** | `themoviedb.org/tv/{id}` | TMDB numeric ID from URL | `section.inner_content h2 a` |
 | **TVDB** | `thetvdb.com/series/{slug}` | TVDB numeric ID from page links | `h1` |
+| **TVDB Movies** | `thetvdb.com/movies/{slug}` | TMDB/IMDb from page links | `h1` |
 | **IMDb** | `imdb.com/title/{ttID}` | IMDb ID (`tt\d+`) from URL | `h1[data-testid="hero-title-block__title"]` |
 | **NZBGeek** | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb from page links | `span.overlay_title` |
 | **NZBGeek** | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB from page links | `span.overlay_title` |
 | **RARGB** | `rargb.to/torrent/*` | TMDB/IMDb/TVDB from page links | `h1` |
-| **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links | `h2.topic-title` + `h3.first` |
+| **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links | `h3.first` |
 | **PSA** | `psa.wf/movie/{slug}` | Title-based matching from URL slug | `h1.post-title` |
 | **PSA** | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug | `h1.post-title` |
+| **Letterboxd** | `letterboxd.com/film/{slug}` | TMDB/IMDb from page links | `h1.headline-1` |
+| **Trakt** | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
+| **Trakt** | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
+| **Rotten Tomatoes** | `rottentomatoes.com/m/{slug}` | IMDb from JSON-LD/page links | `h1` |
+| **Rotten Tomatoes** | `rottentomatoes.com/tv/{slug}` | IMDb from JSON-LD/page links | `h1` |
+| **JustWatch** | `justwatch.com/*/movie/{slug}` | TMDB/IMDb from page links | `h1` |
+| **JustWatch** | `justwatch.com/*/tv-show/{slug}` | TMDB/IMDb from page links | `h1` |
 
 ### ID Extraction Strategies
 
@@ -51,7 +59,7 @@ url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
 
-**Link-scanning** (NZBGeek, RARGB, NZBForYou): The page contains links to external databases (TMDB, IMDb, TVDB). Parrot scans all `<a>` elements for matching hrefs.
+**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Rotten Tomatoes, JustWatch, TVDB Movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`). Rotten Tomatoes also checks JSON-LD structured data for IMDb IDs.
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
@@ -63,12 +71,17 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **IMDb**: URL doesn't distinguish — Parrot checks both movie and show indexes
 - **NZBGeek**: URL parameter (`movieid` vs `tvid`) determines type
 - **RARGB**: Inferred from which external link is found (TVDB = show, TMDB path tells us)
-- **NZBForYou**: Breadcrumb (`li.breadcrumb`) text containing "TV" or "Movies"
+- **NZBForYou**: Breadcrumb (`li.breadcrumb`) text containing "TV" or "Movies"; if absent, tries movie then show
 - **PSA**: URL path (`/movie/` vs `/tv-show/`) determines type
+- **Letterboxd**: Always movie (film-only site)
+- **Trakt**: URL path (`/movies/` vs `/shows/`) determines type
+- **Rotten Tomatoes**: URL path (`/m/` vs `/tv/`) determines type
+- **JustWatch**: URL path (`/movie/` vs `/tv-show/`) determines type
+- **TVDB Movies**: Always movie
 
 ### SPA Navigation
 
-TMDB, IMDb, and TVDB are single-page applications. Content scripts use `MutationObserver` to detect client-side navigation and re-run the check-and-badge flow when the URL changes.
+TMDB, IMDb, TVDB, Trakt, and JustWatch are single-page applications. Content scripts use a shared `observeUrlChanges()` utility (debounced `MutationObserver`) to detect client-side navigation and re-run the check-and-badge flow when the URL changes.
 
 ---
 
@@ -81,11 +94,16 @@ parrot/
 │   │   ├── background.ts              # Library cache, API proxy, icon rendering
 │   │   ├── tmdb.content.ts            # TMDB content script
 │   │   ├── imdb.content.ts            # IMDb content script
-│   │   ├── tvdb.content.ts            # TVDB content script
+│   │   ├── tvdb.content.ts            # TVDB series content script
+│   │   ├── tvdb-movies.content.ts     # TVDB movies content script
 │   │   ├── nzbgeek.content.ts         # NZBGeek content script
 │   │   ├── rargb.content.ts           # RARGB content script
 │   │   ├── nzbforyou.content.ts       # NZBForYou content script
 │   │   ├── psa.content.ts             # PSA content script (title-based)
+│   │   ├── letterboxd.content.ts      # Letterboxd content script
+│   │   ├── trakt.content.ts           # Trakt content script
+│   │   ├── rottentomatoes.content.ts  # Rotten Tomatoes content script
+│   │   ├── justwatch.content.ts       # JustWatch content script
 │   │   ├── options/
 │   │   │   ├── index.html             # Options page HTML
 │   │   │   ├── main.ts                # Options page logic
@@ -101,10 +119,16 @@ parrot/
 │   └── common/
 │       ├── types.ts                   # Shared types (LibraryIndex, OwnedItem, etc.)
 │       ├── storage.ts                 # Storage helpers
-│       ├── badge.ts                   # Page badge component
+│       ├── badge.ts                   # Smart badge (wrapper+pill, floating panel)
+│       ├── gap-checker.ts             # Shared gap detection orchestration
 │       ├── collection-panel.ts        # Collection gap panel component
 │       ├── episode-panel.ts           # Episode gap panel component
-│       └── normalize.ts              # Title normalization for slug-based matching
+│       ├── panel-utils.ts             # Shared panel styling utilities
+│       ├── extractors.ts              # URL/ID extractors + DOM link scanner
+│       ├── url-observer.ts            # Debounced URL change observer for SPAs
+│       ├── normalize.ts               # Title normalization for slug-based matching
+│       └── sites.ts                   # Supported site definitions
+├── tests/                             # Vitest test suite (99 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -123,14 +147,13 @@ parrot/
 - Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
 - Auto-refreshes stale cache on startup (>24h threshold)
 
-**Content Scripts (7 scripts)**
+**Content Scripts (12 scripts)**
 - One per supported site
-- Extracts media ID from URL or by scanning page links
+- Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker
-- Injects ownership badge into the page DOM
-- For TMDB movies: triggers `CHECK_COLLECTION` for collection gap panel
-- For TMDB/TVDB TV shows: triggers `CHECK_EPISODES` for episode gap panel
-- SPA-aware: uses `MutationObserver` on TMDB/IMDb/TVDB
+- Injects smart badge into the page DOM (wrapper+pill architecture)
+- Triggers gap detection via shared `checkGaps()` for owned items
+- SPA-aware: uses shared `observeUrlChanges()` on TMDB/IMDb/TVDB/Trakt/JustWatch
 
 **Options Page (`options/`)**
 - Full-tab settings page (4 card sections)
@@ -175,6 +198,9 @@ type Message =
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
+  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string; mediaType: "movie" | "show" }
+  | { type: "GET_TAB_MEDIA"; tabId: number }
+  | { type: "GET_STORAGE_USAGE" }
 ```
 
 Content scripts always go through the service worker — they never call Plex or external APIs directly.
@@ -416,19 +442,39 @@ async function checkAndBadge() {
 }
 ```
 
-### Page Badge
+### Smart Badge
 
-A compact pill badge injected next to the title element on each supported page:
+A compact pill badge injected next to the title element on each supported page. Uses a wrapper+pill DOM architecture: the outer `<span data-parrot-badge>` is stable (never replaced), the inner `.parrot-pill` rebuilds on state transitions. The wrapper has `position: relative` to anchor floating gap panels.
 
+**Four states:**
+
+| State | Appearance | Interaction |
+|-------|-----------|-------------|
+| Not owned | `[Plex]` gray | None |
+| Owned (no gap data) | `[Plex]` gold | Click opens Plex |
+| Owned + complete | `[Plex : Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
+| Owned + incomplete | `[Plex : Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |
+
+**Styling:**
 - **Owned:** Dark pill (`#282828`), gold Plex chevron icon (inline SVG), white "Plex" text, gold border (`#ebaf00`)
-- **Not owned:** Dark pill (`#3a3a3a`), gray Plex chevron, gray text, gray border (`#888`/`#555`)
-- **Error:** Red pill (`#f44336`) with white "!" text
+- **Not owned:** Dark pill (`#3a3a3a`), gray Plex chevron, gray text, gray border (`#555`)
+- **Error:** Red pill (`#f44336`) with white "!" text and tooltip
 
-When owned, the badge becomes a clickable `<a>` element linking to the item in Plex Web.
+When gap data is available, the pill transitions to split-click mode: the left zone ("Plex" + icon) is an `<a>` link to Plex Web, and the right zone (": Complete" or ": Incomplete") toggles the floating gap panel.
+
+### Floating Gap Panels
+
+Gap panels (collection and episode) float as `position: absolute` children of the badge wrapper. This avoids layout shift compared to injecting block-level elements into the page DOM.
+
+- Default: drops down from badge, left-aligned
+- Smart positioning via `requestAnimationFrame` + `getBoundingClientRect`: flips above if near viewport bottom, right-aligns if near right edge
+- Sizing: `min-width: 280px`, `max-width: 400px`, `max-height: 400px` with scroll
+- Dismissed by clicking toggle again or clicking anywhere outside the badge
+- Panel DOM stays in memory when hidden (preserves expand/collapse state)
 
 ### Collection Gap Panel
 
-A collapsible panel injected below the ownership badge on TMDB movie pages:
+Shown when viewing a movie that belongs to a TMDB collection:
 
 ```
 +-------------------------------------------+
@@ -444,7 +490,7 @@ A collapsible panel injected below the ownership badge on TMDB movie pages:
 
 ### Episode Gap Panel
 
-A collapsible panel injected below the ownership badge on TV show pages:
+Shown when viewing an owned TV show with missing episodes:
 
 ```
 +----------------------------------------------+
@@ -585,7 +631,7 @@ The external ID extraction from Plex `guids` arrays is identical in both project
 
 See [`docs/TODO.md`](TODO.md) for the full roadmap. Key areas:
 
-- **Additional Sites:** Letterboxd, Trakt, JustWatch, Rotten Tomatoes
+- **Additional Sites:** Metacritic, TV Time, Simkl
 - **Multi-Server Support:** Allow multiple Plex server configurations
 - **Advanced Settings:** Per-site toggles, badge position, refresh interval
 - **Publishing:** Chrome Web Store and Firefox Add-ons submission

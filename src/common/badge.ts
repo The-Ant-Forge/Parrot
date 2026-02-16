@@ -203,6 +203,7 @@ export function createBadge(): HTMLSpanElement {
   Object.assign(wrapper.style, {
     position: "relative",
     display: "none",
+    verticalAlign: "middle",
     marginLeft: "8px",
   });
   // Create inner pill

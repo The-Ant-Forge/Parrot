@@ -123,4 +123,18 @@ All 12 content scripts:
 - `tests/badge.test.ts` — rewritten for wrapper+pill architecture
 - Removed `updateBadgeCompleteness` tests
 - Added `setBadgeGapData` tests: completeness text, split-click zones, toggle show/hide, click-outside dismissal, aria-expanded, panel cleanup on removeBadge
-- Total: 98 tests across 6 test files (up from 89)
+- Added old-style TVDB query parameter URL test to `tests/scan-links.test.ts`
+- Total: 99 tests across 6 test files (up from 89)
+
+---
+
+## Post-Release Bug Fixes
+
+### Badge visibility
+`createBadge()` set `display: none` on the wrapper but `updateBadge`, `updateBadgeFromResponse`, and `showErrorBadge` never made it visible. All three now set `display: inline-flex` on the wrapper.
+
+### Badge vertical alignment
+Added `vertical-align: middle` to the wrapper style for proper centering within tall title elements (e.g. h1 tags).
+
+### TVDB old-style URL matching
+The Phase 12 regex tightening (`/series/(\d+)/`) only matched new-style TVDB URLs like `/series/12345`. NZBGeek uses old-style query parameter format (`?tab=series&id=12345`). Added second pattern to `scanLinksForExternalId()` to match both formats.

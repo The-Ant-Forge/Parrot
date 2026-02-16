@@ -78,5 +78,4 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 
 - Episode-level matching on episode-specific pages (e.g. TMDB `/tv/{id}/season/{n}/episode/{n}`)
 - Tiered cache TTL (ended shows = longer cache, continuing shows = shorter)
-- Badge variant for partial ownership ("Partial" vs "Owned")
 - Cross-reference with ComPlexionist collection gap data
