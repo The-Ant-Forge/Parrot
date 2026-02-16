@@ -131,7 +131,7 @@ parrot/
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (103 tests)
+├── tests/                             # Vitest test suite (110 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -148,7 +148,7 @@ parrot/
 - Proxies Plex API requests (avoids CORS issues from content scripts)
 - Handles all message types: `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
 - Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
-- Auto-refreshes stale cache on startup (>24h threshold)
+- Auto-refreshes stale library index on demand (configurable interval, default 7 days)
 
 **Content Scripts (13 scripts)**
 - One per supported site
@@ -163,7 +163,7 @@ parrot/
 - Plex server configuration (URL, token, test, save & sync)
 - API key management (TMDB required, TVDB optional) with validation buttons
 - Gap detection toggles (exclude future, exclude specials, minimum thresholds)
-- Cache management (refresh, clear)
+- Cache management (refresh, clear, auto-refresh toggle with configurable interval)
 
 **Popup (`popup/`)**
 - Quick-access configuration UI (Plex URL, token)
@@ -376,8 +376,8 @@ Lookup tries `"title|year"` first, falls back to `"title"` only.
 | Scenario | Action |
 |----------|--------|
 | First install | Full index build on setup |
-| Extension startup | Load cached if < 24 hours old |
-| Stale cache (> 24h) | Auto-refresh in background |
+| Auto-refresh enabled | On each CHECK, if index age exceeds threshold (default 7 days), fire-and-forget rebuild in background |
+| Auto-refresh disabled | No automatic rebuilds; user must refresh manually |
 | Manual refresh | User clicks "Refresh Library" in popup/options |
 
 ### Storage
@@ -563,7 +563,7 @@ Content script URL matches are defined in each `*.content.ts` file via WXT's `de
 
 ### Versioning
 
-Version format: `Major.A.B` (e.g. `1.3.12`)
+Version format: `Major.A.B` (e.g. `1.12.15`)
 
 | Segment | Meaning | How it changes |
 |---------|---------|----------------|

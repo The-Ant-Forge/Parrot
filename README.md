@@ -110,7 +110,7 @@ npm run lint      # Lint
 
 ### Versioning
 
-Version format: `Major.A.B` (e.g. `1.3.12`)
+Version format: `Major.A.B` (e.g. `1.12.15`)
 
 - **Major** -- manual edit in `package.json`
 - **A** (commit) -- `npm run version:commit` (resets B to 0)

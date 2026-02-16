@@ -26,6 +26,7 @@ import type {
 } from "../common/types";
 
 let cachedIndex: LibraryIndex | null = null;
+let autoRefreshing = false;
 const tabMediaCache = new Map<number, TabMediaInfo>();
 
 const SESSION_KEY = "tabMedia";
@@ -95,6 +96,33 @@ async function loadIndex(): Promise<LibraryIndex | null> {
       console.log("Parrot: no index found in storage");
     }
   }
+
+  // Auto-refresh if stale (fire-and-forget, returns current index immediately)
+  if (cachedIndex && !autoRefreshing) {
+    const options = await getOptions();
+    if (options.autoRefresh) {
+      const ageMs = Date.now() - (cachedIndex.lastRefresh ?? 0);
+      const thresholdMs = options.autoRefreshDays * 24 * 60 * 60 * 1000;
+      if (ageMs >= thresholdMs) {
+        autoRefreshing = true;
+        getConfig().then(async (config) => {
+          if (!config) { autoRefreshing = false; return; }
+          try {
+            console.log(`Parrot: auto-refresh — index is ${Math.floor(ageMs / 86400000)}d old, refreshing`);
+            const newIndex = await buildLibraryIndex(config);
+            await saveLibraryIndex(newIndex);
+            cachedIndex = newIndex;
+            console.log(`Parrot: auto-refresh complete — ${newIndex.itemCount} items`);
+          } catch (err) {
+            console.error("Parrot: auto-refresh failed", err);
+          } finally {
+            autoRefreshing = false;
+          }
+        });
+      }
+    }
+  }
+
   return cachedIndex;
 }
 
@@ -286,9 +314,6 @@ export default defineBackground(() => {
   } catch (err) {
     console.error("Parrot: failed to set default icon", err);
   }
-
-  // Index is lazy-loaded on first CHECK via loadIndex()
-  // Users refresh manually via popup or options page
 
   browser.runtime.onMessage.addListener(
     (message: Message, _sender, sendResponse) => {

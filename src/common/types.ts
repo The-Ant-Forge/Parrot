@@ -58,6 +58,8 @@ export interface ParrotOptions {
   minCollectionSize: number;
   minOwned: number;
   showCompletePanels: boolean;
+  autoRefresh: boolean;
+  autoRefreshDays: number;
 }
 
 export const DEFAULT_OPTIONS: ParrotOptions = {
@@ -68,6 +70,8 @@ export const DEFAULT_OPTIONS: ParrotOptions = {
   minCollectionSize: 2,
   minOwned: 2,
   showCompletePanels: false,
+  autoRefresh: true,
+  autoRefreshDays: 7,
 };
 
 // --- Messages (popup/content scripts/options → background) ---

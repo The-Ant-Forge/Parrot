@@ -410,3 +410,32 @@ New content script for `app.trakt.tv` (SvelteKit SPA with fully dynamic renderin
 ### Test Suite
 - Added `/tv-series/` extractor test
 - Total: 103 tests across 6 test files (up from 102)
+
+---
+
+## Compact Gap Panels & CSS Isolation
+
+### Season Grouping
+- Contiguous complete or fully-missing seasons are now grouped into ranges (e.g. "S1 - S4  36/36") instead of listing each individually
+- Partial seasons (some episodes missing) are never grouped — always shown individually with missing count
+- Exported `groupSeasons()` function for testability
+
+### CSS Isolation
+- Added `CSS_RESET` block to `createPanelContainer()` with explicit resets for `fontWeight`, `lineHeight`, `fontStyle`, `letterSpacing`, `textTransform`, `textShadow`, etc.
+- Added `lineHeight` and `fontWeight` resets to `createPanelRow()` and `createStatusIcon()`
+- Prevents host-site CSS (e.g. PSA's bold/tall styles) from bleeding into gap panels
+
+### Test Suite
+- Added 7 season grouping tests in `tests/episode-panel.test.ts`
+- Total: 110 tests across 7 test files (up from 103)
+
+---
+
+## Auto-Refresh Library
+
+- Added `autoRefresh` (default `true`) and `autoRefreshDays` (default `7`) to `ParrotOptions`
+- On each CHECK, `loadIndex()` checks if the index is older than the configured threshold
+- If stale, triggers a fire-and-forget rebuild in the background — current index returned immediately so the user sees results right away
+- `autoRefreshing` flag prevents duplicate concurrent refreshes
+- No alarms permission needed — zero overhead when browser/extension is idle
+- Options page: toggle + days input in Cache section, auto-saves on change

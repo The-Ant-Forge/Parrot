@@ -62,6 +62,9 @@ const sitesFeedback = $<HTMLDivElement>("sitesFeedback");
 const cacheItemCountEl = $<HTMLSpanElement>("cacheItemCount");
 const cacheLastSyncEl = $<HTMLSpanElement>("cacheLastSync");
 const storageUsageEl = $<HTMLSpanElement>("storageUsage");
+const autoRefreshInput = $<HTMLInputElement>("autoRefresh");
+const autoRefreshDaysInput = $<HTMLInputElement>("autoRefreshDays");
+const autoRefreshDaysRow = $<HTMLDivElement>("autoRefreshDaysRow");
 const refreshBtn = $<HTMLButtonElement>("refreshBtn");
 const clearCacheBtn = $<HTMLButtonElement>("clearCacheBtn");
 const cacheFeedback = $<HTMLDivElement>("cacheFeedback");
@@ -77,6 +80,8 @@ function gatherOptions(): ParrotOptions {
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
     minOwned: Math.max(1, parseInt(minOwnedInput.value) || 1),
     showCompletePanels: showCompletePanelsInput.checked,
+    autoRefresh: autoRefreshInput.checked,
+    autoRefreshDays: Math.max(1, Math.min(30, parseInt(autoRefreshDaysInput.value) || 7)),
   };
 }
 
@@ -287,6 +292,15 @@ saveOptionsBtn.addEventListener("click", async () => {
 
 // --- Cache handlers ---
 
+autoRefreshInput.addEventListener("change", async () => {
+  autoRefreshDaysRow.hidden = !autoRefreshInput.checked;
+  await saveAllOptions();
+});
+
+autoRefreshDaysInput.addEventListener("change", async () => {
+  await saveAllOptions();
+});
+
 refreshBtn.addEventListener("click", async () => {
   hideFeedback(cacheFeedback);
   setButtonLoading(refreshBtn, true);
@@ -448,6 +462,9 @@ resetSitesBtn.addEventListener("click", async () => {
   minCollectionSizeInput.value = String(options.minCollectionSize);
   minOwnedInput.value = String(options.minOwned);
   showCompletePanelsInput.checked = options.showCompletePanels;
+  autoRefreshInput.checked = options.autoRefresh;
+  autoRefreshDaysInput.value = String(options.autoRefreshDays);
+  autoRefreshDaysRow.hidden = !options.autoRefresh;
 
   // Load status
   const status: StatusResponse = await browser.runtime.sendMessage({

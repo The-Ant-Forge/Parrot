@@ -149,7 +149,7 @@ npm run lint
 
 ### Versioning
 
-Version format: `Major.A.B` (e.g. `1.3.12`)
+Version format: `Major.A.B` (e.g. `1.12.15`)
 
 | Segment | Meaning | How it changes |
 |---------|---------|----------------|

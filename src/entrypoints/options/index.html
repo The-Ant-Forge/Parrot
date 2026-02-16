@@ -181,6 +181,16 @@
             </div>
           </div>
 
+          <div class="toggle-row">
+            <label for="autoRefresh">Auto-refresh library</label>
+            <input type="checkbox" id="autoRefresh" />
+          </div>
+
+          <div class="number-row" id="autoRefreshDaysRow">
+            <label for="autoRefreshDays">Refresh interval (days)</label>
+            <input type="number" id="autoRefreshDays" min="1" max="30" />
+          </div>
+
           <div class="button-row">
             <button id="refreshBtn">Refresh Library</button>
             <button id="clearCacheBtn" class="danger">Clear All Cache</button>
