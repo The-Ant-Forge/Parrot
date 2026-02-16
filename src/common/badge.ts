@@ -217,6 +217,7 @@ export function updateBadge(badge: HTMLSpanElement, status: BadgeStatus, tooltip
   const pill = ensurePill(badge);
   setPillContent(pill, status);
   applyPillStyles(pill, status);
+  badge.style.display = "inline-flex";
   badge.title = tooltip ?? "";
 }
 
@@ -225,6 +226,7 @@ export function showErrorBadge(badge: HTMLSpanElement, reason: string) {
   const pill = ensurePill(badge);
   setPillContent(pill, "error");
   applyPillStyles(pill, "error");
+  badge.style.display = "inline-flex";
   badge.title = reason;
 }
 
@@ -239,6 +241,7 @@ export function updateBadgeFromResponse(
   const pill = ensurePill(badge);
   setPillContent(pill, status, response.plexUrl);
   applyPillStyles(pill, status);
+  badge.style.display = "inline-flex";
 }
 
 /**

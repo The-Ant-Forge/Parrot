@@ -49,6 +49,7 @@ describe("updateBadge", () => {
     expect(pill.style.borderColor).toBe("#ebaf00");
     expect(pill.innerHTML).toContain("Plex");
     expect(pill.innerHTML).toContain("svg");
+    expect(badge.style.display).toBe("inline-flex");
   });
 
   it("applies not-owned styling to inner pill", () => {
