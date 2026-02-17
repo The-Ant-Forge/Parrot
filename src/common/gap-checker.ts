@@ -68,8 +68,10 @@ async function checkMovieGaps(
 
     if (collResult.hasCollection && collResult.collection) {
       const hasGaps = collResult.collection.missingMovies.length > 0;
+      const hasOwned = collResult.collection.ownedMovies.length > 0;
 
-      if (response.owned) {
+      // Show collection panel for owned movies, or not-owned movies in a partially-owned collection
+      if (response.owned || hasOwned) {
         const panelElement = createCollectionPanel(collResult.collection, hasGaps || showCompletePanels);
         setBadgeGapData({
           state: hasGaps ? "incomplete" : "complete",

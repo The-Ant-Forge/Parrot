@@ -260,6 +260,9 @@ export function setBadgeGapData(data: GapPanelData) {
   const pill = ensurePill(wrapper);
   const s = STYLES.owned;
 
+  // Upgrade pill to owned styling (transitions gray → gold when collection data arrives)
+  applyPillStyles(pill, "owned");
+
   // Rebuild pill content with split-click zones
   pill.innerHTML = "";
 

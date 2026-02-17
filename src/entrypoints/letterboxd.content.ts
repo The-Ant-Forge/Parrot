@@ -27,16 +27,14 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, response);
 
-    if (response.owned) {
-      const options = await getOptions();
-      checkGaps({
-        mediaType: "movie",
-        source: extId.source,
-        id: extId.id,
-        response,
-        showCompletePanels: options.showCompletePanels,
-      });
-    }
+    const options = await getOptions();
+    checkGaps({
+      mediaType: "movie",
+      source: extId.source,
+      id: extId.id,
+      response,
+      showCompletePanels: options.showCompletePanels,
+    });
   } catch {
     showErrorBadge(badge, "Could not check Plex library");
   }

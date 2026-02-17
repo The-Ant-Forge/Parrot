@@ -41,8 +41,8 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, response);
 
-    // Gap detection for owned items
-    if (response.owned) {
+    // Gap detection: always for movies (collection check), owned-only for shows
+    if (response.owned || mediaType === "movie") {
       const options = await getOptions();
       checkGaps({
         mediaType,
