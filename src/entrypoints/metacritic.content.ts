@@ -113,7 +113,7 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, response);
 
-    if (response.owned && response.item && (response.item.tmdbId || response.item.tvdbId)) {
+    if (response.owned || mediaType === "movie") {
       const options = await getOptions();
       checkGaps({
         mediaType,

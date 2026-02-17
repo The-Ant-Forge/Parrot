@@ -33,8 +33,8 @@ async function resolveTmdbMovieId(
     return String(response.item.tmdbId);
   }
 
-  // Resolve via FIND_TMDB_ID for imdb/tvdb sources
-  if (source === "imdb" || source === "tvdb") {
+  // Resolve via FIND_TMDB_ID for imdb/tvdb/title sources
+  if (source === "imdb" || source === "tvdb" || source === "title") {
     try {
       const result: FindTmdbIdResponse = await browser.runtime.sendMessage({
         type: "FIND_TMDB_ID",

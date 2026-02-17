@@ -127,6 +127,23 @@ export async function findByTvdbId(
 }
 
 /**
+ * Search for a movie by title (and optional year).
+ * Returns the TMDB ID of the first match, or null if none found.
+ */
+export async function searchMovie(
+  apiKey: string,
+  query: string,
+  year?: number,
+): Promise<number | null> {
+  const yearParam = year ? `&year=${year}` : "";
+  const data = await tmdbFetch<{ results: { id: number }[] }>(
+    apiKey,
+    `/search/movie?query=${encodeURIComponent(query)}${yearParam}`,
+  );
+  return data.results.length > 0 ? data.results[0].id : null;
+}
+
+/**
  * Convert an IMDb ID to a TMDB ID using the find endpoint.
  * Checks movie results first, then TV results.
  * Returns null if no match found.
