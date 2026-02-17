@@ -73,13 +73,14 @@ url.match(/imdb\.com\/title\/(tt\d+)/)
 src/
 ├── entrypoints/
 │   ├── background.ts              # Library index cache, Plex API proxy
-│   ├── *.content.ts               # 15 content scripts (one per supported site)
+│   ├── *.content.ts               # 16 content scripts (one per supported site)
 │   ├── options/                   # Full-tab options page
 │   └── popup/                     # Settings/status popup
 ├── api/
 │   ├── plex.ts                    # Plex API client
 │   ├── tmdb.ts                    # TMDB v3 API client
-│   └── tvdb.ts                    # TVDB v4 API client (optional)
+│   ├── tvdb.ts                    # TVDB v4 API client (optional)
+│   └── tvmaze.ts                  # TVMaze API client (free, no key)
 └── common/
     ├── types.ts                   # Shared types
     ├── storage.ts                 # Storage helpers
@@ -163,6 +164,15 @@ Version format: `Major.A.B` (e.g. `1.12.15`)
 - **Scripts:** `scripts/bump-build.js` (B++), `scripts/bump-commit.js` (A++, B=0)
 - All segments can be manually edited in `package.json` if needed
 
+### Releases
+Before doing a release chack that all primary document are updated and current with respect to what you know of the changes made. This includes TODO.md, completed.md, parrot spec.md. Then do a commit and push to capture those changes int he remote before starting the normal release procedure.
+
+All releases should have a thorough description in markdown format. Descriptions should start with an intro paragraph giving a broad summary of changes, improvements and fixes then list in order:
+1. New Features: What they are, how they work and what benefit they bring
+2. Code improvements: What changes to existing feature or code was made and why.
+3. Bug fixes: What bugs were fixed and how
+4. Anything else we want to say about this release
+
 ---
 
 ## Working style
@@ -231,3 +241,4 @@ Never use real movie or tv show names. Always make up example ones.
 | JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
 | Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
 | Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
+| TVMaze | `tvmaze.com/shows/{id}` | TVDB/IMDb via TVMaze API (free, no key) |

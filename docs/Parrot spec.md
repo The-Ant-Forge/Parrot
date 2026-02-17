@@ -51,6 +51,7 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **JustWatch** | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) | `h1` |
 | **Metacritic** | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
 | **Metacritic** | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
+| **TVMaze** | `tvmaze.com/shows/{id}` | TVDB/IMDb via TVMaze API (free, no key) | `header.columns h1` or `h1` |
 
 ### ID Extraction Strategies
 
@@ -67,6 +68,8 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
+**API-resolved** (TVMaze): The page has no external database links. The content script extracts the TVMaze numeric ID from the URL, sends it to the background, which calls the free TVMaze API (`api.tvmaze.com/shows/{id}`) to resolve TVDB and IMDb IDs. The background then looks up those IDs in the library index.
+
 **Title-based** (PSA, Rotten Tomatoes, JustWatch, Metacritic): No external IDs exist on the page (or they have been removed by the site). Parrot normalizes a title and optional year, then matches against a title-based index built from Plex library data. The key `"some movie|2025"` is tried first, falling back to `"some movie"` without year. PSA and Rotten Tomatoes parse the title from the URL slug; JustWatch parses the h1 text (e.g., `"The Night Manager (2016)"`). Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes, JustWatch, and Metacritic try structured data or link scanning first and fall back to title-based matching.
 
 ### Media Type Detection
@@ -82,6 +85,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **Rotten Tomatoes**: URL path (`/m/` vs `/tv/`) determines type
 - **JustWatch**: URL path (`/movie/` vs `/tv-show/` or `/tv-series/`) determines type
 - **Metacritic**: URL path (`/movie/` vs `/tv/`) determines type
+- **TVMaze**: Always show (TV-only site)
 - **TVDB**: URL path (`/series/` vs `/movies/`) determines type
 
 ### SPA Navigation
@@ -111,6 +115,7 @@ parrot/
 │   │   ├── rottentomatoes.content.ts  # Rotten Tomatoes content script
 │   │   ├── justwatch.content.ts       # JustWatch content script
 │   │   ├── metacritic.content.ts      # Metacritic content script
+│   │   ├── tvmaze.content.ts         # TVMaze content script (API-resolved)
 │   │   ├── options/
 │   │   │   ├── index.html             # Options page HTML
 │   │   │   ├── main.ts                # Options page logic
@@ -122,7 +127,8 @@ parrot/
 │   ├── api/
 │   │   ├── plex.ts                    # Plex API client
 │   │   ├── tmdb.ts                    # TMDB v3 API client
-│   │   └── tvdb.ts                    # TVDB v4 API client (optional)
+│   │   ├── tvdb.ts                    # TVDB v4 API client (optional)
+│   │   └── tvmaze.ts                  # TVMaze API client (free, no key)
 │   └── common/
 │       ├── types.ts                   # Shared types (LibraryIndex, OwnedItem, etc.)
 │       ├── storage.ts                 # Storage helpers
@@ -198,7 +204,7 @@ type Message =
   | { type: "TEST_ALL_SERVERS" }
   | { type: "BUILD_INDEX" }
   | { type: "GET_STATUS" }
-  | { type: "CHECK"; mediaType: "movie"|"show"; source: "tmdb"|"imdb"|"tvdb"|"title"; id: string }
+  | { type: "CHECK"; mediaType: "movie"|"show"; source: "tmdb"|"imdb"|"tvdb"|"title"|"tvmaze"; id: string }
   | { type: "GET_OPTIONS" }
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
   | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
