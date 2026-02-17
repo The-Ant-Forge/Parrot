@@ -31,6 +31,7 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 - [x] JustWatch (`justwatch.com/{locale}/movie/{slug}`)
 - [x] Rotten Tomatoes (`rottentomatoes.com/m/{slug}`)
 - [x] Metacritic (`metacritic.com/movie/*`, `metacritic.com/tv/*`)
+- [x] TVMaze (`tvmaze.com/shows/*`)
 - [ ] TV Time (`tvtime.com/show/*`)
 - [ ] Simkl (`simkl.com/movies/*`, `simkl.com/tv/*`)
 

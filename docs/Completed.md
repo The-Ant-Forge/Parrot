@@ -536,3 +536,43 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 - Badge upgrades from gray "Plex" to gold "Plex : Incomplete" when a not-owned movie is part of a collection you partially own
 - Respects `minOwned` setting — panel only appears if you own at least the configured minimum
 - Updated 11 content scripts to call `checkGaps` for movies regardless of owned status
+
+---
+
+## v1.7 — TVMaze, Cross-Reference Bridge & Title-Based Improvements
+
+### TVMaze Site Support
+- **New file:** `src/entrypoints/tvmaze.content.ts` — content script for `tvmaze.com/shows/*`
+- **New file:** `src/api/tvmaze.ts` — TVMaze API client (free, no key required)
+- TVMaze is a TV-only site with no external IDs in the DOM; the content script extracts the numeric show ID from the URL and sends it to the background
+- Background calls `api.tvmaze.com/shows/{id}` to resolve TVDB and IMDb IDs, then does normal library lookup
+- Fallback chain: TVDB → IMDb → TMDB cross-reference
+- Badge anchor: `header.columns h1` or `h1`
+- Added `tvmaze` site definition in `sites.ts` and `api.tvmaze.com` to `host_permissions`
+- Added `"tvmaze"` to CHECK message source union and `TabMediaInfo`
+
+### TVMaze Cross-Reference Bridge
+- `lookupByImdb()` and `lookupByTvdb()` added to `tvmaze.ts` for free IMDb↔TVDB resolution
+- Background `handleCheck` now tries TVMaze bridge before TMDB API for all show lookups with IMDb or TVDB sources
+- Benefits: cross-referencing works without a TMDB API key for shows
+
+### NFD Accent Normalization
+- `normalizeTitle()` now uses `.normalize("NFD")` to decompose accented characters before stripping diacritics
+- Ensures titles with accents match regardless of encoding on either side
+- Added 3 normalization tests (total: 129 across 7 files)
+
+### PSA h1 Text Fallback
+- PSA content script now tries URL slug first, then falls back to h1 text for title matching
+- Added `parseTitleFromH1()` and `tryTitleCheck()` helpers
+- Fixed badge text contamination: h1 text captured before `injectBadge()` in both PSA and JustWatch
+
+### Collection Gaps for Title-Based Sources
+- Added `searchMovie()` to TMDB API client — searches TMDB by title + optional year
+- Extended `FIND_TMDB_ID` message to support `source: "title"` (parses titleKey, searches TMDB, retries without year)
+- `resolveTmdbMovieId()` in gap-checker now handles title sources
+- Updated 4 title-based content script paths (PSA, RT, JustWatch, Metacritic) to call `checkGaps` for not-owned movies
+- Title-based sites now show collection gaps identically to external-ID sites
+
+### Test Suite
+- 5 TVMaze extractor tests, 3 NFD normalization tests
+- Total: 129 tests across 7 test files

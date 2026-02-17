@@ -212,7 +212,7 @@ type Message =
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
-  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string; mediaType: "movie" | "show" }
+  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string }
   | { type: "GET_TAB_MEDIA"; tabId: number }
   | { type: "GET_STORAGE_USAGE" }
 ```
@@ -383,11 +383,18 @@ When resolving a Plex deep link, servers are checked in priority order (array po
 
 ### Title Normalization
 
-For sites without external IDs (PSA), Parrot normalizes titles for fuzzy matching:
+For sites without external IDs (PSA), Parrot normalizes titles for fuzzy matching. The normalization pipeline:
+1. **NFD decomposition** — splits accented characters into base + combining mark (e.g. e with acute → e + combining acute)
+2. **Strip diacritics** — removes combining marks (`[\u0300-\u036f]`)
+3. **Lowercase** — case-insensitive matching
+4. **Hyphens to spaces** — URL slugs use hyphens
+5. **Strip punctuation** — removes all non-alphanumeric except spaces
+6. **Collapse whitespace** — single spaces, trimmed
 
 ```typescript
 normalizeTitle("The Sparring Partner") → "the sparring partner"
 normalizeTitle("The-Dark-Corridors") → "the dark corridors"
+normalizeTitle("Creme Brulee") → "creme brulee"  // accents decomposed
 buildTitleKey("The Sparring Partner", 1999) → "the sparring partner|1999"
 parseSlug("the-dark-corridors-2008") → { title: "the dark corridors", year: 2008 }
 parseSlug("the_dark_corridors_2008") → { title: "the dark corridors", year: 2008 }
@@ -425,6 +432,7 @@ When viewing a movie page on any supported site, Parrot checks if the movie belo
 - Respects `excludeFuture` and `minCollectionSize`/`minOwned` options
 - Panel shows owned movies (gold checkmark, Plex deep link) and missing movies (gray X)
 - Cross-reference fallback: if a direct IMDb/TVDB lookup misses, Parrot resolves to TMDB ID via the TMDB API and retries
+- Title-based sources (PSA, RT, JustWatch, Metacritic title fallback) resolve to TMDB ID via TMDB search by title+year through `FIND_TMDB_ID` with `source: "title"`
 
 ### Episode Gaps (TV Shows)
 
