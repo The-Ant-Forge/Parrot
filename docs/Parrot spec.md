@@ -63,7 +63,7 @@ url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
 
-**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans all `<a>` elements for matching hrefs. Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
+**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans `<a>` elements for matching hrefs. When multiple ID types are found on the same page, **source authority priority** determines which is returned: IMDb > TVDB > TMDB (reduces cross-reference failures). Individual sites can scope the scan to a DOM container (e.g., RARGB scopes to `#description` to avoid sidebar noise). Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 
@@ -411,13 +411,14 @@ Lookup tries `"title|year"` first, falls back to `"title"` only.
 
 ### Collection Gaps (TMDB Movies)
 
-When viewing a TMDB movie page, Parrot checks if the movie belongs to a TMDB collection. If the user owns some but not all movies in the collection, a collapsible panel appears showing owned and missing movies.
+When viewing a movie page on any supported site, Parrot checks if the movie belongs to a TMDB collection. The collection panel appears for any movie in a partially-owned collection (not just movies you own). The badge upgrades from gray to gold `Plex : Incomplete` when a not-owned movie belongs to a collection where you own at least some entries.
 
-- Triggered by `CHECK_COLLECTION` message after ownership badge
+- Triggered by `CHECK_COLLECTION` message after ownership badge (for all movies, not just owned)
 - Uses TMDB API (`getMovie` → `getCollection`)
 - Collection data cached 30 days in `storage.local`
 - Respects `excludeFuture` and `minCollectionSize`/`minOwned` options
 - Panel shows owned movies (gold checkmark, Plex deep link) and missing movies (gray X)
+- Cross-reference fallback: if a direct IMDb/TVDB lookup misses, Parrot resolves to TMDB ID via the TMDB API and retries
 
 ### Episode Gaps (TV Shows)
 
@@ -473,6 +474,7 @@ A compact pill badge injected next to the title element on each supported page. 
 | State | Appearance | Interaction |
 |-------|-----------|-------------|
 | Not owned | `[Plex]` gray | None |
+| Not owned + incomplete collection | `[Plex : Incomplete]` gold | "Plex" links to Plex, "Incomplete" toggles collection panel |
 | Owned (no gap data) | `[Plex]` gold | Click opens Plex |
 | Owned + complete | `[Plex : Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
 | Owned + incomplete | `[Plex : Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |

@@ -512,3 +512,27 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 - Added separate items test (different IDs = separate items)
 - Added empty servers test
 - Total: 116 tests across 7 test files (up from 113)
+
+---
+
+## v1.6 — Link Scanner Improvements & Collection Gaps for Not-Owned Movies
+
+### RARGB Container-Scoped Link Scanning
+- Link scanning on RARGB pages now scoped to `#description` container
+- Prevents stray TMDB/IMDb links in sidebar or related content from being matched
+- `scanLinksForExternalId()` gained a `container` option for per-site scoping
+
+### Source Authority Priority
+- `scanLinksForExternalId()` now collects one match per source type and returns the highest-authority match: IMDb > TVDB > TMDB
+- Reduces misidentification on pages with multiple external ID links (e.g., NZBGeek, RARGB)
+- 5 new tests for priority ordering and container scoping (total: 121 across 7 files)
+
+### Cross-Reference Fallback
+- When a direct IMDb or TVDB lookup misses in the library index, the background service worker resolves to a TMDB ID via the TMDB API and retries
+- Improves matching when Plex items are indexed with different external ID sets than the browsed page
+
+### Collection Gaps for Not-Owned Movies
+- Collection gap panels now appear for **all** movies in a partially-owned collection, not just owned ones
+- Badge upgrades from gray "Plex" to gold "Plex : Incomplete" when a not-owned movie is part of a collection you partially own
+- Respects `minOwned` setting — panel only appears if you own at least the configured minimum
+- Updated 11 content scripts to call `checkGaps` for movies regardless of owned status

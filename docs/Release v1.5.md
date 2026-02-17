@@ -21,7 +21,7 @@ A compact dark pill appears next to the title on every supported page. Gold Plex
 
 ### Collection Gap Detection
 
-On TMDB movie pages, if the movie belongs to a collection, Parrot shows a floating panel listing which movies in the collection you own and which are missing. Owned movies link directly to Plex.
+If a movie belongs to a collection, Parrot shows a floating panel listing which movies in the collection you own and which are missing. Owned movies link directly to Plex. Works on all supported sites, not just TMDB.
 
 ### Episode Gap Detection
 

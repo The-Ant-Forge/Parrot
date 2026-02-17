@@ -10,7 +10,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 - **Ownership badge** on 13 supported sites -- dark pill with gold/gray Plex chevron
 - **Deep linking** -- owned badges link directly to the item in Plex Web
-- **Collection gap detection** -- on TMDB movie pages, see which movies from the same collection you own or are missing
+- **Collection gap detection** -- see which movies from the same collection you own or are missing, even for movies you don't own yet
 - **Episode gap detection** -- on TMDB and TVDB TV show pages, see a season-by-season breakdown of missing episodes
 - **TVDB API support** -- optional TVDB v4 API key for more accurate TV episode numbering
 - **Dynamic toolbar icon** -- changes per-tab to show owned/not-owned/inactive state
@@ -59,7 +59,7 @@ The toolbar icon also changes per-tab: gold border when owned, gray when not, li
 
 ### Collection Gaps (TMDB Movies)
 
-When viewing a TMDB movie that belongs to a collection, Parrot shows a collapsible panel listing which movies in the collection you own and which you're missing. Owned movies link to Plex.
+When viewing a movie that belongs to a collection on any supported site, Parrot shows a collapsible panel listing which movies in the collection you own and which you're missing. This works even for movies you don't own -- if the collection is partially owned, the badge upgrades to "Plex : Incomplete" with the full collection panel. Owned movies link to Plex.
 
 ### Episode Gaps (TV Shows)
 
