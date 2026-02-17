@@ -2,10 +2,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { scanLinksForExternalId } from "../src/common/extractors";
 
-function addLink(href: string) {
+function addLink(href: string, parent: Element = document.body) {
   const a = document.createElement("a");
   a.href = href;
-  document.body.appendChild(a);
+  parent.appendChild(a);
 }
 
 beforeEach(() => {
@@ -97,5 +97,25 @@ describe("scanLinksForExternalId", () => {
       id: "121361",
       mediaType: "show",
     });
+  });
+
+  it("scopes scan to container — ignores links outside", () => {
+    const container = document.createElement("div");
+    container.id = "description";
+    document.body.appendChild(container);
+    // IMDb inside container, TMDB outside
+    addLink("https://www.themoviedb.org/movie/8193-wrong-title");
+    addLink("https://www.imdb.com/title/tt0374900/", container);
+    expect(scanLinksForExternalId({ container })).toEqual({
+      source: "imdb",
+      id: "tt0374900",
+    });
+  });
+
+  it("scoped container returns null when no links inside it", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    addLink("https://www.imdb.com/title/tt0137523/");
+    expect(scanLinksForExternalId({ container })).toBeNull();
   });
 });

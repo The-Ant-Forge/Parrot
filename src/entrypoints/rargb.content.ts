@@ -7,7 +7,9 @@ import type { CheckResponse } from "../common/types";
 async function checkAndBadge() {
   removeBadge();
 
-  const extId = scanLinksForExternalId();
+  // Scope link scan to #description to avoid sidebar/related-content links
+  const desc = document.getElementById("description");
+  const extId = scanLinksForExternalId(desc ? { container: desc } : undefined);
   if (!extId) return;
 
   const anchor = document.querySelector("h1");

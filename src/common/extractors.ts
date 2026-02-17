@@ -77,16 +77,18 @@ export interface ExternalIdFromLink {
 const ALL_SOURCES: ("tmdb" | "imdb" | "tvdb")[] = ["tmdb", "imdb", "tvdb"];
 
 /**
- * Scan all <a> elements on the page for TMDB, IMDb, or TVDB links.
+ * Scan <a> elements for TMDB, IMDb, or TVDB links.
  * Returns the first match found, or null if none.
  *
  * @param options.sources — restrict which sources to check (default: all three)
+ * @param options.container — scope the scan to a DOM subtree (default: document)
  */
 export function scanLinksForExternalId(
-  options?: { sources?: ("tmdb" | "imdb" | "tvdb")[] },
+  options?: { sources?: ("tmdb" | "imdb" | "tvdb")[]; container?: ParentNode },
 ): ExternalIdFromLink | null {
   const sources = options?.sources ?? ALL_SOURCES;
-  const links = document.querySelectorAll<HTMLAnchorElement>("a[href]");
+  const root = options?.container ?? document;
+  const links = root.querySelectorAll<HTMLAnchorElement>("a[href]");
 
   for (const link of links) {
     const href = link.href;
