@@ -57,6 +57,9 @@ async function checkAndBadge() {
   // Brief delay for remaining DOM (links) to populate
   await new Promise((r) => setTimeout(r, 500));
 
+  // Capture h1 text BEFORE badge injection (badge adds "Plex" to textContent)
+  const h1Text = anchor.textContent?.trim();
+
   const badge = injectBadge(anchor);
 
   // Strategy 1: external ID (link scanning)
@@ -102,7 +105,6 @@ async function checkAndBadge() {
   }
 
   // Strategy 2: title-based matching from h1 text
-  const h1Text = anchor.textContent?.trim();
   if (!h1Text) return;
 
   const { title, year } = parseTitleFromH1(h1Text);
@@ -129,7 +131,7 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, response);
 
-    if (response.owned && response.item && (response.item.tmdbId || response.item.tvdbId)) {
+    if (response.owned || mediaType === "movie") {
       const options = await getOptions();
       checkGaps({
         mediaType,
