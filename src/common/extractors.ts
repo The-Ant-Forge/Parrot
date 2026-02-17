@@ -76,9 +76,15 @@ export interface ExternalIdFromLink {
 
 const ALL_SOURCES: ("tmdb" | "imdb" | "tvdb")[] = ["tmdb", "imdb", "tvdb"];
 
+/** Authority ranking: IMDb > TVDB > TMDB. Lower = higher authority. */
+const SOURCE_PRIORITY: Record<string, number> = { imdb: 0, tvdb: 1, tmdb: 2 };
+
 /**
  * Scan <a> elements for TMDB, IMDb, or TVDB links.
- * Returns the first match found, or null if none.
+ *
+ * Collects the first match per source, then returns the highest-authority
+ * one (IMDb > TVDB > TMDB). This prevents a stray TMDB sidebar link from
+ * overriding the correct IMDb link further down the page.
  *
  * @param options.sources — restrict which sources to check (default: all three)
  * @param options.container — scope the scan to a DOM subtree (default: document)
@@ -90,28 +96,42 @@ export function scanLinksForExternalId(
   const root = options?.container ?? document;
   const links = root.querySelectorAll<HTMLAnchorElement>("a[href]");
 
+  const found = new Map<string, ExternalIdFromLink>();
+
   for (const link of links) {
     const href = link.href;
 
-    if (sources.includes("tmdb")) {
+    if (sources.includes("tmdb") && !found.has("tmdb")) {
       const tmdb = extractTmdbFromUrl(href);
-      if (tmdb) return { source: "tmdb", id: tmdb.id, mediaType: tmdb.mediaType };
+      if (tmdb) found.set("tmdb", { source: "tmdb", id: tmdb.id, mediaType: tmdb.mediaType });
     }
 
-    if (sources.includes("imdb")) {
+    if (sources.includes("imdb") && !found.has("imdb")) {
       const imdbId = extractImdbId(href);
-      if (imdbId) return { source: "imdb", id: imdbId };
+      if (imdbId) found.set("imdb", { source: "imdb", id: imdbId });
     }
 
-    if (sources.includes("tvdb")) {
-      // New-style: /series/121361 or /series/some-slug
+    if (sources.includes("tvdb") && !found.has("tvdb")) {
       const tvdbPathMatch = href.match(/thetvdb\.com\/series\/(\d+)/);
-      if (tvdbPathMatch) return { source: "tvdb", id: tvdbPathMatch[1], mediaType: "show" };
-      // Old-style: ?tab=series&id=121361
-      const tvdbQueryMatch = href.match(/thetvdb\.com\/.*[?&]id=(\d+)/);
-      if (tvdbQueryMatch) return { source: "tvdb", id: tvdbQueryMatch[1], mediaType: "show" };
+      if (tvdbPathMatch) {
+        found.set("tvdb", { source: "tvdb", id: tvdbPathMatch[1], mediaType: "show" });
+      } else {
+        const tvdbQueryMatch = href.match(/thetvdb\.com\/.*[?&]id=(\d+)/);
+        if (tvdbQueryMatch) found.set("tvdb", { source: "tvdb", id: tvdbQueryMatch[1], mediaType: "show" });
+      }
     }
+
+    if (found.size === sources.length) break;
   }
 
-  return null;
+  if (found.size === 0) return null;
+
+  // Return highest-authority match
+  let best: ExternalIdFromLink | null = null;
+  let bestPri = Infinity;
+  for (const match of found.values()) {
+    const pri = SOURCE_PRIORITY[match.source] ?? Infinity;
+    if (pri < bestPri) { best = match; bestPri = pri; }
+  }
+  return best;
 }

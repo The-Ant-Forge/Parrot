@@ -74,10 +74,36 @@ describe("scanLinksForExternalId", () => {
     expect(result).toBeNull();
   });
 
-  it("returns first match when multiple links present", () => {
+  it("prefers IMDb over TMDB when both present (authority order)", () => {
     addLink("https://www.themoviedb.org/movie/550-some-title");
     addLink("https://www.imdb.com/title/tt0137523/");
-    // TMDB is checked first per-link, so TMDB should win
+    expect(scanLinksForExternalId()).toEqual({
+      source: "imdb",
+      id: "tt0137523",
+    });
+  });
+
+  it("prefers TVDB over TMDB when both present", () => {
+    addLink("https://www.themoviedb.org/tv/1399-some-show");
+    addLink("https://thetvdb.com/series/12345/episodes");
+    expect(scanLinksForExternalId()).toEqual({
+      source: "tvdb",
+      id: "12345",
+      mediaType: "show",
+    });
+  });
+
+  it("prefers IMDb over TVDB when both present", () => {
+    addLink("https://thetvdb.com/series/12345/episodes");
+    addLink("https://www.imdb.com/title/tt0137523/");
+    expect(scanLinksForExternalId()).toEqual({
+      source: "imdb",
+      id: "tt0137523",
+    });
+  });
+
+  it("falls back to TMDB when it is the only source found", () => {
+    addLink("https://www.themoviedb.org/movie/550-some-title");
     expect(scanLinksForExternalId()).toEqual({
       source: "tmdb",
       id: "550",
