@@ -4,9 +4,11 @@
  * must match by title + optional year instead.
  */
 
-/** Normalize a title string for fuzzy matching: lowercase, hyphens→spaces, strip punctuation, collapse whitespace. */
+/** Normalize a title string for fuzzy matching: decompose accents, lowercase, hyphens→spaces, strip punctuation, collapse whitespace. */
 export function normalizeTitle(title: string): string {
   return title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/-/g, " ")
     .replace(/[^a-z0-9\s]/g, "")

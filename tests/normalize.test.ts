@@ -29,6 +29,18 @@ describe("normalizeTitle", () => {
   it("handles empty string", () => {
     expect(normalizeTitle("")).toBe("");
   });
+
+  it("converts accented characters to ASCII equivalents", () => {
+    expect(normalizeTitle("Amélie")).toBe("amelie");
+  });
+
+  it("handles multiple diacritics", () => {
+    expect(normalizeTitle("Crème Brûlée")).toBe("creme brulee");
+  });
+
+  it("handles Nordic characters", () => {
+    expect(normalizeTitle("Rökkurró")).toBe("rokkurro");
+  });
 });
 
 describe("buildTitleKey", () => {
