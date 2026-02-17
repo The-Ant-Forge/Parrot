@@ -187,7 +187,24 @@ async function handleCheck(
   message: Extract<Message, { type: "CHECK" }>,
   index: LibraryIndex,
 ): Promise<CheckResponse> {
-  const item = lookupItem(index, message.mediaType, message.source, message.id);
+  let item = lookupItem(index, message.mediaType, message.source, message.id);
+
+  // Cross-reference: if IMDb/TVDB lookup missed, resolve to TMDB ID via API and retry
+  if (!item && message.source !== "tmdb" && message.source !== "title") {
+    try {
+      const options = await getOptions();
+      if (options.tmdbApiKey) {
+        const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
+        const tmdbId = await resolver(options.tmdbApiKey, message.id);
+        if (tmdbId) {
+          item = lookupItem(index, message.mediaType, "tmdb", String(tmdbId));
+        }
+      }
+    } catch {
+      // Cross-reference failed — fall through to not-owned
+    }
+  }
+
   if (!item) return { owned: false };
 
   const servers = await loadServers();
