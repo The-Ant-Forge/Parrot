@@ -1,48 +1,12 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { waitForElement } from "../common/dom-utils";
 import { extractJustWatchMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { normalizeTitle, buildTitleKey } from "../common/normalize";
-import { getOptions } from "../common/storage";
+import { errorLog } from "../common/logger";
+import { parseTitleFromH1, buildTitleKey } from "../common/normalize";
+import { tryTitleCheck } from "../common/title-check";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
-
-/** Wait for h1 to appear in the DOM. */
-function waitForAnchor(timeout = 10000): Promise<Element | null> {
-  const existing = document.querySelector("h1");
-  if (existing) return Promise.resolve(existing);
-
-  return new Promise((resolve) => {
-    const observer = new MutationObserver(() => {
-      const el = document.querySelector("h1");
-      if (el) {
-        observer.disconnect();
-        resolve(el);
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => {
-      observer.disconnect();
-      resolve(null);
-    }, timeout);
-  });
-}
-
-/** Parse title and optional year from h1 text like "The Night Manager (2016)". */
-function parseTitleFromH1(text: string): { title: string; year?: number } {
-  const yearMatch = text.match(/\((\d{4})\)\s*$/);
-  let title = text;
-  let year: number | undefined;
-
-  if (yearMatch) {
-    const y = parseInt(yearMatch[1], 10);
-    if (y >= 1900 && y <= 2099) {
-      year = y;
-      title = text.slice(0, yearMatch.index).trim();
-    }
-  }
-
-  return { title: normalizeTitle(title), year };
-}
 
 async function checkAndBadge() {
   removeBadge();
@@ -51,7 +15,7 @@ async function checkAndBadge() {
   if (!mediaType) return;
 
   // Wait for dynamic page content to load
-  const anchor = await waitForAnchor();
+  const anchor = await waitForElement("h1");
   if (!anchor) return;
 
   // Brief delay for remaining DOM (links) to populate
@@ -88,17 +52,16 @@ async function checkAndBadge() {
       updateBadgeFromResponse(badge, response);
 
       if (response.owned || resolvedType === "movie") {
-        const options = await getOptions();
         checkGaps({
           mediaType: resolvedType,
           source: extId.source,
           id: extId.id,
           response,
-          showCompletePanels: options.showCompletePanels,
         });
       }
       return;
-    } catch {
+    } catch (err) {
+      errorLog("JustWatch", err);
       showErrorBadge(badge, "Could not check Plex library");
       return;
     }
@@ -111,37 +74,20 @@ async function checkAndBadge() {
   const titleKey = buildTitleKey(title, year);
 
   try {
-    let response: CheckResponse = await browser.runtime.sendMessage({
-      type: "CHECK",
-      mediaType,
-      source: "title",
-      id: titleKey,
-    });
-
-    // If year was present but no match, retry without year
-    if (!response.owned && year) {
-      const fallbackKey = buildTitleKey(title);
-      response = await browser.runtime.sendMessage({
-        type: "CHECK",
-        mediaType,
-        source: "title",
-        id: fallbackKey,
-      });
-    }
+    const response = await tryTitleCheck(mediaType, title, year);
 
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || mediaType === "movie") {
-      const options = await getOptions();
       checkGaps({
         mediaType,
         source: "title",
         id: titleKey,
         response,
-        showCompletePanels: options.showCompletePanels,
       });
     }
-  } catch {
+  } catch (err) {
+    errorLog("JustWatch", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeTitle, buildTitleKey, parseSlug } from "../src/common/normalize";
+import { normalizeTitle, buildTitleKey, parseSlug, parseTitleFromH1 } from "../src/common/normalize";
 
 describe("normalizeTitle", () => {
   it("lowercases text", () => {
@@ -96,5 +96,49 @@ describe("parseSlug", () => {
 
   it("parses mixed underscore slug", () => {
     expect(parseSlug("some_long_title")).toEqual({ title: "some long title", year: undefined });
+  });
+});
+
+describe("parseTitleFromH1", () => {
+  it("extracts title without year", () => {
+    expect(parseTitleFromH1("The Great Adventure")).toEqual({
+      title: "the great adventure",
+      year: undefined,
+    });
+  });
+
+  it("extracts title with year in parentheses", () => {
+    expect(parseTitleFromH1("The Great Adventure (2024)")).toEqual({
+      title: "the great adventure",
+      year: 2024,
+    });
+  });
+
+  it("ignores year outside valid range", () => {
+    expect(parseTitleFromH1("Title (1800)")).toEqual({
+      title: "title 1800",
+      year: undefined,
+    });
+  });
+
+  it("handles year with trailing whitespace", () => {
+    expect(parseTitleFromH1("Title (2020)  ")).toEqual({
+      title: "title",
+      year: 2020,
+    });
+  });
+
+  it("normalizes accented characters", () => {
+    expect(parseTitleFromH1("Amélie (2001)")).toEqual({
+      title: "amelie",
+      year: 2001,
+    });
+  });
+
+  it("handles title with parentheses that aren't years", () => {
+    expect(parseTitleFromH1("Title (Extended Cut)")).toEqual({
+      title: "title extended cut",
+      year: undefined,
+    });
   });
 });

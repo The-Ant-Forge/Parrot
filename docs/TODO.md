@@ -22,6 +22,14 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 **Performance**
 - [ ] Measure index build time for large libraries (1000+ items)
 
+### Code Hygiene (deferred from Phase 14)
+
+> Spec: [`Phase 14 - Consolidation 2.md`](Phase%2014%20-%20Consolidation%202.md)
+
+- [ ] Extract IMDb media type fallback pattern to shared function (6+ files)
+- [ ] Add unit tests for `gap-checker.ts` (needs browser.runtime mocking)
+- [ ] Add unit tests for `url-observer.ts` (needs MutationObserver mocking)
+
 ---
 
 ## Additional Sites

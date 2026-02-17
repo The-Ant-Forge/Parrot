@@ -1,4 +1,4 @@
-import { getServers, saveServers, migrateConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
+import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
@@ -31,7 +31,6 @@ import type {
 let cachedIndex: LibraryIndex | null = null;
 let cachedServers: PlexServerConfig[] | null = null;
 let autoRefreshing = false;
-let migrated = false;
 const tabMediaCache = new Map<number, TabMediaInfo>();
 
 const SESSION_KEY = "tabMedia";
@@ -93,12 +92,6 @@ async function removeTabMedia(tabId: number) {
 }
 
 async function loadIndex(): Promise<LibraryIndex | null> {
-  // One-time migration from single-server to multi-server format
-  if (!migrated) {
-    migrated = true;
-    await migrateConfig();
-  }
-
   if (!cachedIndex) {
     cachedIndex = await getLibraryIndex();
     if (cachedIndex) {
@@ -341,6 +334,14 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
         tmdbId = (await findByImdbId(options.tmdbApiKey, info.id)) ?? undefined;
       } else if (!tmdbId && info.source === "tvdb") {
         tmdbId = (await findByTvdbId(options.tmdbApiKey, info.id)) ?? undefined;
+      } else if (!tmdbId && info.source === "title") {
+        const parts = info.id.split("|");
+        const query = parts[0];
+        const year = parts[1] ? parseInt(parts[1], 10) : undefined;
+        tmdbId = (await searchMovie(options.tmdbApiKey, query, year)) ?? undefined;
+        if (!tmdbId && year) {
+          tmdbId = (await searchMovie(options.tmdbApiKey, query)) ?? undefined;
+        }
       }
       if (tmdbId) info.tmdbId = tmdbId;
     }
@@ -519,6 +520,15 @@ export default defineBackground(() => {
 
             // Cache tab media info for popup dashboard
             if (tabId) {
+              // For title source, parse the titleKey "normalized title|year"
+              let titleFromKey: string | undefined;
+              let yearFromKey: number | undefined;
+              if (message.source === "title") {
+                const parts = message.id.split("|");
+                titleFromKey = parts[0];
+                yearFromKey = parts[1] ? parseInt(parts[1], 10) : undefined;
+              }
+
               const mediaInfo: TabMediaInfo = {
                 mediaType: message.mediaType,
                 source: message.source,
@@ -528,8 +538,8 @@ export default defineBackground(() => {
                 tmdbId: result.item?.tmdbId ?? (message.source === "tmdb" && /^\d+$/.test(message.id) ? parseInt(message.id, 10) : undefined),
                 imdbId: result.item?.imdbId ?? (message.source === "imdb" ? message.id : undefined),
                 tvdbId: result.item?.tvdbId ?? (message.source === "tvdb" && /^\d+$/.test(message.id) ? parseInt(message.id, 10) : undefined),
-                title: result.item?.title,
-                year: result.item?.year,
+                title: result.item?.title ?? titleFromKey,
+                year: result.item?.year ?? yearFromKey,
               };
               persistTabMedia(tabId, mediaInfo);
               // Fire-and-forget metadata fetch

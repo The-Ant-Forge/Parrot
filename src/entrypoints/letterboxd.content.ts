@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { getOptions } from "../common/storage";
+import { errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
@@ -27,15 +27,14 @@ async function checkAndBadge() {
 
     updateBadgeFromResponse(badge, response);
 
-    const options = await getOptions();
     checkGaps({
       mediaType: "movie",
       source: extId.source,
       id: extId.id,
       response,
-      showCompletePanels: options.showCompletePanels,
     });
-  } catch {
+  } catch (err) {
+    errorLog("Letterboxd", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

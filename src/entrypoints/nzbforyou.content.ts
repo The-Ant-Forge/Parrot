@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractImdbId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { getOptions } from "../common/storage";
+import { errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
 
 function getMediaType(): "movie" | "show" | null {
@@ -69,16 +69,15 @@ async function checkAndBadge() {
 
     // Gap detection: always for movies (collection check), owned-only for shows
     if (resolvedType && (response.owned || resolvedType === "movie")) {
-      const options = await getOptions();
       checkGaps({
         mediaType: resolvedType,
         source: "imdb",
         id: imdbId,
         response,
-        showCompletePanels: options.showCompletePanels,
       });
     }
-  } catch {
+  } catch (err) {
+    errorLog("NZBForYou", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

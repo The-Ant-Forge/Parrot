@@ -51,6 +51,7 @@ const excludeSpecialsInput = $<HTMLInputElement>("excludeSpecials");
 const minCollectionSizeInput = $<HTMLInputElement>("minCollectionSize");
 const minOwnedInput = $<HTMLInputElement>("minOwned");
 const showCompletePanelsInput = $<HTMLInputElement>("showCompletePanels");
+const debugLoggingInput = $<HTMLInputElement>("debugLogging");
 const saveOptionsBtn = $<HTMLButtonElement>("saveOptionsBtn");
 const optionsFeedback = $<HTMLDivElement>("optionsFeedback");
 
@@ -83,6 +84,7 @@ function gatherOptions(): ParrotOptions {
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
     minOwned: Math.max(1, parseInt(minOwnedInput.value) || 1),
     showCompletePanels: showCompletePanelsInput.checked,
+    debugLogging: debugLoggingInput.checked,
     autoRefresh: autoRefreshInput.checked,
     autoRefreshDays: Math.max(1, Math.min(30, parseInt(autoRefreshDaysInput.value) || 7)),
   };
@@ -606,6 +608,7 @@ resetSitesBtn.addEventListener("click", async () => {
   minCollectionSizeInput.value = String(options.minCollectionSize);
   minOwnedInput.value = String(options.minOwned);
   showCompletePanelsInput.checked = options.showCompletePanels;
+  debugLoggingInput.checked = options.debugLogging;
   autoRefreshInput.checked = options.autoRefresh;
   autoRefreshDaysInput.value = String(options.autoRefreshDays);
   autoRefreshDaysRow.hidden = !options.autoRefresh;

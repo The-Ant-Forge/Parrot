@@ -8,13 +8,6 @@ export interface PlexServerConfig {
   itemCount?: number;    // cached item count from last index build
 }
 
-/** @deprecated Use PlexServerConfig. Kept temporarily for migration from single-server format. */
-export interface PlexConfig {
-  serverUrl: string;
-  token: string;
-  machineIdentifier?: string;
-}
-
 /** A media item the user owns in Plex */
 export interface OwnedItem {
   title: string;
@@ -71,6 +64,7 @@ export interface ParrotOptions {
   showCompletePanels: boolean;
   autoRefresh: boolean;
   autoRefreshDays: number;
+  debugLogging: boolean;
 }
 
 export const DEFAULT_OPTIONS: ParrotOptions = {
@@ -83,6 +77,7 @@ export const DEFAULT_OPTIONS: ParrotOptions = {
   showCompletePanels: false,
   autoRefresh: true,
   autoRefreshDays: 7,
+  debugLogging: false,
 };
 
 // --- Messages (popup/content scripts/options → background) ---

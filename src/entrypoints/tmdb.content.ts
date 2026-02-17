@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractTmdbFromUrl } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { getOptions } from "../common/storage";
+import { debugLog, errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
@@ -9,7 +9,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const info = extractTmdbFromUrl(location.href);
-  console.log("Parrot TMDB: extracted", info, "from", location.href);
+  debugLog("TMDB", "extracted", info, "from", location.href);
   if (!info) return;
 
   // TMDB title is inside the header section
@@ -20,7 +20,7 @@ async function checkAndBadge() {
     document.querySelector(".title h2") ??
     document.querySelector("h2 a");
 
-  console.log("Parrot TMDB: anchor element", anchor?.tagName, anchor?.className, anchor?.textContent?.trim().slice(0, 40));
+  debugLog("TMDB", "anchor element", anchor?.tagName, anchor?.className, anchor?.textContent?.trim().slice(0, 40));
   if (!anchor) return;
 
   const badge = injectBadge(anchor);
@@ -32,19 +32,17 @@ async function checkAndBadge() {
       source: "tmdb",
       id: info.id,
     });
-    console.log("Parrot TMDB: response", response);
+    debugLog("TMDB", "response", response);
     updateBadgeFromResponse(badge, response);
 
-    const options = await getOptions();
     checkGaps({
       mediaType: info.mediaType,
       source: "tmdb",
       id: info.id,
       response,
-      showCompletePanels: options.showCompletePanels,
     });
   } catch (err) {
-    console.error("Parrot TMDB: error", err);
+    errorLog("TMDB", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

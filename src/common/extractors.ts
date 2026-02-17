@@ -72,6 +72,34 @@ export function extractNzbgeekMediaType(search: string): "movie" | "show" | null
   return null;
 }
 
+// --- JSON-LD structured data scanner ---
+
+/**
+ * Scan JSON-LD structured data for an IMDb ID in `sameAs`,
+ * then fall back to page link scanning.
+ */
+export function findExternalIdFromJsonLd(
+  linkSources?: ("tmdb" | "imdb" | "tvdb")[],
+): ExternalIdFromLink | null {
+  const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
+  for (const script of ldScripts) {
+    try {
+      const data = JSON.parse(script.textContent ?? "");
+      const sameAs = Array.isArray(data.sameAs) ? data.sameAs : data.sameAs ? [data.sameAs] : [];
+      for (const url of sameAs) {
+        if (typeof url !== "string") continue;
+        const imdbMatch = url.match(/imdb\.com\/title\/(tt\d+)/);
+        if (imdbMatch) return { source: "imdb", id: imdbMatch[1] };
+      }
+    } catch {
+      // invalid JSON-LD, skip
+    }
+  }
+
+  // Fallback: scan DOM links
+  return scanLinksForExternalId({ sources: linkSources ?? ["tmdb", "imdb"] });
+}
+
 // --- DOM-based link scanner ---
 
 export interface ExternalIdFromLink {

@@ -1,31 +1,10 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { extractRtMediaType, scanLinksForExternalId } from "../common/extractors";
+import { extractRtMediaType, findExternalIdFromJsonLd } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
+import { errorLog } from "../common/logger";
 import { parseSlug, buildTitleKey } from "../common/normalize";
-import { getOptions } from "../common/storage";
+import { tryTitleCheck } from "../common/title-check";
 import type { CheckResponse } from "../common/types";
-import type { ExternalIdFromLink } from "../common/extractors";
-
-function findExternalId(): ExternalIdFromLink | null {
-  // Try JSON-LD structured data first
-  const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
-  for (const script of ldScripts) {
-    try {
-      const data = JSON.parse(script.textContent ?? "");
-      const sameAs = Array.isArray(data.sameAs) ? data.sameAs : data.sameAs ? [data.sameAs] : [];
-      for (const url of sameAs) {
-        if (typeof url !== "string") continue;
-        const imdbMatch = url.match(/imdb\.com\/title\/(tt\d+)/);
-        if (imdbMatch) return { source: "imdb", id: imdbMatch[1] };
-      }
-    } catch {
-      // invalid JSON-LD, skip
-    }
-  }
-
-  // Fallback: scan DOM links
-  return scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
-}
 
 function extractSlug(): string | null {
   const match = location.pathname.match(/\/(?:m|tv)\/([^/?#]+)/);
@@ -46,7 +25,7 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   // Strategy 1: external ID (JSON-LD or page links)
-  const extId = findExternalId();
+  const extId = findExternalIdFromJsonLd();
   if (extId) {
     try {
       let resolvedType = mediaType;
@@ -71,17 +50,16 @@ async function checkAndBadge() {
       updateBadgeFromResponse(badge, response);
 
       if (response.owned || resolvedType === "movie") {
-        const options = await getOptions();
         checkGaps({
           mediaType: resolvedType,
           source: extId.source,
           id: extId.id,
           response,
-          showCompletePanels: options.showCompletePanels,
         });
       }
       return;
-    } catch {
+    } catch (err) {
+      errorLog("RottenTomatoes", err);
       showErrorBadge(badge, "Could not check Plex library");
       return;
     }
@@ -95,37 +73,20 @@ async function checkAndBadge() {
   const titleKey = buildTitleKey(title, year);
 
   try {
-    let response: CheckResponse = await browser.runtime.sendMessage({
-      type: "CHECK",
-      mediaType,
-      source: "title",
-      id: titleKey,
-    });
-
-    // If year was present but no match, retry without year
-    if (!response.owned && year) {
-      const fallbackKey = buildTitleKey(title);
-      response = await browser.runtime.sendMessage({
-        type: "CHECK",
-        mediaType,
-        source: "title",
-        id: fallbackKey,
-      });
-    }
+    const response = await tryTitleCheck(mediaType, title, year);
 
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || mediaType === "movie") {
-      const options = await getOptions();
       checkGaps({
         mediaType,
         source: "title",
         id: titleKey,
         response,
-        showCompletePanels: options.showCompletePanels,
       });
     }
-  } catch {
+  } catch (err) {
+    errorLog("RottenTomatoes", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

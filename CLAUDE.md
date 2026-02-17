@@ -89,9 +89,12 @@ src/
     ├── collection-panel.ts        # Collection gap panel component
     ├── episode-panel.ts           # Episode gap panel component
     ├── panel-utils.ts             # Shared panel styling utilities
-    ├── extractors.ts              # URL/ID extractors + DOM link scanner
+    ├── extractors.ts              # URL/ID extractors + DOM link scanner + JSON-LD
     ├── url-observer.ts            # Debounced URL change observer for SPAs
-    ├── normalize.ts               # Title normalization
+    ├── normalize.ts               # Title normalization + h1 text parsing
+    ├── dom-utils.ts               # DOM utilities (waitForElement)
+    ├── title-check.ts             # Title-based CHECK with year fallback
+    ├── logger.ts                  # Debug/error logging gated by settings toggle
     └── sites.ts                   # Supported site definitions
 ```
 

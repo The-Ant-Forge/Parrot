@@ -1,6 +1,7 @@
 import { setBadgeGapData } from "./badge";
 import { createCollectionPanel } from "./collection-panel";
 import { createEpisodePanel } from "./episode-panel";
+import { getOptions } from "./storage";
 import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse, FindTmdbIdResponse } from "./types";
 
 interface GapCheckParams {
@@ -8,11 +9,11 @@ interface GapCheckParams {
   source: "tmdb" | "imdb" | "tvdb" | "title";
   id: string;
   response: CheckResponse;
-  showCompletePanels: boolean;
 }
 
 export async function checkGaps(params: GapCheckParams): Promise<void> {
-  const { mediaType, source, id, response, showCompletePanels } = params;
+  const { mediaType, source, id, response } = params;
+  const { showCompletePanels } = await getOptions();
 
   if (mediaType === "movie") {
     await checkMovieGaps(source, id, response, showCompletePanels);

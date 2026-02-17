@@ -238,7 +238,7 @@ Every content script calls `getOptions()` before `checkGaps()` to read `showComp
 
 ### 10. Test Coverage Gaps
 
-#### Current: 129 tests across 7 files
+#### Current: 135 tests across 7 files
 
 **Well-tested:**
 - URL/ID extractors (`extractors.test.ts` — 37 tests)
@@ -284,7 +284,6 @@ Every content script calls `getOptions()` before `checkGaps()` to read `showComp
 
 | # | Item | Reason to defer |
 |---|------|-----------------|
-| 9 | Remove `PlexConfig` deprecated type | Migration safety — wait for v2.0 |
 | 10 | IMDb media type fallback extraction | Marginal gain, adds indirection |
 | 11 | Storage validation (Zod or similar) | Bundle size cost, low real-world risk |
 | 12 | `gap-checker.ts` tests | Heavy mocking needed, defer until bugs surface |
@@ -292,19 +291,16 @@ Every content script calls `getOptions()` before `checkGaps()` to read `showComp
 
 ---
 
-## Files Summary
+## Progress
 
-| File | Action |
-|------|--------|
-| `src/common/normalize.ts` | Add `parseTitleFromH1()` |
-| `src/common/dom-utils.ts` | **New** — `waitForElement()` |
-| `src/common/extractors.ts` | Add `findExternalIdFromJsonLd()` |
-| `src/common/gap-checker.ts` | Inline `getOptions()` for `showCompletePanels` |
-| `src/entrypoints/psa.content.ts` | Import shared `parseTitleFromH1`, `tryTitleCheck` |
-| `src/entrypoints/justwatch.content.ts` | Import shared `parseTitleFromH1`, `waitForElement`, `tryTitleCheck` |
-| `src/entrypoints/trakt-app.content.ts` | Import shared `waitForElement` |
-| `src/entrypoints/metacritic.content.ts` | Import shared `findExternalIdFromJsonLd`, `tryTitleCheck` |
-| `src/entrypoints/rottentomatoes.content.ts` | Import shared `findExternalIdFromJsonLd`, `tryTitleCheck` |
-| `src/entrypoints/tmdb.content.ts` | Remove debug console.log (lines 12, 23, 35) |
-| 13 content scripts | Add `console.error` to bare catch blocks |
-| `tests/normalize.test.ts` | Add `parseTitleFromH1()` tests |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 1 | Extract `parseTitleFromH1()` to `normalize.ts` | Done | Shared by PSA + JustWatch |
+| 2 | Extract `waitForElement()` to `dom-utils.ts` | Done | Shared by TraktApp + JustWatch |
+| 3 | Extract `findExternalIdFromJsonLd()` to `extractors.ts` | Done | Shared by Metacritic + RT |
+| 4 | Debug logging toggle (`debugLogging` option) | Done | `logger.ts` with `debugLog`/`errorLog`, settings checkbox |
+| 5 | Extract `tryTitleCheck()` to shared module | Done | `title-check.ts`, used by PSA + JW + MC + RT |
+| 6 | Apply logger to all content scripts (covers 6a) | Done | All 15 content scripts use `errorLog`, TMDB uses `debugLog` |
+| 7 | Move `showCompletePanels` fetch inside `checkGaps()` | Done | Removed `getOptions` boilerplate from all content scripts |
+| 8 | Add tests for new shared functions | Done | 6 tests for `parseTitleFromH1()` (135 total) |
+| 9 | Remove deprecated `PlexConfig` | Done | Removed interface, migration code, and `migrateConfig()` call |

@@ -1,6 +1,6 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { checkGaps } from "../common/gap-checker";
-import { getOptions } from "../common/storage";
+import { errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
@@ -46,16 +46,15 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned) {
-      const options = await getOptions();
       checkGaps({
         mediaType: "show",
         source: "tvdb",
         id: tvdbId,
         response,
-        showCompletePanels: options.showCompletePanels,
       });
     }
-  } catch {
+  } catch (err) {
+    errorLog("TVDB", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

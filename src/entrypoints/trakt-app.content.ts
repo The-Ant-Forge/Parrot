@@ -1,30 +1,10 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { waitForElement } from "../common/dom-utils";
 import { extractTraktMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { getOptions } from "../common/storage";
+import { errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
-
-/** Wait for a selector to appear in the DOM (SvelteKit renders async). */
-function waitForElement(selector: string, timeout = 10000): Promise<Element | null> {
-  const existing = document.querySelector(selector);
-  if (existing) return Promise.resolve(existing);
-
-  return new Promise((resolve) => {
-    const observer = new MutationObserver(() => {
-      const el = document.querySelector(selector);
-      if (el) {
-        observer.disconnect();
-        resolve(el);
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => {
-      observer.disconnect();
-      resolve(null);
-    }, timeout);
-  });
-}
 
 async function checkAndBadge() {
   removeBadge();
@@ -67,16 +47,15 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || resolvedType === "movie") {
-      const options = await getOptions();
       checkGaps({
         mediaType: resolvedType,
         source: extId.source,
         id: extId.id,
         response,
-        showCompletePanels: options.showCompletePanels,
       });
     }
-  } catch {
+  } catch (err) {
+    errorLog("TraktApp", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

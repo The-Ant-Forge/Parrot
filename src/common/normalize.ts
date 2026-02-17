@@ -22,6 +22,23 @@ export function buildTitleKey(title: string, year?: number): string {
   return year ? `${norm}|${year}` : norm;
 }
 
+/** Parse title and optional year from h1 text like "Some Title (2026)". */
+export function parseTitleFromH1(text: string): { title: string; year?: number } {
+  const yearMatch = text.match(/\((\d{4})\)\s*$/);
+  let title = text;
+  let year: number | undefined;
+
+  if (yearMatch) {
+    const y = parseInt(yearMatch[1], 10);
+    if (y >= 1900 && y <= 2099) {
+      year = y;
+      title = text.slice(0, yearMatch.index).trim();
+    }
+  }
+
+  return { title: normalizeTitle(title), year };
+}
+
 /** Parse a URL slug into a title string and optional trailing year.
  *  Handles both hyphen-separated (PSA) and underscore-separated (Rotten Tomatoes) slugs. */
 export function parseSlug(slug: string): { title: string; year?: number } {
