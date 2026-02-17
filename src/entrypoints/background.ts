@@ -1,7 +1,8 @@
 import { getServers, saveServers, migrateConfig, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
-import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId } from "../api/tmdb";
+import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
+import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
 import type {
   Message,
   CheckResponse,
@@ -187,21 +188,76 @@ async function handleCheck(
   message: Extract<Message, { type: "CHECK" }>,
   index: LibraryIndex,
 ): Promise<CheckResponse> {
-  let item = lookupItem(index, message.mediaType, message.source, message.id);
+  let item: OwnedItem | undefined;
 
-  // Cross-reference: if IMDb/TVDB lookup missed, resolve to TMDB ID via API and retry
-  if (!item && message.source !== "tmdb" && message.source !== "title") {
+  // TVMaze: resolve to TVDB/IMDb via TVMaze API, then look up
+  if (message.source === "tvmaze") {
     try {
-      const options = await getOptions();
-      if (options.tmdbApiKey) {
-        const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
-        const tmdbId = await resolver(options.tmdbApiKey, message.id);
-        if (tmdbId) {
-          item = lookupItem(index, message.mediaType, "tmdb", String(tmdbId));
+      const ext = await getTvMazeExternals(message.id);
+      if (ext.tvdbId) {
+        item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
+      }
+      if (!item && ext.imdbId) {
+        item = lookupItem(index, "show", "imdb", ext.imdbId);
+      }
+      // TMDB cross-reference fallback
+      if (!item && ext.imdbId) {
+        try {
+          const options = await getOptions();
+          if (options.tmdbApiKey) {
+            const tmdbId = await findByImdbId(options.tmdbApiKey, ext.imdbId);
+            if (tmdbId) {
+              item = lookupItem(index, "show", "tmdb", String(tmdbId));
+            }
+          }
+        } catch {
+          // cross-reference failed
         }
       }
     } catch {
-      // Cross-reference failed — fall through to not-owned
+      // TVMaze API failed — fall through to not-owned
+    }
+  } else {
+    item = lookupItem(index, message.mediaType, message.source, message.id);
+
+    // Cross-reference: if direct lookup missed, try alternate IDs
+    if (!item && message.source !== "tmdb" && message.source !== "title") {
+      // TVMaze bridge (free, no key): IMDb ↔ TVDB for shows
+      if (!item && message.mediaType === "show") {
+        try {
+          const ext = message.source === "imdb"
+            ? await lookupByImdb(message.id)
+            : message.source === "tvdb"
+              ? await lookupByTvdb(message.id)
+              : null;
+          if (ext) {
+            if (ext.tvdbId && message.source !== "tvdb") {
+              item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
+            }
+            if (!item && ext.imdbId && message.source !== "imdb") {
+              item = lookupItem(index, "show", "imdb", ext.imdbId);
+            }
+          }
+        } catch {
+          // TVMaze cross-reference failed — try TMDB next
+        }
+      }
+
+      // TMDB API fallback (requires user API key)
+      if (!item) {
+        try {
+          const options = await getOptions();
+          if (options.tmdbApiKey) {
+            const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
+            const tmdbId = await resolver(options.tmdbApiKey, message.id);
+            if (tmdbId) {
+              item = lookupItem(index, message.mediaType, "tmdb", String(tmdbId));
+            }
+          }
+        } catch {
+          // TMDB cross-reference failed — fall through to not-owned
+        }
+      }
     }
   }
 
@@ -797,8 +853,22 @@ export default defineBackground(() => {
                 sendResponse({ tmdbId: null } satisfies FindTmdbIdResponse);
                 break;
               }
-              const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
-              const tmdbId = await resolver(options.tmdbApiKey, message.id);
+
+              let tmdbId: number | null = null;
+              if (message.source === "title") {
+                // Parse titleKey "normalized title|year" or "normalized title"
+                const parts = message.id.split("|");
+                const query = parts[0];
+                const year = parts[1] ? parseInt(parts[1], 10) : undefined;
+                tmdbId = await searchMovie(options.tmdbApiKey, query, year);
+                // Retry without year if no match
+                if (!tmdbId && year) {
+                  tmdbId = await searchMovie(options.tmdbApiKey, query);
+                }
+              } else {
+                const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
+                tmdbId = await resolver(options.tmdbApiKey, message.id);
+              }
               sendResponse({ tmdbId } satisfies FindTmdbIdResponse);
             } catch (err) {
               console.error("Parrot: FIND_TMDB_ID failed", err);

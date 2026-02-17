@@ -20,6 +20,12 @@ export function extractImdbId(url: string): string | null {
   return match ? match[1] : null;
 }
 
+/** TVMaze: extract numeric show ID from a TVMaze URL. */
+export function extractTvmazeFromUrl(url: string): { id: string } | null {
+  const match = url.match(/tvmaze\.com\/shows\/(\d+)/);
+  return match ? { id: match[1] } : null;
+}
+
 /** PSA: extract mediaType and slug from a PSA URL. */
 export function extractPsaFromUrl(url: string): { mediaType: "movie" | "show"; slug: string } | null {
   const match = url.match(/psa\.wf\/(movie|tv-show)\/([^/?#]+)/);

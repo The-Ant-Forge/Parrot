@@ -15,6 +15,7 @@ export default defineConfig({
       "https://*/library/*",
       "https://api.themoviedb.org/*",
       "https://api4.thetvdb.com/*",
+      "https://api.tvmaze.com/*",
     ],
   },
 });

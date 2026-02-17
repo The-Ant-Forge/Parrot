@@ -95,7 +95,7 @@ export type Message =
   | {
       type: "CHECK";
       mediaType: "movie" | "show";
-      source: "tmdb" | "imdb" | "tvdb" | "title";
+      source: "tmdb" | "imdb" | "tvdb" | "title" | "tvmaze";
       id: string;
     }
   | { type: "GET_OPTIONS" }
@@ -105,7 +105,7 @@ export type Message =
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
-  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb"; id: string }
+  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string }
   | { type: "GET_TAB_MEDIA"; tabId: number }
   | { type: "GET_STORAGE_USAGE" };
 
@@ -181,7 +181,7 @@ export interface FindTmdbIdResponse {
 
 export interface TabMediaInfo {
   mediaType: "movie" | "show";
-  source: "tmdb" | "imdb" | "tvdb" | "title";
+  source: "tmdb" | "imdb" | "tvdb" | "title" | "tvmaze";
   id: string;
   owned: boolean;
   plexUrl?: string;

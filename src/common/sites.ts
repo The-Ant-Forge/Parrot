@@ -110,6 +110,15 @@ export const DEFAULT_SITES: SiteDefinition[] = [
     enabled: true,
   },
   {
+    id: "tvmaze",
+    name: "TVMaze",
+    urlPattern: "*://*.tvmaze.com/shows/*, *://tvmaze.com/shows/*",
+    mediaType: "show",
+    badgeSelector: "header.columns h1, h1",
+    isBuiltin: true,
+    enabled: true,
+  },
+  {
     id: "metacritic",
     name: "Metacritic",
     urlPattern: "*://*.metacritic.com/movie/*, *://*.metacritic.com/tv/*",

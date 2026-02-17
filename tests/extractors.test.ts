@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   extractTmdbFromUrl,
   extractImdbId,
+  extractTvmazeFromUrl,
   extractPsaFromUrl,
   extractNzbgeekMediaType,
   extractTraktMediaType,
@@ -60,6 +61,34 @@ describe("extractImdbId", () => {
 
   it("returns null for IMDb name/person URL", () => {
     expect(extractImdbId("https://www.imdb.com/name/nm0000093/")).toBeNull();
+  });
+});
+
+describe("extractTvmazeFromUrl", () => {
+  it("extracts numeric show ID from TVMaze URL", () => {
+    expect(extractTvmazeFromUrl("https://www.tvmaze.com/shows/61740/will-trent")).toEqual({
+      id: "61740",
+    });
+  });
+
+  it("handles URL without slug suffix", () => {
+    expect(extractTvmazeFromUrl("https://www.tvmaze.com/shows/61740")).toEqual({
+      id: "61740",
+    });
+  });
+
+  it("handles URL without www subdomain", () => {
+    expect(extractTvmazeFromUrl("https://tvmaze.com/shows/1/the-show")).toEqual({
+      id: "1",
+    });
+  });
+
+  it("returns null for non-show TVMaze pages", () => {
+    expect(extractTvmazeFromUrl("https://www.tvmaze.com/episodes/12345")).toBeNull();
+  });
+
+  it("returns null for non-TVMaze URLs", () => {
+    expect(extractTvmazeFromUrl("https://example.com/shows/61740")).toBeNull();
   });
 });
 
