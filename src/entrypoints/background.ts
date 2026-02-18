@@ -346,6 +346,27 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       if (tmdbId) info.tmdbId = tmdbId;
     }
 
+    // Re-check library ownership by resolved TMDB ID
+    // Catches items missed by title matching but present in the index by TMDB ID
+    if (!info.owned && tmdbId) {
+      const index = await loadIndex();
+      if (index) {
+        const map = info.mediaType === "movie" ? index.movies.byTmdbId : index.shows.byTmdbId;
+        const itemIdx = map[String(tmdbId)];
+        if (itemIdx !== undefined) {
+          const item = index.items[itemIdx];
+          const servers = await loadServers();
+          info.owned = true;
+          info.plexUrl = resolveItemPlexUrl(item, servers);
+          if (item.imdbId) info.imdbId = item.imdbId;
+          if (item.tvdbId) info.tvdbId = item.tvdbId;
+          if (item.title) info.title = item.title;
+          if (item.year) info.year = item.year;
+          await setTabIcon(tabId, "owned");
+        }
+      }
+    }
+
     if (!tmdbId) {
       // TVDB fallback: fetch metadata directly from TVDB API
       if (info.source === "tvdb" && info.tvdbId && options.tvdbApiKey) {
@@ -423,7 +444,7 @@ export default defineBackground(() => {
   }
 
   browser.runtime.onMessage.addListener(
-    (message: Message, _sender, sendResponse) => {
+    (message: Message, sender, sendResponse) => {
       (async () => {
         switch (message.type) {
           case "TEST_CONNECTION": {
@@ -503,7 +524,7 @@ export default defineBackground(() => {
           }
 
           case "CHECK": {
-            const tabId = _sender.tab?.id;
+            const tabId = sender.tab?.id;
             const index = await loadIndex();
             if (!index) {
               console.log("Parrot CHECK: no index loaded, returning not owned");
@@ -627,6 +648,15 @@ export default defineBackground(() => {
                 quota: null,
               } satisfies StorageUsageResponse);
             }
+            break;
+          }
+
+          case "UPDATE_ICON": {
+            const iconTabId = sender.tab?.id;
+            if (iconTabId) {
+              await setTabIcon(iconTabId, message.state);
+            }
+            sendResponse({});
             break;
           }
 

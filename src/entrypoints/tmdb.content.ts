@@ -35,12 +35,14 @@ async function checkAndBadge() {
     debugLog("TMDB", "response", response);
     updateBadgeFromResponse(badge, response);
 
-    checkGaps({
-      mediaType: info.mediaType,
-      source: "tmdb",
-      id: info.id,
-      response,
-    });
+    if (response.owned || info.mediaType === "movie") {
+      checkGaps({
+        mediaType: info.mediaType,
+        source: "tmdb",
+        id: info.id,
+        response,
+      });
+    }
   } catch (err) {
     errorLog("TMDB", err);
     showErrorBadge(badge, "Could not check Plex library");

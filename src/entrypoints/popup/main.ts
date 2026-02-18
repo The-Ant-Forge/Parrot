@@ -270,7 +270,8 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   if (media.collectionName && media.collectionTotal) {
     mediaCollection.hidden = false;
     mediaCollection.innerHTML = "";
-    mediaCollection.appendChild(document.createTextNode(`${media.collectionName} \u2014 `));
+    mediaCollection.appendChild(document.createTextNode(media.collectionName));
+    mediaCollection.appendChild(document.createElement("br"));
     const countSpan = document.createElement("span");
     countSpan.className = "collection-count";
     countSpan.textContent = `${media.collectionOwned ?? 0} of ${media.collectionTotal} owned`;

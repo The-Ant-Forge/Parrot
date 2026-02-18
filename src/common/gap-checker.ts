@@ -78,6 +78,11 @@ async function checkMovieGaps(
           state: hasGaps ? "incomplete" : "complete",
           panelElement,
         });
+
+        // Update toolbar icon to "owned" when collection data confirms ownership/recognition
+        if (!response.owned) {
+          browser.runtime.sendMessage({ type: "UPDATE_ICON", state: "owned" }).catch(() => {});
+        }
       }
     }
   } catch (err) {
