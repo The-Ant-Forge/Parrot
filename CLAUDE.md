@@ -169,7 +169,7 @@ Version format: `Major.A.B` (e.g. `1.12.15`)
 - All segments can be manually edited in `package.json` if needed
 
 ### Releases
-Before doing a release chack that all primary document are updated and current with respect to what you know of the changes made. This includes TODO.md, completed.md, parrot spec.md. Then do a commit and push to capture those changes int he remote before starting the normal release procedure.
+Before doing a release chack that all primary document are updated and current with respect to what you know of the changes made. This includes TODO.md, completed.md, parrot spec.md and readme.md (in the root). Then do a commit and push to capture those changes int he remote before starting the normal release procedure.
 
 All releases should have a thorough description in markdown format. Descriptions should start with an intro paragraph giving a broad summary of changes, improvements and fixes then list in order:
 1. New Features: What they are, how they work and what benefit they bring
