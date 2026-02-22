@@ -3,6 +3,7 @@ import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/ple
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
+import { getImdbRating, validateOmdbKey } from "../api/omdb";
 import type {
   Message,
   CheckResponse,
@@ -16,6 +17,7 @@ import type {
   BuildIndexResponse,
   ValidateTmdbKeyResponse,
   ValidateTvdbKeyResponse,
+  ValidateOmdbKeyResponse,
   OptionsResponse,
   SaveOptionsResponse,
   ClearCacheResponse,
@@ -324,6 +326,16 @@ function getIconImageData(state: IconState): Record<string, ImageData> {
   };
 }
 
+function sendRatingsToTab(tabId: number, info: TabMediaInfo) {
+  if (info.tmdbRating !== undefined || info.imdbRating !== undefined) {
+    browser.tabs.sendMessage(tabId, {
+      type: "RATINGS_READY",
+      tmdbRating: info.tmdbRating,
+      imdbRating: info.imdbRating,
+    }).catch(() => {}); // content script may not be listening
+  }
+}
+
 async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
   try {
     const options = await getOptions();
@@ -331,7 +343,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
     let tmdbId = info.tmdbId;
     if (options.tmdbApiKey) {
       if (!tmdbId && info.source === "imdb") {
-        tmdbId = (await findByImdbId(options.tmdbApiKey, info.id)) ?? undefined;
+        tmdbId = (await findByImdbId(options.tmdbApiKey, info.id, info.mediaType)) ?? undefined;
       } else if (!tmdbId && info.source === "tvdb") {
         tmdbId = (await findByTvdbId(options.tmdbApiKey, info.id)) ?? undefined;
       } else if (!tmdbId && info.source === "title") {
@@ -385,6 +397,8 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       info.title = details.title;
       info.year = details.release_date ? parseInt(details.release_date.slice(0, 4), 10) : undefined;
       info.posterPath = details.poster_path;
+      if (details.vote_average) info.tmdbRating = details.vote_average;
+      if (details.imdb_id && !info.imdbId) info.imdbId = details.imdb_id;
 
       // Collection summary
       if (details.belongs_to_collection) {
@@ -414,8 +428,22 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       info.seasonCount = details.number_of_seasons;
       info.episodeCount = details.number_of_episodes;
       info.showStatus = details.status;
+      if (details.vote_average) info.tmdbRating = details.vote_average;
+      if (details.external_ids?.imdb_id && !info.imdbId) info.imdbId = details.external_ids.imdb_id;
     }
+
+    // OMDb: fetch IMDb rating if we have an IMDb ID and OMDb key
+    if (options.omdbApiKey && info.imdbId) {
+      try {
+        const imdbRating = await getImdbRating(options.omdbApiKey, info.imdbId);
+        if (imdbRating !== null) info.imdbRating = imdbRating;
+      } catch {
+        // OMDb fetch is non-critical
+      }
+    }
+
     persistTabMedia(tabId, info);
+    sendRatingsToTab(tabId, info);
   } catch (err) {
     // 404 = TMDB ID doesn't exist (stale/merged); not worth alarming about
     const msg = String(err);
@@ -519,6 +547,7 @@ export default defineBackground(() => {
               showCount: index?.showCount ?? 0,
               tmdbConfigured: !!statusOptions.tmdbApiKey,
               tvdbConfigured: !!statusOptions.tvdbApiKey,
+              omdbConfigured: !!statusOptions.omdbApiKey,
             } satisfies StatusResponse);
             break;
           }
@@ -614,6 +643,20 @@ export default defineBackground(() => {
               }
             } catch {
               sendResponse({ valid: false, error: "Could not reach TVDB — check your connection" } satisfies ValidateTvdbKeyResponse);
+            }
+            break;
+          }
+
+          case "VALIDATE_OMDB_KEY": {
+            try {
+              const valid = await validateOmdbKey(message.apiKey);
+              if (valid) {
+                sendResponse({ valid: true } satisfies ValidateOmdbKeyResponse);
+              } else {
+                sendResponse({ valid: false, error: "Invalid API key" } satisfies ValidateOmdbKeyResponse);
+              }
+            } catch {
+              sendResponse({ valid: false, error: "Could not reach OMDb — check your connection" } satisfies ValidateOmdbKeyResponse);
             }
             break;
           }

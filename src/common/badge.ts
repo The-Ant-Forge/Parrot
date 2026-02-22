@@ -22,6 +22,10 @@ let currentPanelElement: HTMLDivElement | null = null;
 let clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
 let panelVisible = false;
 let currentPlexUrl: string | undefined;
+let currentBadgeStatus: BadgeStatus = "not-owned";
+let currentRatings: { tmdbRating?: number; imdbRating?: number } | null = null;
+let currentGapData: GapPanelData | null = null;
+let ratingsListenerSetup = false;
 
 // --- Internal helpers ---
 
@@ -55,6 +59,28 @@ function ensurePill(wrapper: HTMLElement): HTMLSpanElement {
   return pill;
 }
 
+function getRatingText(): string {
+  if (!currentRatings) return "";
+  const values: number[] = [];
+  if (currentRatings.tmdbRating && currentRatings.tmdbRating > 0) values.push(currentRatings.tmdbRating);
+  if (currentRatings.imdbRating && currentRatings.imdbRating > 0) values.push(currentRatings.imdbRating);
+  if (values.length === 0) return "";
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  return avg.toFixed(1);
+}
+
+function createRatingSpan(): HTMLSpanElement | null {
+  const text = getRatingText();
+  if (!text) return null;
+  const span = document.createElement("span");
+  Object.assign(span.style, {
+    marginTop: "1px",
+    opacity: "0.8",
+  });
+  span.textContent = ` ${text}`;
+  return span;
+}
+
 function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string) {
   pill.innerHTML = "";
 
@@ -84,6 +110,9 @@ function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string
   } else {
     pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
+
+  const ratingSpan = createRatingSpan();
+  if (ratingSpan) pill.appendChild(ratingSpan);
 }
 
 // --- Floating panel positioning ---
@@ -238,6 +267,7 @@ export function updateBadgeFromResponse(
 ) {
   const status = response.owned ? "owned" : "not-owned";
   currentPlexUrl = response.plexUrl;
+  currentBadgeStatus = status;
 
   const pill = ensurePill(badge);
   setPillContent(pill, status, response.plexUrl);
@@ -256,6 +286,8 @@ export function setBadgeGapData(data: GapPanelData) {
   // Clean up any previous panel state
   hidePanel();
   currentPanelElement = data.panelElement;
+  currentGapData = data;
+  currentBadgeStatus = "owned";
 
   const pill = ensurePill(wrapper);
   const s = STYLES.owned;
@@ -287,6 +319,10 @@ export function setBadgeGapData(data: GapPanelData) {
     pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
 
+  // Rating (between Plex and gap toggle)
+  const ratingSpan = createRatingSpan();
+  if (ratingSpan) pill.appendChild(ratingSpan);
+
   // Right zone: completeness toggle
   const toggle = document.createElement("span");
   toggle.className = GAP_TOGGLE_CLASS;
@@ -304,6 +340,37 @@ export function setBadgeGapData(data: GapPanelData) {
   pill.appendChild(toggle);
 }
 
+/** Update ratings and re-render the badge pill. */
+export function updateRatings(tmdbRating?: number, imdbRating?: number) {
+  currentRatings = { tmdbRating, imdbRating };
+  const wrapper = findExistingBadge();
+  if (!wrapper) return;
+
+  if (currentGapData) {
+    // Re-render in split-click mode (preserves gap panel + toggle)
+    setBadgeGapData(currentGapData);
+  } else {
+    // Re-render simple pill
+    const pill = ensurePill(wrapper);
+    setPillContent(pill, currentBadgeStatus, currentPlexUrl);
+    applyPillStyles(pill, currentBadgeStatus);
+  }
+}
+
+function setupRatingsListener() {
+  if (ratingsListenerSetup) return;
+  ratingsListenerSetup = true;
+  try {
+    browser.runtime.onMessage.addListener((message: { type: string; tmdbRating?: number; imdbRating?: number }) => {
+      if (message.type === "RATINGS_READY") {
+        updateRatings(message.tmdbRating, message.imdbRating);
+      }
+    });
+  } catch {
+    // browser API unavailable (e.g. test environment)
+  }
+}
+
 /** Find existing badge wrapper in DOM. */
 export function findExistingBadge(): HTMLSpanElement | null {
   return document.querySelector(`[${BADGE_ATTR}]`);
@@ -312,11 +379,16 @@ export function findExistingBadge(): HTMLSpanElement | null {
 /** Remove badge and clean up all associated state. */
 export function removeBadge() {
   resetPanelState();
+  currentRatings = null;
+  currentGapData = null;
+  currentBadgeStatus = "not-owned";
   findExistingBadge()?.remove();
 }
 
 /** Inject badge into anchor element (singleton — returns existing if found). */
 export function injectBadge(anchor: Element): HTMLSpanElement {
+  setupRatingsListener();
+
   const existing = findExistingBadge();
   if (existing) return existing;
 

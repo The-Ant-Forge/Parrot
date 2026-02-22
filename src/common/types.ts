@@ -57,6 +57,7 @@ export interface PlexSection {
 export interface ParrotOptions {
   tmdbApiKey: string;
   tvdbApiKey: string;
+  omdbApiKey: string;
   excludeFuture: boolean;
   excludeSpecials: boolean;
   minCollectionSize: number;
@@ -70,6 +71,7 @@ export interface ParrotOptions {
 export const DEFAULT_OPTIONS: ParrotOptions = {
   tmdbApiKey: "",
   tvdbApiKey: "",
+  omdbApiKey: "",
   excludeFuture: true,
   excludeSpecials: true,
   minCollectionSize: 2,
@@ -97,6 +99,7 @@ export type Message =
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
   | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
   | { type: "VALIDATE_TVDB_KEY"; apiKey: string }
+  | { type: "VALIDATE_OMDB_KEY"; apiKey: string }
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
@@ -116,6 +119,7 @@ export interface StatusResponse {
   showCount: number;
   tmdbConfigured: boolean;
   tvdbConfigured: boolean;
+  omdbConfigured: boolean;
 }
 
 export interface CheckResponse {
@@ -157,6 +161,11 @@ export interface ValidateTvdbKeyResponse {
   error?: string;
 }
 
+export interface ValidateOmdbKeyResponse {
+  valid: boolean;
+  error?: string;
+}
+
 export interface OptionsResponse {
   options: ParrotOptions;
 }
@@ -194,6 +203,8 @@ export interface TabMediaInfo {
   collectionName?: string;
   collectionOwned?: number;
   collectionTotal?: number;
+  tmdbRating?: number;
+  imdbRating?: number;
 }
 
 export interface TabMediaResponse {

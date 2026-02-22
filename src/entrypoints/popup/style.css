@@ -279,6 +279,16 @@ button.primary:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+.rating-score {
+  color: #fff;
+}
+
+@media (prefers-color-scheme: light) {
+  .rating-score {
+    color: #000;
+  }
+}
+
 .id-tag.plex {
   background: #ebaf00;
   color: #1a1a1a;

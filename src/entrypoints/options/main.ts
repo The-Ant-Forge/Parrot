@@ -9,6 +9,7 @@ import type {
   StatusResponse,
   ValidateTmdbKeyResponse,
   ValidateTvdbKeyResponse,
+  ValidateOmdbKeyResponse,
   OptionsResponse,
   ClearCacheResponse,
   StorageUsageResponse,
@@ -45,6 +46,11 @@ const tvdbApiKeyInput = $<HTMLInputElement>("tvdbApiKey");
 const validateTvdbBtn = $<HTMLButtonElement>("validateTvdbBtn");
 const tvdbFeedback = $<HTMLDivElement>("tvdbFeedback");
 
+// --- OMDb elements ---
+const omdbApiKeyInput = $<HTMLInputElement>("omdbApiKey");
+const validateOmdbBtn = $<HTMLButtonElement>("validateOmdbBtn");
+const omdbFeedback = $<HTMLDivElement>("omdbFeedback");
+
 // --- Options elements ---
 const excludeFutureInput = $<HTMLInputElement>("excludeFuture");
 const excludeSpecialsInput = $<HTMLInputElement>("excludeSpecials");
@@ -79,6 +85,7 @@ function gatherOptions(): ParrotOptions {
   return {
     tmdbApiKey: tmdbApiKeyInput.value.trim(),
     tvdbApiKey: tvdbApiKeyInput.value.trim(),
+    omdbApiKey: omdbApiKeyInput.value.trim(),
     excludeFuture: excludeFutureInput.checked,
     excludeSpecials: excludeSpecialsInput.checked,
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
@@ -476,6 +483,33 @@ validateTvdbBtn.addEventListener("click", async () => {
   }
 });
 
+// --- OMDb handlers ---
+
+validateOmdbBtn.addEventListener("click", async () => {
+  const apiKey = omdbApiKeyInput.value.trim();
+  if (!apiKey) {
+    showFeedback(omdbFeedback, "Enter an OMDb API key", "error");
+    return;
+  }
+
+  hideFeedback(omdbFeedback);
+  setButtonLoading(validateOmdbBtn, true);
+
+  const result: ValidateOmdbKeyResponse = await browser.runtime.sendMessage({
+    type: "VALIDATE_OMDB_KEY",
+    apiKey,
+  });
+
+  setButtonLoading(validateOmdbBtn, false);
+
+  if (result.valid) {
+    showFeedback(omdbFeedback, "Valid — saved", "success");
+    await saveAllOptions();
+  } else {
+    showFeedback(omdbFeedback, result.error ?? "Invalid key", "error");
+  }
+});
+
 // --- Options handlers ---
 
 saveOptionsBtn.addEventListener("click", async () => {
@@ -603,6 +637,7 @@ resetSitesBtn.addEventListener("click", async () => {
   const options = optionsResult.options;
   tmdbApiKeyInput.value = options.tmdbApiKey;
   tvdbApiKeyInput.value = options.tvdbApiKey;
+  omdbApiKeyInput.value = options.omdbApiKey;
   excludeFutureInput.checked = options.excludeFuture;
   excludeSpecialsInput.checked = options.excludeSpecials;
   minCollectionSizeInput.value = String(options.minCollectionSize);

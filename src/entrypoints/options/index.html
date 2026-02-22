@@ -117,6 +117,23 @@
               thetvdb.com/api-information</a>.
             TMDB is used as fallback.
           </p>
+
+          <label for="omdbApiKey">OMDb API Key <span class="optional">(optional)</span></label>
+          <div class="input-with-button">
+            <input
+              type="password"
+              id="omdbApiKey"
+              placeholder="Your OMDb API key"
+              spellcheck="false"
+            />
+            <button id="validateOmdbBtn">Validate</button>
+          </div>
+          <div id="omdbFeedback" class="feedback" hidden></div>
+          <p class="hint">
+            Enables IMDb ratings on badges and popup. Get a free key at
+            <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">
+              omdbapi.com/apikey.aspx</a>.
+          </p>
         </section>
 
         <!-- Gap Detection Options -->

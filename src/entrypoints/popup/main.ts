@@ -193,6 +193,7 @@ async function initDashboard() {
   addStatusPill("Plex", plexActive);
   addStatusPill("TMDB", status.tmdbConfigured);
   if (status.tvdbConfigured) addStatusPill("TVDB", true);
+  if (status.omdbConfigured) addStatusPill("OMDb", true);
 
   // Library summary
   librarySummary.textContent = `${status.movieCount} Movies \u00B7 ${status.showCount} Shows`;
@@ -255,15 +256,41 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   const yearStr = media.year ? ` (${media.year})` : "";
   mediaTitle.textContent = (media.title ?? "Unknown") + yearStr;
 
+  // Average rating from available sources (TMDB + IMDb)
+  const ratingValues: number[] = [];
+  if (media.tmdbRating && media.tmdbRating > 0) ratingValues.push(media.tmdbRating);
+  if (media.imdbRating && media.imdbRating > 0) ratingValues.push(media.imdbRating);
+  const ratingText = ratingValues.length > 0
+    ? (ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length).toFixed(1)
+    : null;
+
   // Subtitle
+  mediaSubtitle.innerHTML = "";
   if (media.mediaType === "show") {
     const parts: string[] = [];
     if (media.seasonCount) parts.push(`${media.seasonCount} seasons`);
     if (media.episodeCount) parts.push(`${media.episodeCount} episodes`);
     if (media.showStatus) parts.push(media.showStatus);
-    mediaSubtitle.textContent = parts.join(" \u00B7 ");
+    if (ratingText) {
+      const ratingSpan = document.createElement("span");
+      ratingSpan.className = "rating-score";
+      ratingSpan.textContent = ratingText;
+      mediaSubtitle.appendChild(ratingSpan);
+      if (parts.length > 0) mediaSubtitle.appendChild(document.createTextNode(` \u00B7 ${parts.join(" \u00B7 ")}`));
+    } else {
+      mediaSubtitle.textContent = parts.join(" \u00B7 ");
+    }
   } else {
-    mediaSubtitle.textContent = media.owned ? "In Library" : "Not in Library";
+    const statusText = media.owned ? "In Library" : "Not in Library";
+    if (ratingText) {
+      const ratingSpan = document.createElement("span");
+      ratingSpan.className = "rating-score";
+      ratingSpan.textContent = ratingText;
+      mediaSubtitle.appendChild(ratingSpan);
+      mediaSubtitle.appendChild(document.createTextNode(` \u00B7 ${statusText}`));
+    } else {
+      mediaSubtitle.textContent = statusText;
+    }
   }
 
   // Collection summary (movies only)
@@ -281,12 +308,8 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   }
 
   // Media type tag (title row, floated right)
-  if (media.owned) {
-    mediaTypeTag.textContent = media.mediaType === "movie" ? "Movie" : "Show";
-    mediaTypeTag.hidden = false;
-  } else {
-    mediaTypeTag.hidden = true;
-  }
+  mediaTypeTag.textContent = media.mediaType === "movie" ? "Movie" : "TV Series";
+  mediaTypeTag.hidden = false;
 
   // Source ID tags
   mediaIds.innerHTML = "";
@@ -302,8 +325,8 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   }
 
   const tmdbPath = media.mediaType === "movie" ? "movie" : "tv";
-  if (media.tmdbId) addIdLink(`TMDB ${media.tmdbId}`, `https://www.themoviedb.org/${tmdbPath}/${media.tmdbId}`);
-  if (media.imdbId) addIdLink(`IMDb ${media.imdbId}`, `https://www.imdb.com/title/${media.imdbId}/`);
+  if (media.tmdbId) addRatedIdLink(media.tmdbRating, `TMDB ${media.tmdbId}`, `https://www.themoviedb.org/${tmdbPath}/${media.tmdbId}`);
+  if (media.imdbId) addRatedIdLink(media.imdbRating, `IMDb ${media.imdbId}`, `https://www.imdb.com/title/${media.imdbId}/`);
   if (media.tvdbId) addIdLink(`TVDB ${media.tvdbId}`, `https://www.thetvdb.com/dereferrer/series/${media.tvdbId}`);
 }
 
@@ -324,6 +347,22 @@ function addIdLink(text: string, url: string) {
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
+  mediaIds.appendChild(link);
+}
+
+function addRatedIdLink(rating: number | undefined, text: string, url: string) {
+  const link = document.createElement("a");
+  link.className = "id-tag";
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  if (rating && rating > 0) {
+    const ratingSpan = document.createElement("span");
+    ratingSpan.className = "rating-score";
+    ratingSpan.textContent = `${rating.toFixed(1)} `;
+    link.appendChild(ratingSpan);
+  }
+  link.appendChild(document.createTextNode(text));
   mediaIds.appendChild(link);
 }
 

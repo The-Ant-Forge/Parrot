@@ -24,6 +24,8 @@ export interface TMDBMovieDetails {
   release_date: string;
   poster_path: string | null;
   belongs_to_collection: TMDBCollectionRef | null;
+  vote_average?: number;
+  imdb_id?: string;
 }
 
 interface TMDBCollectionResponse {
@@ -41,6 +43,8 @@ export interface TMDBTvShow {
   status?: string;
   number_of_seasons?: number;
   number_of_episodes?: number;
+  vote_average?: number;
+  external_ids?: { imdb_id?: string | null };
   seasons: { season_number: number; episode_count: number; air_date: string | null }[];
 }
 
@@ -97,7 +101,7 @@ export async function getTvShow(
   apiKey: string,
   tvId: number,
 ): Promise<TMDBTvShow> {
-  return tmdbFetch<TMDBTvShow>(apiKey, `/tv/${tvId}`);
+  return tmdbFetch<TMDBTvShow>(apiKey, `/tv/${tvId}?append_to_response=external_ids`);
 }
 
 /**
@@ -145,17 +149,25 @@ export async function searchMovie(
 
 /**
  * Convert an IMDb ID to a TMDB ID using the find endpoint.
- * Checks movie results first, then TV results.
+ * When mediaType is specified, only returns results of that type.
+ * Otherwise checks movie results first, then TV results.
  * Returns null if no match found.
  */
 export async function findByImdbId(
   apiKey: string,
   imdbId: string,
+  mediaType?: "movie" | "show",
 ): Promise<number | null> {
   const data = await tmdbFetch<TMDBFindResponse>(
     apiKey,
     `/find/${imdbId}?external_source=imdb_id`,
   );
+  if (mediaType === "movie") {
+    return data.movie_results.length > 0 ? data.movie_results[0].id : null;
+  }
+  if (mediaType === "show") {
+    return data.tv_results.length > 0 ? data.tv_results[0].id : null;
+  }
   if (data.movie_results.length > 0) return data.movie_results[0].id;
   if (data.tv_results.length > 0) return data.tv_results[0].id;
   return null;
