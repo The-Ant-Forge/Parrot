@@ -8,13 +8,14 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 ## Features
 
-- **Ownership badge** on 14 supported sites -- dark pill with gold/gray Plex chevron
+- **Ownership badge** on 16 supported sites -- dark pill with gold/gray Plex chevron
+- **Media ratings** -- averaged TMDB + IMDb scores on badge pills and popup dashboard
 - **Deep linking** -- owned badges link directly to the item in Plex Web
 - **Collection gap detection** -- see which movies from the same collection you own or are missing, even for movies you don't own yet
 - **Episode gap detection** -- on TMDB and TVDB TV show pages, see a season-by-season breakdown of missing episodes
-- **TVDB API support** -- optional TVDB v4 API key for more accurate TV episode numbering
+- **Multi-server support** -- configure multiple Plex servers with priority ordering
 - **Dynamic toolbar icon** -- changes per-tab to show owned/not-owned/inactive state
-- **Options page** -- configure Plex server, API keys, gap detection preferences, and cache management
+- **Options page** -- configure Plex servers, API keys, gap detection preferences, and cache management
 
 ## How It Works
 
@@ -52,9 +53,20 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 - **Owned + incomplete** -- Split-click pill: "Plex" opens Plex, "Incomplete" toggles gap panel: `[Plex : Incomplete]`
 - **Error** -- Red pill with tooltip
 
+When ratings are available, the averaged score appears after "Plex" text: `[Plex 7.2]` or `[Plex 7.2 : Complete]`.
+
 Gap panels float as overlays anchored to the badge (no page layout shift).
 
 The toolbar icon also changes per-tab: gold border when owned, gray when not, light gray when inactive.
+
+## Ratings
+
+Parrot can display media ratings from TMDB and IMDb on both the in-page badge and the popup dashboard.
+
+- **TMDB ratings** are included automatically when you have a TMDB API key configured (required for gap detection anyway)
+- **IMDb ratings** require an OMDb API key (free, 1000 requests/day) -- [get one here](https://www.omdbapi.com/apikey.aspx)
+
+When both sources are available, the badge and popup status line show the averaged score. The popup ID pills show each source's individual score (e.g. `7.2 TMDB 550`, `8.8 IMDb tt0137523`). Ratings are fetched for both owned and unowned items.
 
 ## Gap Detection
 
@@ -75,8 +87,9 @@ When viewing an owned TV show on TMDB or TVDB, Parrot shows a collapsible season
 
 - A Plex server with media libraries
 - Your Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
-- A TMDB API key for collection and episode gap features ([get one free](https://www.themoviedb.org/settings/api))
+- A TMDB API key for collection/episode gaps and TMDB ratings ([get one free](https://www.themoviedb.org/settings/api))
 - (Optional) A TVDB API key for accurate TVDB episode numbering ([get one](https://thetvdb.com/api-information))
+- (Optional) An OMDb API key for IMDb ratings ([get one free](https://www.omdbapi.com/apikey.aspx))
 
 ### Install from Source
 
