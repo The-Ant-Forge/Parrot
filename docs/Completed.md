@@ -576,3 +576,46 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 ### Test Suite
 - 5 TVMaze extractor tests, 3 NFD normalization tests
 - Total: 129 tests across 7 test files
+
+---
+
+## v1.8 — Ratings, Code Consolidation & Dependency Updates
+
+### Phase 14 Code Consolidation
+- Extracted shared modules: `title-check.ts` (title-based CHECK with year fallback), `logger.ts` (debug/error logging gated by settings toggle), `dom-utils.ts` (waitForElement utility)
+- Reduced code duplication across 6+ content scripts using shared title-check and logger modules
+- Fixed popup dashboard for title-based sources — poster, metadata, and media type now display correctly
+- Fixed toolbar icon and dashboard state consistency for title-based sources and collection members
+
+### TMDB + IMDb Ratings
+- **New file:** `src/api/omdb.ts` — OMDb API client with `getImdbRating()` and `validateOmdbKey()`
+- TMDB `vote_average` extracted from movie and TV show details
+- IMDb ratings fetched via OMDb API when an OMDb key is configured
+- IMDb IDs resolved for movies via TMDB `imdb_id` field, for TV shows via `append_to_response=external_ids`
+- **On-page badge pill:** Averaged TMDB + IMDb score displayed after "Plex" text (e.g. `[Plex 7.2]`)
+- **Popup status line:** Averaged rating shown before "In Library"/"Not in Library" or show stats
+- **Popup ID pills:** Source-specific rating prefix (e.g. `7.2 TMDB 550`, `8.8 IMDb tt0137523`)
+- Ratings delivered asynchronously via `RATINGS_READY` message — badge re-renders when data arrives
+- Rating scores styled with `.rating-score` class (white on dark, black on light) for contrast
+- Ratings fetched for both owned and unowned items via `fetchTabMetadata`
+
+### OMDb API Key Management
+- `omdbApiKey` added to `ParrotOptions` (default: empty)
+- `VALIDATE_OMDB_KEY` message handler in background
+- Options page: OMDb API key input with Validate button and hint text
+- OMDb status pill added to popup dashboard (shown when configured)
+
+### Popup Dashboard Improvements
+- Media type tag now shows for all items (not just owned): "Movie" or "TV Series"
+- `addRatedIdLink()` helper for ID pills with highlighted rating prefix
+
+### Bug Fix: Media Type Cross-Matching
+- `findByImdbId()` now accepts optional `mediaType` parameter
+- When browsing an IMDb movie page, only TMDB movie results are returned (prevents a TV series from being matched as a movie)
+- Other callers (TVMaze bridge, FIND_TMDB_ID handler) retain the existing fallback behavior
+
+### Dependency Updates
+- WXT 0.20, Vitest 4, typescript-eslint 8.56, happy-dom 20.6.3
+
+### Test Suite
+- Total: 135 tests across 7 test files (up from 129)

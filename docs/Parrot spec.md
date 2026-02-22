@@ -128,7 +128,8 @@ parrot/
 │   │   ├── plex.ts                    # Plex API client
 │   │   ├── tmdb.ts                    # TMDB v3 API client
 │   │   ├── tvdb.ts                    # TVDB v4 API client (optional)
-│   │   └── tvmaze.ts                  # TVMaze API client (free, no key)
+│   │   ├── tvmaze.ts                  # TVMaze API client (free, no key)
+│   │   └── omdb.ts                    # OMDb API client (IMDb ratings, optional)
 │   └── common/
 │       ├── types.ts                   # Shared types (LibraryIndex, OwnedItem, etc.)
 │       ├── storage.ts                 # Storage helpers
@@ -140,8 +141,11 @@ parrot/
 │       ├── extractors.ts              # URL/ID extractors + DOM link scanner
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
+│       ├── title-check.ts             # Title-based CHECK with year fallback
+│       ├── logger.ts                  # Debug/error logging gated by settings toggle
+│       ├── dom-utils.ts               # DOM utilities (waitForElement)
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (116 tests)
+├── tests/                             # Vitest test suite (135 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -156,11 +160,11 @@ parrot/
 **Service Worker (`background.ts`)**
 - Manages the Plex library index cache (in-memory + `storage.local`)
 - Proxies Plex API requests (avoids CORS issues from content scripts)
-- Handles all message types: `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
+- Handles all message types: `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `VALIDATE_OMDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
 - Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
 - Auto-refreshes stale library index on demand (configurable interval, default 7 days)
 
-**Content Scripts (15 scripts)**
+**Content Scripts (16 scripts)**
 - One per supported site
 - Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker
@@ -183,8 +187,10 @@ parrot/
 
 **API Clients (`api/`)**
 - `plex.ts` — Plex server connection, library fetching, episode data
-- `tmdb.ts` — TMDB v3 (movies, collections, TV shows/seasons, TVDB-to-TMDB ID conversion)
+- `tmdb.ts` — TMDB v3 (movies, collections, TV shows/seasons, TVDB-to-TMDB ID conversion, external IDs)
 - `tvdb.ts` — TVDB v4 (bearer token auth, paginated episode fetching, key validation)
+- `omdb.ts` — OMDb (IMDb ratings lookup, key validation)
+- `tvmaze.ts` — TVMaze (free, no key; TVDB/IMDb ID resolution)
 
 ### Data Flow
 
@@ -209,6 +215,7 @@ type Message =
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
   | { type: "VALIDATE_TMDB_KEY"; apiKey: string }
   | { type: "VALIDATE_TVDB_KEY"; apiKey: string }
+  | { type: "VALIDATE_OMDB_KEY"; apiKey: string }
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
@@ -305,11 +312,13 @@ Auth: API key as query param (`?api_key={key}`). Base URL: `https://api.themovie
 
 | Function | Endpoint | Purpose |
 |----------|----------|---------|
-| `getMovie` | `GET /movie/{id}` | Movie details (collection membership) |
+| `getMovie` | `GET /movie/{id}` | Movie details (collection, vote_average, imdb_id) |
 | `getCollection` | `GET /collection/{id}` | All movies in a collection |
-| `getTvShow` | `GET /tv/{id}` | TV show details with seasons list |
+| `getTvShow` | `GET /tv/{id}?append_to_response=external_ids` | TV show details with seasons list + IMDb ID |
 | `getTvSeason` | `GET /tv/{id}/season/{n}` | Episodes in a season |
 | `findByTvdbId` | `GET /find/{tvdbId}?external_source=tvdb_id` | Convert TVDB ID to TMDB ID |
+| `findByImdbId` | `GET /find/{imdbId}?external_source=imdb_id` | Convert IMDb ID to TMDB ID (media-type-aware) |
+| `searchMovie` | `GET /search/movie?query={q}&year={y}` | Search movie by title + optional year |
 | `validateTmdbKey` | `GET /configuration` | Key validation (200 = valid) |
 
 ### TVDB v4 (`src/api/tvdb.ts`) — Optional
@@ -324,6 +333,29 @@ Auth: bearer token via `POST /login` with `{ apikey: "..." }`. Base URL: `https:
 Token is cached in-memory (service worker lifetime). Auto-retries on 401 (expired token).
 
 Used only when a TVDB API key is configured **and** the source page is TVDB. TMDB pages always use the TMDB API. If no TVDB key is set, TVDB pages fall back to TMDB via `findByTvdbId`.
+
+### OMDb (`src/api/omdb.ts`) — Optional
+
+Auth: API key as query param (`?apikey={key}`). Base URL: `https://www.omdbapi.com`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `getImdbRating` | `GET /?i={imdbId}&apikey={key}` | Fetch IMDb rating for a title |
+| `validateOmdbKey` | `GET /?i=tt0000001&apikey={key}` | Key validation |
+
+Returns `imdbRating` as a string (e.g. `"8.8"`), parsed to a number. Free tier allows 1,000 requests/day. Used to display IMDb ratings on badge pills and popup dashboard. The IMDb ID is obtained from TMDB movie details (`imdb_id` field) or TMDB TV external_ids (`external_ids.imdb_id`).
+
+### TVMaze (`src/api/tvmaze.ts`) — Free, No Key
+
+Base URL: `https://api.tvmaze.com`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `getTvMazeExternals` | `GET /shows/{id}` | Get TVDB/IMDb IDs for a TVMaze show |
+| `lookupByImdb` | `GET /lookup/shows?imdb={id}` | Resolve IMDb ID to TVDB ID |
+| `lookupByTvdb` | `GET /lookup/shows?thetvdb={id}` | Resolve TVDB ID to IMDb ID |
+
+Free API with no authentication. Used as a cross-reference bridge for resolving TVDB↔IMDb IDs without requiring a TMDB key.
 
 ---
 
@@ -483,7 +515,7 @@ async function checkAndBadge() {
 
 A compact pill badge injected next to the title element on each supported page. Uses a wrapper+pill DOM architecture: the outer `<span data-parrot-badge>` is stable (never replaced), the inner `.parrot-pill` rebuilds on state transitions. The wrapper has `position: relative` to anchor floating gap panels.
 
-**Four states:**
+**Four states (with optional rating):**
 
 | State | Appearance | Interaction |
 |-------|-----------|-------------|
@@ -492,6 +524,8 @@ A compact pill badge injected next to the title element on each supported page. 
 | Owned (no gap data) | `[Plex]` gold | Click opens Plex |
 | Owned + complete | `[Plex : Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
 | Owned + incomplete | `[Plex : Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |
+
+When ratings are available (TMDB and/or IMDb via OMDb), the averaged score appears after "Plex" text: `[Plex 7.2]` or `[Plex 7.2 : Complete]`. Ratings are delivered asynchronously via a `RATINGS_READY` message from the background and rendered with a gold accent color.
 
 **Styling:**
 - **Owned:** Dark pill (`#282828`), gold Plex chevron icon (inline SVG), white "Plex" text, gold border (`#ebaf00`)
@@ -570,6 +604,7 @@ Full-tab settings page with four sections:
 ### 2. API Keys
 - TMDB API key input + Validate button (required for collection/episode gap features)
 - TVDB API key input + Validate button (optional, for more accurate TV episode numbering)
+- OMDb API key input + Validate button (optional, enables IMDb ratings on badges and popup)
 
 ### 3. Gap Detection
 - Toggle: "Exclude future/unreleased movies" (default: on)
@@ -594,6 +629,8 @@ Key permissions:
   - `http://*/library/*`, `https://*/library/*` — Plex API access
   - `https://api.themoviedb.org/*` — TMDB API
   - `https://api4.thetvdb.com/*` — TVDB API
+  - `https://www.omdbapi.com/*` — OMDb API
+  - `https://api.tvmaze.com/*` — TVMaze API
 
 Content script URL matches are defined in each `*.content.ts` file via WXT's `defineContentScript()`.
 
@@ -627,6 +664,7 @@ Single source of truth is `package.json`; `wxt.config.ts` reads from it.
 | Unsupported page | Extension stays dormant |
 | Invalid TMDB key | Options page shows validation error |
 | Invalid TVDB key | Options page shows validation error |
+| Invalid OMDb key | Options page shows validation error |
 
 ---
 
@@ -659,7 +697,7 @@ The external ID extraction from Plex `guids` arrays is identical in both project
 | Component | Technology |
 |-----------|------------|
 | Language | TypeScript (strict mode) |
-| Build | WXT 0.19.x (Vite-based extension framework) |
+| Build | WXT 0.20.x (Vite-based extension framework) |
 | Testing | Vitest |
 | Linting | ESLint + Prettier |
 | Target | Chrome (primary), Firefox (secondary) |

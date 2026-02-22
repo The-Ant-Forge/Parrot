@@ -80,7 +80,8 @@ src/
 │   ├── plex.ts                    # Plex API client
 │   ├── tmdb.ts                    # TMDB v3 API client
 │   ├── tvdb.ts                    # TVDB v4 API client (optional)
-│   └── tvmaze.ts                  # TVMaze API client (free, no key)
+│   ├── tvmaze.ts                  # TVMaze API client (free, no key)
+│   └── omdb.ts                    # OMDb API client (IMDb ratings, optional)
 └── common/
     ├── types.ts                   # Shared types
     ├── storage.ts                 # Storage helpers
