@@ -1,6 +1,6 @@
 {
   "name": "parrot",
-  "version": "1.8.6",
+  "version": "1.9.1",
   "description": "Browser extension that checks if media you're browsing is already in your Plex library",
   "private": true,
   "type": "module",
