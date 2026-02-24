@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractRtMediaType, findExternalIdFromJsonLd } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import { parseSlug, buildTitleKey } from "../common/normalize";
 import { tryTitleCheck } from "../common/title-check";
 import type { CheckResponse } from "../common/types";
@@ -15,6 +15,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const mediaType = extractRtMediaType(location.pathname);
+  debugLog("RT", "checking", location.href, "→ type:", mediaType ?? "unknown");
   if (!mediaType) return;
 
   const anchor =
@@ -26,6 +27,7 @@ async function checkAndBadge() {
 
   // Strategy 1: external ID (JSON-LD or page links)
   const extId = findExternalIdFromJsonLd();
+  debugLog("RT", "strategy 1 (JSON-LD/links) →", extId ? extId.source + ":" + extId.id : "no external ID");
   if (extId) {
     try {
       let resolvedType = mediaType;
@@ -47,6 +49,7 @@ async function checkAndBadge() {
         });
       }
 
+      debugLog("RT", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
       updateBadgeFromResponse(badge, response);
 
       if (response.owned || resolvedType === "movie") {
@@ -67,6 +70,7 @@ async function checkAndBadge() {
 
   // Strategy 2: title-based matching from URL slug
   const slug = extractSlug();
+  debugLog("RT", "strategy 2 (slug) →", slug ?? "no slug");
   if (!slug) return;
 
   const { title, year } = parseSlug(slug);
@@ -75,6 +79,7 @@ async function checkAndBadge() {
   try {
     const response = await tryTitleCheck(mediaType, title, year);
 
+    debugLog("RT", mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || mediaType === "movie") {
@@ -95,6 +100,7 @@ export default defineContentScript({
   matches: ["*://*.rottentomatoes.com/m/*", "*://*.rottentomatoes.com/tv/*"],
   runAt: "document_idle",
   main() {
+    debugLog("RT", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
   },
 });

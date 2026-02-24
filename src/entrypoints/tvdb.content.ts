@@ -1,6 +1,6 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
@@ -29,6 +29,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const tvdbId = extractTvdbId();
+  debugLog("TVDB", "checking", location.href, "→", tvdbId ? "tvdb:" + tvdbId : "no ID");
   if (!tvdbId) return;
 
   const anchor = document.querySelector("h1");
@@ -43,6 +44,7 @@ async function checkAndBadge() {
       source: "tvdb",
       id: tvdbId,
     });
+    debugLog("TVDB", "show", "tvdb:" + tvdbId, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     if (response.owned) {
@@ -63,6 +65,7 @@ export default defineContentScript({
   matches: ["*://*.thetvdb.com/series/*"],
   runAt: "document_idle",
   main() {
+    debugLog("TVDB", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
 
     // TVDB uses client-side routing (debounced)

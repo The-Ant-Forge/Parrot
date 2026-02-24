@@ -1,13 +1,14 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
 
 async function checkAndBadge() {
   removeBadge();
 
   const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
+  debugLog("Letterboxd", "checking", location.href, "→", extId ? extId.source + ":" + extId.id : "no links");
   if (!extId) return;
 
   const anchor =
@@ -25,6 +26,7 @@ async function checkAndBadge() {
       id: extId.id,
     });
 
+    debugLog("Letterboxd", "movie", extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     checkGaps({
@@ -43,6 +45,7 @@ export default defineContentScript({
   matches: ["*://*.letterboxd.com/film/*"],
   runAt: "document_idle",
   main() {
+    debugLog("Letterboxd", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
   },
 });

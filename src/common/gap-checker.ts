@@ -1,6 +1,7 @@
 import { setBadgeGapData } from "./badge";
 import { createCollectionPanel } from "./collection-panel";
 import { createEpisodePanel } from "./episode-panel";
+import { debugLog, errorLog } from "./logger";
 import { getOptions } from "./storage";
 import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse, FindTmdbIdResponse } from "./types";
 
@@ -44,7 +45,7 @@ async function resolveTmdbMovieId(
       });
       return result.tmdbId ? String(result.tmdbId) : null;
     } catch (err) {
-      console.warn("Parrot: FIND_TMDB_ID failed", err);
+      errorLog("GapChecker", "FIND_TMDB_ID failed", err);
       return null;
     }
   }
@@ -67,6 +68,7 @@ async function checkMovieGaps(
       tmdbMovieId,
     });
 
+    debugLog("GapChecker", `collection check for tmdb:${tmdbMovieId} →`, collResult.hasCollection ? collResult.collection?.name : "no collection");
     if (collResult.hasCollection && collResult.collection) {
       const hasGaps = collResult.collection.missingMovies.length > 0;
       const hasOwned = collResult.collection.ownedMovies.length > 0;
@@ -86,7 +88,7 @@ async function checkMovieGaps(
       }
     }
   } catch (err) {
-    console.error("Parrot: collection gap check failed", err);
+    errorLog("GapChecker", "collection gap check failed", err);
   }
 }
 
@@ -120,12 +122,14 @@ async function checkShowGaps(
       }
     }
 
+    debugLog("GapChecker", `episode check for ${episodeSource}:${episodeId}`);
     const result: EpisodeGapResponse = await browser.runtime.sendMessage({
       type: "CHECK_EPISODES",
       source: episodeSource,
       id: episodeId,
     });
 
+    debugLog("GapChecker", "episode result →", result.hasGaps ? "has gaps" : "complete", result.gaps ? `${result.gaps.totalOwned}/${result.gaps.totalEpisodes}` : "");
     if (result.gaps) {
       const hasGaps = result.hasGaps;
       const panelElement = createEpisodePanel(result.gaps, hasGaps || showCompletePanels);
@@ -140,6 +144,6 @@ async function checkShowGaps(
       });
     }
   } catch (err) {
-    console.error("Parrot: episode gap check failed", err);
+    errorLog("GapChecker", "episode gap check failed", err);
   }
 }

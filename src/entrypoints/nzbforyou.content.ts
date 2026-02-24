@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractImdbId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
 
 function getMediaType(): "movie" | "show" | null {
@@ -27,6 +27,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const imdbId = findImdbId();
+  debugLog("NZBForYou", "checking", location.href, "→", imdbId ?? "no IMDb ID");
   if (!imdbId) return;
 
   const anchor = document.querySelector("h3.first");
@@ -65,6 +66,7 @@ async function checkAndBadge() {
       }
     }
 
+    debugLog("NZBForYou", resolvedType, "imdb:" + imdbId, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     // Gap detection: always for movies (collection check), owned-only for shows
@@ -89,6 +91,7 @@ export default defineContentScript({
   ],
   runAt: "document_idle",
   main() {
+    debugLog("NZBForYou", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
   },
 });

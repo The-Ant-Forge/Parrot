@@ -2,7 +2,7 @@ import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } fro
 import { waitForElement } from "../common/dom-utils";
 import { extractJustWatchMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import { parseTitleFromH1, buildTitleKey } from "../common/normalize";
 import { tryTitleCheck } from "../common/title-check";
 import { observeUrlChanges } from "../common/url-observer";
@@ -12,6 +12,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const mediaType = extractJustWatchMediaType(location.pathname);
+  debugLog("JustWatch", "checking", location.href, "→ type:", mediaType ?? "unknown");
   if (!mediaType) return;
 
   // Wait for dynamic page content to load
@@ -28,6 +29,7 @@ async function checkAndBadge() {
 
   // Strategy 1: external ID (link scanning)
   const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
+  debugLog("JustWatch", "strategy 1 (links) →", extId ? extId.source + ":" + extId.id : "no links");
   if (extId) {
     try {
       let resolvedType = mediaType;
@@ -49,6 +51,7 @@ async function checkAndBadge() {
         });
       }
 
+      debugLog("JustWatch", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
       updateBadgeFromResponse(badge, response);
 
       if (response.owned || resolvedType === "movie") {
@@ -68,6 +71,7 @@ async function checkAndBadge() {
   }
 
   // Strategy 2: title-based matching from h1 text
+  debugLog("JustWatch", "strategy 2 (title) →", h1Text ?? "no h1 text");
   if (!h1Text) return;
 
   const { title, year } = parseTitleFromH1(h1Text);
@@ -76,6 +80,7 @@ async function checkAndBadge() {
   try {
     const response = await tryTitleCheck(mediaType, title, year);
 
+    debugLog("JustWatch", mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || mediaType === "movie") {
@@ -96,6 +101,7 @@ export default defineContentScript({
   matches: ["*://*.justwatch.com/*/movie/*", "*://*.justwatch.com/*/tv-show/*", "*://*.justwatch.com/*/tv-series/*"],
   runAt: "document_idle",
   main() {
+    debugLog("JustWatch", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
     observeUrlChanges(checkAndBadge);
   },

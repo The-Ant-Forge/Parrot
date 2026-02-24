@@ -523,3 +523,10 @@ button.danger:hover:not(:disabled) {
   color: var(--text-muted);
   margin-left: 4px;
 }
+
+.version-footer {
+  text-align: center;
+  padding: 16px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}

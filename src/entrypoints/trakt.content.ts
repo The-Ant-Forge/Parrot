@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractTraktMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
@@ -12,9 +12,11 @@ async function checkAndBadge() {
   if (location.hostname === "app.trakt.tv") return;
 
   const mediaType = extractTraktMediaType(location.pathname);
+  debugLog("Trakt", "checking", location.href, "→ type:", mediaType ?? "unknown");
   if (!mediaType) return;
 
   const extId = scanLinksForExternalId();
+  debugLog("Trakt", "link scan →", extId ? extId.source + ":" + extId.id : "no links");
   if (!extId) return;
 
   const anchor = document.querySelector("h1");
@@ -42,6 +44,7 @@ async function checkAndBadge() {
       });
     }
 
+    debugLog("Trakt", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || resolvedType === "movie") {
@@ -62,6 +65,7 @@ export default defineContentScript({
   matches: ["*://*.trakt.tv/movies/*", "*://*.trakt.tv/shows/*"],
   runAt: "document_idle",
   main() {
+    debugLog("Trakt", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
     observeUrlChanges(checkAndBadge);
   },

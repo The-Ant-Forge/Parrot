@@ -106,7 +106,8 @@ export type Message =
   | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string }
   | { type: "GET_TAB_MEDIA"; tabId: number }
   | { type: "GET_STORAGE_USAGE" }
-  | { type: "UPDATE_ICON"; state: "owned" | "not-owned" };
+  | { type: "UPDATE_ICON"; state: "owned" | "not-owned" }
+  | { type: "PLEX_LOOKUP"; machineIdentifier: string; ratingKey: string };
 
 // --- Responses ---
 
@@ -209,6 +210,13 @@ export interface TabMediaInfo {
 
 export interface TabMediaResponse {
   media: TabMediaInfo | null;
+}
+
+export interface PlexLookupResponse {
+  found: boolean;
+  mediaType?: "movie" | "show";
+  source?: "tmdb" | "imdb" | "tvdb";
+  id?: string;
 }
 
 export interface StorageUsageResponse {

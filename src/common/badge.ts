@@ -231,6 +231,7 @@ export function createBadge(): HTMLSpanElement {
   wrapper.setAttribute(BADGE_ATTR, "true");
   Object.assign(wrapper.style, {
     position: "relative",
+    zIndex: "2147483647",
     display: "none",
     verticalAlign: "middle",
     marginLeft: "8px",
@@ -391,6 +392,12 @@ export function injectBadge(anchor: Element): HTMLSpanElement {
 
   const existing = findExistingBadge();
   if (existing) return existing;
+
+  // Ensure anchor doesn't clip the floating gap panel
+  const anchorStyle = getComputedStyle(anchor);
+  if (anchorStyle.overflow !== "visible") {
+    (anchor as HTMLElement).style.overflow = "visible";
+  }
 
   const badge = createBadge();
   anchor.appendChild(badge);

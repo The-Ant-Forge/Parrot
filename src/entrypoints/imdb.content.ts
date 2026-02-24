@@ -1,7 +1,7 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractImdbId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
@@ -9,6 +9,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const imdbId = extractImdbId(location.href);
+  debugLog("IMDb", "checking", location.href, "→", imdbId ?? "no ID");
   if (!imdbId) return;
 
   const anchor =
@@ -39,6 +40,7 @@ async function checkAndBadge() {
       });
     }
 
+    debugLog("IMDb", mediaType, "imdb:" + imdbId, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     // Gap detection: always for movies (collection check), owned-only for shows
@@ -60,6 +62,7 @@ export default defineContentScript({
   matches: ["*://*.imdb.com/title/*"],
   runAt: "document_idle",
   main() {
+    debugLog("IMDb", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
 
     // IMDb uses client-side routing (debounced)

@@ -1,9 +1,10 @@
 import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
-import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie } from "../api/tmdb";
+import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie, searchTv } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
 import { getImdbRating, validateOmdbKey } from "../api/omdb";
+import { debugLog, errorLog } from "../common/logger";
 import type {
   Message,
   CheckResponse,
@@ -18,6 +19,7 @@ import type {
   ValidateTmdbKeyResponse,
   ValidateTvdbKeyResponse,
   ValidateOmdbKeyResponse,
+  PlexLookupResponse,
   OptionsResponse,
   SaveOptionsResponse,
   ClearCacheResponse,
@@ -102,11 +104,11 @@ async function loadIndex(): Promise<LibraryIndex | null> {
       const showTvdb = Object.keys(cachedIndex.shows.byTvdbId).length;
       const showTmdb = Object.keys(cachedIndex.shows.byTmdbId).length;
       const showImdb = Object.keys(cachedIndex.shows.byImdbId).length;
-      console.log(
-        `Parrot: loaded index from storage — movies: ${movieTmdb} tmdb / ${movieImdb} imdb, shows: ${showTvdb} tvdb / ${showTmdb} tmdb / ${showImdb} imdb`,
+      debugLog("BG",
+        `loaded index — movies: ${movieTmdb} tmdb / ${movieImdb} imdb, shows: ${showTvdb} tvdb / ${showTmdb} tmdb / ${showImdb} imdb`,
       );
     } else {
-      console.log("Parrot: no index found in storage");
+      debugLog("BG", "no index found in storage");
     }
   }
 
@@ -121,13 +123,13 @@ async function loadIndex(): Promise<LibraryIndex | null> {
         loadServers().then(async (servers) => {
           if (servers.length === 0) { autoRefreshing = false; return; }
           try {
-            console.log(`Parrot: auto-refresh — index is ${Math.floor(ageMs / 86400000)}d old, refreshing`);
+            debugLog("BG", `auto-refresh — index is ${Math.floor(ageMs / 86400000)}d old, refreshing`);
             const newIndex = await buildLibraryIndex(servers);
             await saveLibraryIndex(newIndex);
             cachedIndex = newIndex;
-            console.log(`Parrot: auto-refresh complete — ${newIndex.itemCount} items`);
+            debugLog("BG", `auto-refresh complete — ${newIndex.itemCount} items`);
           } catch (err) {
-            console.error("Parrot: auto-refresh failed", err);
+            errorLog("BG", "auto-refresh failed", err);
           } finally {
             autoRefreshing = false;
           }
@@ -188,21 +190,27 @@ async function handleCheck(
   // TVMaze: resolve to TVDB/IMDb via TVMaze API, then look up
   if (message.source === "tvmaze") {
     try {
+      debugLog("BG", `CHECK: calling TVMaze externals for tvmaze:${message.id}`);
       const ext = await getTvMazeExternals(message.id);
+      debugLog("BG", `CHECK: TVMaze resolved → tvdb:${ext.tvdbId ?? "none"} imdb:${ext.imdbId ?? "none"}`);
       if (ext.tvdbId) {
         item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
+        if (item) debugLog("BG", `CHECK: found via TVMaze→TVDB:${ext.tvdbId}`);
       }
       if (!item && ext.imdbId) {
         item = lookupItem(index, "show", "imdb", ext.imdbId);
+        if (item) debugLog("BG", `CHECK: found via TVMaze→IMDb:${ext.imdbId}`);
       }
       // TMDB cross-reference fallback
       if (!item && ext.imdbId) {
         try {
           const options = await getOptions();
           if (options.tmdbApiKey) {
+            debugLog("BG", `CHECK: calling TMDB findByImdbId for ${ext.imdbId}`);
             const tmdbId = await findByImdbId(options.tmdbApiKey, ext.imdbId);
             if (tmdbId) {
               item = lookupItem(index, "show", "tmdb", String(tmdbId));
+              if (item) debugLog("BG", `CHECK: found via TVMaze→TMDB:${tmdbId}`);
             }
           }
         } catch {
@@ -213,6 +221,7 @@ async function handleCheck(
       // TVMaze API failed — fall through to not-owned
     }
   } else {
+    debugLog("BG", `CHECK: direct index lookup ${message.mediaType} ${message.source}:${message.id}`);
     item = lookupItem(index, message.mediaType, message.source, message.id);
 
     // Cross-reference: if direct lookup missed, try alternate IDs
@@ -220,17 +229,21 @@ async function handleCheck(
       // TVMaze bridge (free, no key): IMDb ↔ TVDB for shows
       if (!item && message.mediaType === "show") {
         try {
+          debugLog("BG", `CHECK: calling TVMaze cross-ref for ${message.source}:${message.id}`);
           const ext = message.source === "imdb"
             ? await lookupByImdb(message.id)
             : message.source === "tvdb"
               ? await lookupByTvdb(message.id)
               : null;
           if (ext) {
+            debugLog("BG", `CHECK: TVMaze resolved → tvdb:${ext.tvdbId ?? "none"} imdb:${ext.imdbId ?? "none"}`);
             if (ext.tvdbId && message.source !== "tvdb") {
               item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
+              if (item) debugLog("BG", `CHECK: found via TVMaze cross-ref → TVDB:${ext.tvdbId}`);
             }
             if (!item && ext.imdbId && message.source !== "imdb") {
               item = lookupItem(index, "show", "imdb", ext.imdbId);
+              if (item) debugLog("BG", `CHECK: found via TVMaze cross-ref → IMDb:${ext.imdbId}`);
             }
           }
         } catch {
@@ -243,10 +256,13 @@ async function handleCheck(
         try {
           const options = await getOptions();
           if (options.tmdbApiKey) {
+            const resolverName = message.source === "imdb" ? "findByImdbId" : "findByTvdbId";
+            debugLog("BG", `CHECK: calling TMDB ${resolverName} for ${message.id}`);
             const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
             const tmdbId = await resolver(options.tmdbApiKey, message.id);
             if (tmdbId) {
               item = lookupItem(index, message.mediaType, "tmdb", String(tmdbId));
+              if (item) debugLog("BG", `CHECK: found via TMDB cross-ref → TMDB:${tmdbId}`);
             }
           }
         } catch {
@@ -339,23 +355,33 @@ function sendRatingsToTab(tabId: number, info: TabMediaInfo) {
 async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
   try {
     const options = await getOptions();
+    debugLog("BG", `META: enriching ${info.mediaType} ${info.source}:${info.id} (owned:${info.owned})`);
     // Resolve TMDB ID if not already known
     let tmdbId = info.tmdbId;
     if (options.tmdbApiKey) {
       if (!tmdbId && info.source === "imdb") {
+        debugLog("BG", `META: calling TMDB findByImdbId for ${info.id}`);
         tmdbId = (await findByImdbId(options.tmdbApiKey, info.id, info.mediaType)) ?? undefined;
       } else if (!tmdbId && info.source === "tvdb") {
+        debugLog("BG", `META: calling TMDB findByTvdbId for ${info.id}`);
         tmdbId = (await findByTvdbId(options.tmdbApiKey, info.id)) ?? undefined;
       } else if (!tmdbId && info.source === "title") {
         const parts = info.id.split("|");
         const query = parts[0];
         const year = parts[1] ? parseInt(parts[1], 10) : undefined;
-        tmdbId = (await searchMovie(options.tmdbApiKey, query, year)) ?? undefined;
+        const searcher = info.mediaType === "movie" ? searchMovie : searchTv;
+        const searchLabel = info.mediaType === "movie" ? "searchMovie" : "searchTv";
+        debugLog("BG", `META: calling TMDB ${searchLabel} for "${query}" year:${year ?? "none"}`);
+        tmdbId = (await searcher(options.tmdbApiKey, query, year)) ?? undefined;
         if (!tmdbId && year) {
-          tmdbId = (await searchMovie(options.tmdbApiKey, query)) ?? undefined;
+          debugLog("BG", `META: retrying TMDB ${searchLabel} for "${query}" without year`);
+          tmdbId = (await searcher(options.tmdbApiKey, query)) ?? undefined;
         }
       }
-      if (tmdbId) info.tmdbId = tmdbId;
+      if (tmdbId) {
+        debugLog("BG", `META: resolved TMDB ID → ${tmdbId}`);
+        info.tmdbId = tmdbId;
+      }
     }
 
     // Re-check library ownership by resolved TMDB ID
@@ -382,6 +408,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
     if (!tmdbId) {
       // TVDB fallback: fetch metadata directly from TVDB API
       if (info.source === "tvdb" && info.tvdbId && options.tvdbApiKey) {
+        debugLog("BG", `META: no TMDB ID, calling TVDB getSeriesDetails for ${info.tvdbId}`);
         const tvdbDetails = await getSeriesDetails(options.tvdbApiKey, String(info.tvdbId));
         info.title = tvdbDetails.name;
         info.posterUrl = tvdbDetails.image ?? undefined;
@@ -393,6 +420,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
     }
 
     if (info.mediaType === "movie") {
+      debugLog("BG", `META: calling TMDB getMovie for ${tmdbId}`);
       const details = await getMovie(options.tmdbApiKey, tmdbId);
       info.title = details.title;
       info.year = details.release_date ? parseInt(details.release_date.slice(0, 4), 10) : undefined;
@@ -418,10 +446,11 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
           info.collectionOwned = ownedCount;
           info.collectionTotal = collection.parts.length;
         } catch (err) {
-          console.error("Parrot: collection summary fetch failed", err);
+          errorLog("BG", "collection summary fetch failed", err);
         }
       }
     } else {
+      debugLog("BG", `META: calling TMDB getTvShow for ${tmdbId}`);
       const details = await getTvShow(options.tmdbApiKey, tmdbId);
       info.title = details.name;
       info.posterPath = details.poster_path ?? null;
@@ -435,6 +464,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
     // OMDb: fetch IMDb rating if we have an IMDb ID and OMDb key
     if (options.omdbApiKey && info.imdbId) {
       try {
+        debugLog("BG", `META: calling OMDb getImdbRating for ${info.imdbId}`);
         const imdbRating = await getImdbRating(options.omdbApiKey, info.imdbId);
         if (imdbRating !== null) info.imdbRating = imdbRating;
       } catch {
@@ -448,9 +478,9 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
     // 404 = TMDB ID doesn't exist (stale/merged); not worth alarming about
     const msg = String(err);
     if (msg.includes("404")) {
-      console.log(`Parrot: metadata not found on TMDB for ${info.mediaType} tmdb:${info.tmdbId} — skipping enrichment`);
+      debugLog("BG", `metadata not found on TMDB for ${info.mediaType} tmdb:${info.tmdbId} — skipping enrichment`);
     } else {
-      console.error("Parrot: metadata fetch failed", err);
+      errorLog("BG", "metadata fetch failed", err);
     }
   }
 }
@@ -459,16 +489,18 @@ async function setTabIcon(tabId: number, state: IconState) {
   try {
     await browser.action.setIcon({ imageData: getIconImageData(state), tabId });
   } catch (err) {
-    console.error("Parrot: failed to set tab icon", err);
+    errorLog("BG", "failed to set tab icon", err);
   }
 }
 
 export default defineBackground(() => {
   // Set default inactive icon on startup
+  const manifest = browser.runtime.getManifest();
+  debugLog("BG", `v${manifest.version} service worker starting`);
   try {
     browser.action.setIcon({ imageData: getIconImageData("inactive") });
   } catch (err) {
-    console.error("Parrot: failed to set default icon", err);
+    errorLog("BG", "failed to set default icon", err);
   }
 
   browser.runtime.onMessage.addListener(
@@ -556,14 +588,14 @@ export default defineBackground(() => {
             const tabId = sender.tab?.id;
             const index = await loadIndex();
             if (!index) {
-              console.log("Parrot CHECK: no index loaded, returning not owned");
+              debugLog("BG", "CHECK: no index loaded, returning not owned");
               if (tabId) await setTabIcon(tabId, "not-owned");
               sendResponse({ owned: false } satisfies CheckResponse);
               break;
             }
             const result = await handleCheck(message, index);
-            console.log(
-              `Parrot CHECK: ${message.mediaType} ${message.source}:${message.id} → ${result.owned ? "OWNED" : "not owned"}`,
+            debugLog("BG",
+              `CHECK: ${message.mediaType} ${message.source}:${message.id} → ${result.owned ? "OWNED" : "not owned"}`,
               result.owned ? result.item : "",
             );
             if (tabId) await setTabIcon(tabId, result.owned ? "owned" : "not-owned");
@@ -594,7 +626,7 @@ export default defineBackground(() => {
               persistTabMedia(tabId, mediaInfo);
               // Fire-and-forget metadata fetch
               fetchTabMetadata(tabId, mediaInfo).catch((err) =>
-                console.error("Parrot: metadata fetch failed", err),
+                errorLog("BG", "metadata fetch failed", err),
               );
             }
 
@@ -664,7 +696,7 @@ export default defineBackground(() => {
           case "CLEAR_CACHE": {
             await browser.storage.local.clear();
             cachedIndex = null;
-            console.log("Parrot: cache cleared");
+            debugLog("BG", "cache cleared");
             sendResponse({ success: true } satisfies ClearCacheResponse);
             break;
           }
@@ -738,7 +770,7 @@ export default defineBackground(() => {
               // Check cache
               const cachedGaps = await getCachedEpisodeGaps(cacheKey);
               if (cachedGaps) {
-                console.log(`Parrot EPISODES: cache hit for ${cacheKey}`);
+                debugLog("BG", `EPISODES: cache hit for ${cacheKey}`);
                 sendResponse({
                   hasGaps: cachedGaps.seasons.some((s) => s.missing.length > 0),
                   gaps: {
@@ -766,7 +798,7 @@ export default defineBackground(() => {
                     ownedSet.add(`S${ep.seasonNumber}E${ep.episodeNumber}`);
                   }
                 } catch (err) {
-                  console.error(`Parrot: failed to fetch episodes from server ${server.name}`, err);
+                  errorLog("BG", `failed to fetch episodes from server ${server.name}`, err);
                 }
               }
 
@@ -824,7 +856,7 @@ export default defineBackground(() => {
                   });
                 }
 
-                console.log(`Parrot EPISODES: using TVDB for ${message.id}`);
+                debugLog("BG", `EPISODES: using TVDB for ${message.id}`);
               } else {
                 // --- TMDB path: per-season fetching ---
                 let tmdbId: number;
@@ -833,7 +865,7 @@ export default defineBackground(() => {
                 } else {
                   const found = await findByTvdbId(options.tmdbApiKey, message.id);
                   if (!found) {
-                    console.log(`Parrot EPISODES: could not find TMDB ID for TVDB ${message.id}`);
+                    debugLog("BG", `EPISODES: could not find TMDB ID for TVDB ${message.id}`);
                     sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
                     break;
                   }
@@ -886,7 +918,7 @@ export default defineBackground(() => {
                   });
                 }
 
-                console.log(`Parrot EPISODES: using TMDB for ${message.id}`);
+                debugLog("BG", `EPISODES: using TMDB for ${message.id}`);
               }
 
               const totalOwned = seasonGaps.reduce((sum, s) => sum + s.ownedCount, 0);
@@ -907,8 +939,8 @@ export default defineBackground(() => {
               };
               await saveCachedEpisodeGaps(cacheEntry);
 
-              console.log(
-                `Parrot EPISODES: ${showTitle} — ${totalOwned}/${totalEpisodes} episodes, ${completeSeasons}/${seasonGaps.length} seasons complete`,
+              debugLog("BG",
+                `EPISODES: ${showTitle} — ${totalOwned}/${totalEpisodes} episodes, ${completeSeasons}/${seasonGaps.length} seasons complete`,
               );
 
               sendResponse({
@@ -923,7 +955,7 @@ export default defineBackground(() => {
                 },
               } satisfies EpisodeGapResponse);
             } catch (err) {
-              console.error("Parrot: episode check failed", err);
+              errorLog("BG", "episode check failed", err);
               sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
             }
             break;
@@ -954,9 +986,61 @@ export default defineBackground(() => {
               }
               sendResponse({ tmdbId } satisfies FindTmdbIdResponse);
             } catch (err) {
-              console.error("Parrot: FIND_TMDB_ID failed", err);
+              errorLog("BG", "FIND_TMDB_ID failed", err);
               sendResponse({ tmdbId: null } satisfies FindTmdbIdResponse);
             }
+            break;
+          }
+
+          case "PLEX_LOOKUP": {
+            const index = await loadIndex();
+            if (!index) {
+              sendResponse({ found: false } satisfies PlexLookupResponse);
+              break;
+            }
+
+            const { machineIdentifier, ratingKey } = message;
+            let foundMediaType: "movie" | "show" | undefined;
+            let foundItem: OwnedItem | undefined;
+
+            for (const item of index.items) {
+              if (item.plexKeys[machineIdentifier] === ratingKey) {
+                foundItem = item;
+                // Determine media type from which maps contain this item
+                const itemIdx = index.items.indexOf(item);
+                const inMovies = Object.values(index.movies.byTmdbId).includes(itemIdx)
+                  || Object.values(index.movies.byImdbId).includes(itemIdx)
+                  || Object.values(index.movies.byTitle).includes(itemIdx);
+                foundMediaType = inMovies ? "movie" : "show";
+                break;
+              }
+            }
+
+            if (!foundItem || !foundMediaType) {
+              debugLog("BG", `PLEX_LOOKUP: ${machineIdentifier}:${ratingKey} → not found in index`);
+              sendResponse({ found: false } satisfies PlexLookupResponse);
+              break;
+            }
+
+            // Return best external ID for a subsequent CHECK
+            let source: "tmdb" | "imdb" | "tvdb" | undefined;
+            let id: string | undefined;
+            if (foundMediaType === "movie") {
+              if (foundItem.tmdbId) { source = "tmdb"; id = String(foundItem.tmdbId); }
+              else if (foundItem.imdbId) { source = "imdb"; id = foundItem.imdbId; }
+            } else {
+              if (foundItem.tvdbId) { source = "tvdb"; id = String(foundItem.tvdbId); }
+              else if (foundItem.tmdbId) { source = "tmdb"; id = String(foundItem.tmdbId); }
+              else if (foundItem.imdbId) { source = "imdb"; id = foundItem.imdbId; }
+            }
+
+            debugLog("BG", `PLEX_LOOKUP: ${machineIdentifier}:${ratingKey} → ${foundMediaType} ${source}:${id}`);
+            sendResponse({
+              found: true,
+              mediaType: foundMediaType,
+              source,
+              id,
+            } satisfies PlexLookupResponse);
             break;
           }
 
@@ -1030,8 +1114,8 @@ export default defineBackground(() => {
                 break;
               }
 
-              console.log(
-                `Parrot COLLECTION: ${collection.name} — ${ownedMovies.length}/${parts.length} owned, ${missingMovies.length} missing`,
+              debugLog("BG",
+                `COLLECTION: ${collection.name} — ${ownedMovies.length}/${parts.length} owned, ${missingMovies.length} missing`,
               );
 
               sendResponse({
@@ -1044,7 +1128,7 @@ export default defineBackground(() => {
                 },
               } satisfies CollectionCheckResponse);
             } catch (err) {
-              console.error("Parrot: collection check failed", err);
+              errorLog("BG", "collection check failed", err);
               sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
             }
             break;

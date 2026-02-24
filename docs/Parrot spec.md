@@ -2,7 +2,7 @@
 
 ## Overview
 
-Parrot is a browser extension that tells you whether media you're browsing on the web is already in your Plex library. When you land on a movie or TV show page on a supported site, Parrot shows a badge indicating whether you own it or not. For owned TV shows, it can also show which episodes you're missing. For movies in TMDB collections, it shows which other movies in the collection you own or are missing.
+Parrot is a browser extension that tells you whether media you're browsing on the web is already in your Plex library. When you land on a movie or TV show page on a supported site, Parrot shows a badge indicating whether it's in your library. For TV shows in your library, it can also show which episodes you're missing. For movies in TMDB collections, it shows which other movies in the collection are in your library and which are missing.
 
 **Companion to ComPlexionist** — ComPlexionist finds gaps in your library; Parrot prevents you from hunting for something you already have.
 
@@ -17,11 +17,11 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 2. Content script extracts the media's external ID from the page URL or DOM
 3. Extension sends a `CHECK` message to the service worker
 4. Service worker looks up the ID in a cached index of the user's Plex library
-5. Response flows back with ownership status and deep-link data
-6. Content script injects an ownership badge next to the title
-7. Toolbar icon updates per-tab to reflect ownership state
+5. Response flows back with library status and deep-link data
+6. Content script injects a library status badge next to the title
+7. Toolbar icon updates per-tab to reflect library status
 8. For movies: if part of a TMDB collection, a collection gap panel may appear
-9. For TV shows: if owned but missing episodes, an episode gap panel may appear
+9. For TV shows: if in library but missing episodes, an episode gap panel may appear
 
 ---
 
@@ -169,7 +169,7 @@ parrot/
 - Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker
 - Injects smart badge into the page DOM (wrapper+pill architecture)
-- Triggers gap detection via shared `checkGaps()` for owned items
+- Triggers gap detection via shared `checkGaps()` for items in the library
 - SPA-aware: uses shared `observeUrlChanges()` on TMDB/IMDb/TVDB/Trakt/JustWatch
 
 **Options Page (`options/`)**
@@ -197,7 +197,7 @@ parrot/
 ```
 Content Script → Message → Service Worker → Library Index / API Clients
                                 ↓
-                          Response (ownership, gaps)
+                          Response (library status, gaps)
                                 ↓
 Badge + Panel + Icon ← Content Script
 ```
@@ -295,12 +295,12 @@ function extractExternalIds(guids: Array<{id: string}>): ExternalIds {
 
 ### Deep Linking
 
-When a user owns media, the badge links directly to it in Plex Web:
+When media is in the user's library, the badge links directly to it in Plex Web:
 ```
 https://app.plex.tv/desktop/#!/server/{machineIdentifier}/details?key=%2Flibrary%2Fmetadata%2F{ratingKey}
 ```
 
-The `machineIdentifier` is fetched once during server setup (from `GET /`) and used as the stable server ID (`PlexServerConfig.id`). When an item exists on multiple servers, the deep link points to the first (highest-priority) server that owns it. The `ratingKey` comes from the library item data.
+The `machineIdentifier` is fetched once during server setup (from `GET /`) and used as the stable server ID (`PlexServerConfig.id`). When an item exists on multiple servers, the deep link points to the first (highest-priority) server that has it. The `ratingKey` comes from the library item data.
 
 ---
 
@@ -319,6 +319,7 @@ Auth: API key as query param (`?api_key={key}`). Base URL: `https://api.themovie
 | `findByTvdbId` | `GET /find/{tvdbId}?external_source=tvdb_id` | Convert TVDB ID to TMDB ID |
 | `findByImdbId` | `GET /find/{imdbId}?external_source=imdb_id` | Convert IMDb ID to TMDB ID (media-type-aware) |
 | `searchMovie` | `GET /search/movie?query={q}&year={y}` | Search movie by title + optional year |
+| `searchTv` | `GET /search/tv?query={q}&first_air_date_year={y}` | Search TV show by title + optional year |
 | `validateTmdbKey` | `GET /configuration` | Key validation (200 = valid) |
 
 ### TVDB v4 (`src/api/tvdb.ts`) — Optional
@@ -411,7 +412,7 @@ Two-step lookup: `map[id]` → index → `items[index]` → `OwnedItem`.
 3. Store the full index in `browser.storage.local`
 4. Cache in-memory for fast lookups (avoid hitting storage on every CHECK)
 
-When resolving a Plex deep link, servers are checked in priority order (array position). The first server that owns the item provides the link.
+When resolving a Plex deep link, servers are checked in priority order (array position). The first server that has the item provides the link.
 
 ### Title Normalization
 
@@ -456,21 +457,21 @@ Lookup tries `"title|year"` first, falls back to `"title"` only.
 
 ### Collection Gaps (TMDB Movies)
 
-When viewing a movie page on any supported site, Parrot checks if the movie belongs to a TMDB collection. The collection panel appears for any movie in a partially-owned collection (not just movies you own). The badge upgrades from gray to gold `Plex : Incomplete` when a not-owned movie belongs to a collection where you own at least some entries.
+When viewing a movie page on any supported site, Parrot checks if the movie belongs to a TMDB collection. The collection panel appears for any movie in a partially-complete collection (not just movies in your library). The badge upgrades from gray to gold `Plex : Incomplete` when a movie not in your library belongs to a collection where you have at least some entries.
 
-- Triggered by `CHECK_COLLECTION` message after ownership badge (for all movies, not just owned)
+- Triggered by `CHECK_COLLECTION` message after library status badge (for all movies, not just those in library)
 - Uses TMDB API (`getMovie` → `getCollection`)
 - Collection data cached 30 days in `storage.local`
 - Respects `excludeFuture` and `minCollectionSize`/`minOwned` options
-- Panel shows owned movies (gold checkmark, Plex deep link) and missing movies (gray X)
+- Panel shows movies in library (gold checkmark, Plex deep link) and missing movies (gray X)
 - Cross-reference fallback: if a direct IMDb/TVDB lookup misses, Parrot resolves to TMDB ID via the TMDB API and retries
 - Title-based sources (PSA, RT, JustWatch, Metacritic title fallback) resolve to TMDB ID via TMDB search by title+year through `FIND_TMDB_ID` with `source: "title"`
 
 ### Episode Gaps (TV Shows)
 
-When viewing a TV show page on TMDB or TVDB, if the user owns the show but is missing episodes, a collapsible season-level panel appears.
+When viewing a TV show page on TMDB or TVDB, if the show is in the user's library but missing episodes, a collapsible season-level panel appears.
 
-- Triggered by `CHECK_EPISODES` message after ownership badge (for owned shows only)
+- Triggered by `CHECK_EPISODES` message after library status badge (for shows in library only)
 - Source-based API routing:
   - TVDB pages with TVDB key configured → TVDB v4 API (direct, accurate numbering)
   - TVDB pages without TVDB key → falls back to TMDB API via ID conversion
@@ -519,17 +520,17 @@ A compact pill badge injected next to the title element on each supported page. 
 
 | State | Appearance | Interaction |
 |-------|-----------|-------------|
-| Not owned | `[Plex]` gray | None |
-| Not owned + incomplete collection | `[Plex : Incomplete]` gold | "Plex" links to Plex, "Incomplete" toggles collection panel |
-| Owned (no gap data) | `[Plex]` gold | Click opens Plex |
-| Owned + complete | `[Plex : Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
-| Owned + incomplete | `[Plex : Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |
+| Not in library | `[Plex]` gray | None |
+| Not in library + incomplete collection | `[Plex : Incomplete]` gold | "Plex" links to Plex, "Incomplete" toggles collection panel |
+| In library (no gap data) | `[Plex]` gold | Click opens Plex |
+| In library + complete | `[Plex : Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
+| In library + incomplete | `[Plex : Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |
 
 When ratings are available (TMDB and/or IMDb via OMDb), the averaged score appears after "Plex" text: `[Plex 7.2]` or `[Plex 7.2 : Complete]`. Ratings are delivered asynchronously via a `RATINGS_READY` message from the background and rendered with a gold accent color.
 
 **Styling:**
-- **Owned:** Dark pill (`#282828`), gold Plex chevron icon (inline SVG), white "Plex" text, gold border (`#ebaf00`)
-- **Not owned:** Dark pill (`#3a3a3a`), gray Plex chevron, gray text, gray border (`#555`)
+- **In library:** Dark pill (`#282828`), gold Plex chevron icon (inline SVG), white "Plex" text, gold border (`#ebaf00`)
+- **Not in library:** Dark pill (`#3a3a3a`), gray Plex chevron, gray text, gray border (`#555`)
 - **Error:** Red pill (`#f44336`) with white "!" text and tooltip
 
 When gap data is available, the pill transitions to split-click mode: the left zone ("Plex" + icon) is an `<a>` link to Plex Web, and the right zone (": Complete" or ": Incomplete") toggles the floating gap panel.
@@ -550,9 +551,9 @@ Shown when viewing a movie that belongs to a TMDB collection:
 
 ```
 +-------------------------------------------+
-| > Spy Saga Collection -- 2 of 5 owned     |  <- collapsed by default
+| > Spy Saga Collection -- 2 of 5 in library |  <- collapsed by default
 +-------------------------------------------+
-|  [check] The First Mission (2002)  [Plex] |  <- owned, links to Plex
+|  [check] The First Mission (2002)  [Plex] |  <- in library, links to Plex
 |  [check] The Sequel (2004)         [Plex] |
 |  [x] The Third One (2007)                 |  <- missing
 |  [x] The Reboot (2012)                    |
@@ -562,7 +563,7 @@ Shown when viewing a movie that belongs to a TMDB collection:
 
 ### Episode Gap Panel
 
-Shown when viewing an owned TV show with missing episodes:
+Shown when viewing a TV show in your library with missing episodes:
 
 ```
 +----------------------------------------------+
@@ -580,8 +581,8 @@ Shown when viewing an owned TV show with missing episodes:
 
 The extension toolbar icon is a rounded "P" drawn dynamically via `OffscreenCanvas` at multiple resolutions (16, 32, 48, 128px):
 
-- **Owned:** Black background, gold border, white P
-- **Not owned:** Dark gray background, gray border, gray P
+- **In library:** Black background, gold border, white P
+- **Not in library:** Dark gray background, gray border, gray P
 - **Inactive:** Light gray background, gray border, dark gray P (default state)
 
 Icon state is set per-tab based on CHECK results.
@@ -610,7 +611,7 @@ Full-tab settings page with four sections:
 - Toggle: "Exclude future/unreleased movies" (default: on)
 - Toggle: "Exclude specials (Season 0)" (default: on)
 - Number input: "Minimum collection size" (default: 2, min: 2)
-- Number input: "Minimum owned to show gaps" (default: 2, min: 1)
+- Number input: "Minimum in library to show gaps" (default: 2, min: 1)
 
 ### 4. Supported Sites
 - Table of built-in and custom site definitions

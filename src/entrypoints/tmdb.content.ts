@@ -56,6 +56,7 @@ export default defineContentScript({
   ],
   runAt: "document_idle",
   main() {
+    debugLog("TMDB", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
 
     // TMDB is an SPA — re-check on navigation (debounced)

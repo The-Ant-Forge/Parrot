@@ -2,7 +2,7 @@ import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } fro
 import { waitForElement } from "../common/dom-utils";
 import { extractTraktMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
-import { errorLog } from "../common/logger";
+import { debugLog, errorLog } from "../common/logger";
 import { observeUrlChanges } from "../common/url-observer";
 import type { CheckResponse } from "../common/types";
 
@@ -10,6 +10,7 @@ async function checkAndBadge() {
   removeBadge();
 
   const mediaType = extractTraktMediaType(location.pathname);
+  debugLog("TraktApp", "checking", location.href, "→ type:", mediaType ?? "unknown");
   if (!mediaType) return;
 
   // Wait for SvelteKit to render the title
@@ -20,6 +21,7 @@ async function checkAndBadge() {
   await new Promise((r) => setTimeout(r, 500));
 
   const extId = scanLinksForExternalId();
+  debugLog("TraktApp", "link scan →", extId ? extId.source + ":" + extId.id : "no links");
   if (!extId) return;
 
   const badge = injectBadge(anchor);
@@ -44,6 +46,7 @@ async function checkAndBadge() {
       });
     }
 
+    debugLog("TraktApp", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || resolvedType === "movie") {
@@ -64,6 +67,7 @@ export default defineContentScript({
   matches: ["*://app.trakt.tv/movies/*", "*://app.trakt.tv/shows/*"],
   runAt: "document_idle",
   main() {
+    debugLog("TraktApp", "v" + browser.runtime.getManifest().version, "loaded");
     checkAndBadge();
     observeUrlChanges(checkAndBadge);
   },

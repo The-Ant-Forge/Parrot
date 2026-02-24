@@ -659,6 +659,13 @@ resetSitesBtn.addEventListener("click", async () => {
   customSites = await getCustomSites();
   renderSitesTable();
 
+  // Show version in footer
+  const manifest = browser.runtime.getManifest();
+  const footer = document.getElementById("versionFooter");
+  if (footer && manifest.version) {
+    footer.textContent = `Parrot v${manifest.version}`;
+  }
+
   // Test all servers on page load
   if (servers.length > 0) {
     const testResult: TestAllServersResponse = await browser.runtime.sendMessage({

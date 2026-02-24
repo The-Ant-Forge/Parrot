@@ -73,7 +73,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/)
 src/
 ├── entrypoints/
 │   ├── background.ts              # Library index cache, Plex API proxy
-│   ├── *.content.ts               # 16 content scripts (one per supported site)
+│   ├── *.content.ts               # Content scripts (one per supported site)
 │   ├── options/                   # Full-tab options page
 │   └── popup/                     # Settings/status popup
 ├── api/
@@ -104,9 +104,9 @@ src/
 1. Content script extracts media ID from URL/DOM (via `extractors.ts`)
 2. Sends message to service worker: `{ type: "CHECK", mediaType: "movie", source: "tmdb", id: "550" }`
 3. Service worker checks cached library index
-4. Returns ownership status + plexUrl
+4. Returns library status + plexUrl
 5. Content script injects smart badge (wrapper+pill architecture)
-6. For owned items, `gap-checker.ts` triggers collection or episode gap detection
+6. For items in library, `gap-checker.ts` triggers collection or episode gap detection
 7. Gap data delivered to badge via `setBadgeGapData()` as floating panel
 
 ### Library Index (Compact, Multi-Server)
@@ -223,26 +223,28 @@ Never use real movie or tv show names. Always make up example ones.
 
 | Site | URL pattern | ID type |
 |------|-------------|---------|
-| TMDB | `themoviedb.org/movie/{id}` | TMDB numeric |
-| TMDB | `themoviedb.org/tv/{id}` | TMDB numeric |
 | IMDb | `imdb.com/title/{ttID}` | IMDb string |
-| TVDB | `thetvdb.com/series/{slug}` | TVDB numeric (from DOM) |
-| TVDB | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |
+| JustWatch | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) |
+| JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
+| Letterboxd | `letterboxd.com/film/{slug}` | TMDB/IMDb (from page links) |
+| Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
+| Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
+| NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), breadcrumb for media type |
 | NZBGeek | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb (from page links) |
 | NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
-| NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), breadcrumb for media type |
-| RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
+| Plex | `app.plex.tv/#!/server/*/details` | PlexKey from URL hash (index lookup) |
+| Plex | `app.plex.tv/#!/provider/*/details` | Link scan / title-based fallback (discover) |
 | PSA | `psa.wf/movie/{slug}` | Title-based matching from URL slug |
 | PSA | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug |
-| Letterboxd | `letterboxd.com/film/{slug}` | TMDB/IMDb (from page links) |
+| RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
+| Rotten Tomatoes | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
+| Rotten Tomatoes | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
+| TMDB | `themoviedb.org/movie/{id}` | TMDB numeric |
+| TMDB | `themoviedb.org/tv/{id}` | TMDB numeric |
 | Trakt | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB (from page links) |
 | Trakt | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB (from page links) |
 | Trakt App | `app.trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB (from page links, SvelteKit SPA) |
 | Trakt App | `app.trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB (from page links, SvelteKit SPA) |
-| Rotten Tomatoes | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
-| Rotten Tomatoes | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
-| JustWatch | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) |
-| JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
-| Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
-| Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
+| TVDB | `thetvdb.com/series/{slug}` | TVDB numeric (from DOM) |
+| TVDB | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |
 | TVMaze | `tvmaze.com/shows/{id}` | TVDB/IMDb via TVMaze API (free, no key) |
