@@ -1,4 +1,4 @@
-import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps } from "../common/storage";
+import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps, clearEpisodeGapCache } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie, searchTv } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
@@ -503,6 +503,15 @@ export default defineBackground(() => {
     errorLog("BG", "failed to set default icon", err);
   }
 
+  // Clear episode gap cache on extension update (stale entries may use old logic)
+  browser.runtime.onInstalled.addListener((details) => {
+    if (details.reason === "update") {
+      clearEpisodeGapCache().then(() => {
+        debugLog("BG", "episode gap cache cleared after extension update");
+      }).catch(() => {});
+    }
+  });
+
   browser.runtime.onMessage.addListener(
     (message: Message, sender, sendResponse) => {
       (async () => {
@@ -821,7 +830,8 @@ export default defineBackground(() => {
                 const bySeason = new Map<number, typeof allEpisodes>();
                 for (const ep of allEpisodes) {
                   if (options.excludeSpecials && ep.seasonNumber === 0) continue;
-                  if (options.excludeFuture && (!ep.aired || ep.aired >= today)) continue;
+                  const tvdbKey = `S${ep.seasonNumber}E${ep.number}`;
+                  if (options.excludeFuture && !ownedSet.has(tvdbKey) && (!ep.aired || ep.aired >= today)) continue;
                   const list = bySeason.get(ep.seasonNumber) ?? [];
                   list.push(ep);
                   bySeason.set(ep.seasonNumber, list);
@@ -889,7 +899,10 @@ export default defineBackground(() => {
                   let episodes = tmdbSeason.episodes;
 
                   if (options.excludeFuture) {
-                    episodes = episodes.filter((ep) => ep.air_date && ep.air_date < today);
+                    episodes = episodes.filter((ep) => {
+                      const key = `S${season.season_number}E${ep.episode_number}`;
+                      return ownedSet.has(key) || (ep.air_date && ep.air_date < today);
+                    });
                   }
 
                   if (episodes.length === 0) continue;

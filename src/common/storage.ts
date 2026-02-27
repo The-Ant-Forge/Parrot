@@ -84,6 +84,10 @@ export async function saveCachedEpisodeGaps(entry: EpisodeGapCacheEntry): Promis
   await browser.storage.local.set({ [EPISODE_GAP_CACHE_KEY]: cache });
 }
 
+export async function clearEpisodeGapCache(): Promise<void> {
+  await browser.storage.local.remove(EPISODE_GAP_CACHE_KEY);
+}
+
 // --- Custom sites ---
 
 const CUSTOM_SITES_KEY = "customSites";
