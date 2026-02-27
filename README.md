@@ -34,7 +34,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 | **JustWatch** | Title matching from h1 text |
 | **Letterboxd** | TMDB/IMDb from page links |
 | **Metacritic** | IMDb from JSON-LD sameAs, title matching fallback |
-| **NZBForYou** | IMDb from page links |
+| **NZBForYou** | IMDb from page links, link scan fallback (TMDB/TVDB/TVMaze) |
 | **NZBGeek** | TMDB/IMDb/TVDB from page links |
 | **Plex** | PlexKey from URL (server items), link scan/title fallback (discover) |
 | **PSA** | Title matching from URL slug |

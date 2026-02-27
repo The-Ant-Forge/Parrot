@@ -1,5 +1,5 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
-import { extractImdbId } from "../common/extractors";
+import { extractImdbId, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
@@ -26,15 +26,35 @@ function findImdbId(): string | null {
 async function checkAndBadge() {
   removeBadge();
 
+  // Waterfall: try IMDb first (most common on this site), then link scan
   const imdbId = findImdbId();
-  debugLog("NZBForYou", "checking", location.href, "→", imdbId ?? "no IMDb ID");
-  if (!imdbId) return;
+  let source: string | undefined;
+  let id: string | undefined;
+  let scanMediaType: "movie" | "show" | undefined;
+
+  if (imdbId) {
+    source = "imdb";
+    id = imdbId;
+    debugLog("NZBForYou", "checking", location.href, "→ imdb:" + imdbId);
+  } else {
+    // Fallback: scan for TMDB, TVDB, or TVMaze links
+    const extId = scanLinksForExternalId();
+    if (extId) {
+      source = extId.source;
+      id = extId.id;
+      scanMediaType = extId.mediaType;
+      debugLog("NZBForYou", "checking", location.href, "→ link scan:", extId.source + ":" + extId.id);
+    } else {
+      debugLog("NZBForYou", "checking", location.href, "→ no ID found");
+      return;
+    }
+  }
 
   const anchor = document.querySelector("h3.first");
   if (!anchor) return;
 
   const badge = injectBadge(anchor);
-  let resolvedType = getMediaType();
+  let resolvedType = getMediaType() ?? scanMediaType ?? null;
 
   try {
     let response: CheckResponse;
@@ -43,38 +63,38 @@ async function checkAndBadge() {
       response = await browser.runtime.sendMessage({
         type: "CHECK",
         mediaType: resolvedType,
-        source: "imdb",
-        id: imdbId,
+        source,
+        id,
       });
     } else {
-      // No breadcrumb hint — try movie first, then show
+      // No media type hint — try movie first, then show
       resolvedType = "movie";
       response = await browser.runtime.sendMessage({
         type: "CHECK",
         mediaType: "movie",
-        source: "imdb",
-        id: imdbId,
+        source,
+        id,
       });
       if (!response.owned) {
         resolvedType = "show";
         response = await browser.runtime.sendMessage({
           type: "CHECK",
           mediaType: "show",
-          source: "imdb",
-          id: imdbId,
+          source,
+          id,
         });
       }
     }
 
-    debugLog("NZBForYou", resolvedType, "imdb:" + imdbId, response.owned ? "OWNED" : "not owned");
+    debugLog("NZBForYou", resolvedType, source + ":" + id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     // Gap detection: always for movies (collection check), owned-only for shows
     if (resolvedType && (response.owned || resolvedType === "movie")) {
       checkGaps({
         mediaType: resolvedType,
-        source: "imdb",
-        id: imdbId,
+        source,
+        id,
         response,
       });
     }

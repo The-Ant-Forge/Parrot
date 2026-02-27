@@ -308,7 +308,7 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   }
 
   // Media type tag (title row, floated right)
-  mediaTypeTag.textContent = media.mediaType === "movie" ? "Movie" : "TV Series";
+  mediaTypeTag.textContent = media.mediaType === "movie" ? "Movie" : "Show";
   mediaTypeTag.hidden = false;
 
   // Source ID tags

@@ -229,7 +229,7 @@ Never use real movie or tv show names. Always make up example ones.
 | Letterboxd | `letterboxd.com/film/{slug}` | TMDB/IMDb (from page links) |
 | Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
 | Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
-| NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), breadcrumb for media type |
+| NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), link scan fallback (TMDB/TVDB/TVMaze) |
 | NZBGeek | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb (from page links) |
 | NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
 | Plex | `app.plex.tv/#!/server/*/details` | PlexKey from URL hash (index lookup) |

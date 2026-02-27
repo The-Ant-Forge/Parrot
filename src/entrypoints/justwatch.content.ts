@@ -28,7 +28,7 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   // Strategy 1: external ID (link scanning)
-  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
+  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb", "tvdb", "tvmaze"] });
   debugLog("JustWatch", "strategy 1 (links) →", extId ? extId.source + ":" + extId.id : "no links");
   if (extId) {
     try {

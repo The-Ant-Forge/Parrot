@@ -7,7 +7,7 @@ import type { CheckResponse } from "../common/types";
 async function checkAndBadge() {
   removeBadge();
 
-  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb"] });
+  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb", "tvdb", "tvmaze"] });
   debugLog("Letterboxd", "checking", location.href, "→", extId ? extId.source + ":" + extId.id : "no links");
   if (!extId) return;
 

@@ -37,7 +37,7 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **NZBGeek** | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb from page links | `span.overlay_title` |
 | **NZBGeek** | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB from page links | `span.overlay_title` |
 | **RARGB** | `rargb.to/torrent/*` | TMDB/IMDb/TVDB from page links | `h1` |
-| **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links | `h3.first` |
+| **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links (link scan fallback) | `h3.first` |
 | **PSA** | `psa.wf/movie/{slug}` | Title-based matching from URL slug | `h1.post-title` |
 | **PSA** | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug | `h1.post-title` |
 | **Letterboxd** | `letterboxd.com/film/{slug}` | TMDB/IMDb from page links | `h1.headline-1` |
@@ -64,7 +64,7 @@ url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
 url.match(/imdb\.com\/title\/(tt\d+)/);
 ```
 
-**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB movies): The page contains links to external databases (TMDB, IMDb, TVDB). A shared `scanLinksForExternalId()` function scans `<a>` elements for matching hrefs. When multiple ID types are found on the same page, **source authority priority** determines which is returned: IMDb > TVDB > TMDB (reduces cross-reference failures). Individual sites can scope the scan to a DOM container (e.g., RARGB scopes to `#description` to avoid sidebar noise). Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`).
+**Link-scanning** (NZBGeek, RARGB, NZBForYou, Letterboxd, Trakt, Trakt App, TVDB movies): The page contains links to external databases (TMDB, IMDb, TVDB, TVMaze). A shared `scanLinksForExternalId()` function scans `<a>` elements for matching hrefs. When multiple ID types are found on the same page, **source authority priority** determines which is returned: IMDb > TVDB > TMDB > TVMaze (reduces cross-reference failures). Individual sites can scope the scan to a DOM container (e.g., RARGB scopes to `#description` to avoid sidebar noise). Handles both new-style TVDB URLs (`/series/12345`) and old-style query parameter format (`?tab=series&id=12345`). NZBForYou uses a waterfall: IMDb-specific scan first (fast path), then `scanLinksForExternalId()` as fallback to catch TMDB, TVDB, or TVMaze links.
 
 **DOM metadata** (TVDB): Numeric TVDB ID is extracted from links within the page (e.g., `/series/{id}/edit`), not the URL slug.
 

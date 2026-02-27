@@ -79,7 +79,7 @@ export function extractNzbgeekMediaType(search: string): "movie" | "show" | null
  * then fall back to page link scanning.
  */
 export function findExternalIdFromJsonLd(
-  linkSources?: ("tmdb" | "imdb" | "tvdb")[],
+  linkSources?: ExternalIdSource[],
 ): ExternalIdFromLink | null {
   const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
   for (const script of ldScripts) {
@@ -97,34 +97,36 @@ export function findExternalIdFromJsonLd(
   }
 
   // Fallback: scan DOM links
-  return scanLinksForExternalId({ sources: linkSources ?? ["tmdb", "imdb"] });
+  return scanLinksForExternalId({ sources: linkSources ?? ["tmdb", "imdb", "tvmaze"] });
 }
 
 // --- DOM-based link scanner ---
 
+export type ExternalIdSource = "tmdb" | "imdb" | "tvdb" | "tvmaze";
+
 export interface ExternalIdFromLink {
-  source: "tmdb" | "imdb" | "tvdb";
+  source: ExternalIdSource;
   id: string;
   mediaType?: "movie" | "show";
 }
 
-const ALL_SOURCES: ("tmdb" | "imdb" | "tvdb")[] = ["tmdb", "imdb", "tvdb"];
+const ALL_SOURCES: ExternalIdSource[] = ["tmdb", "imdb", "tvdb", "tvmaze"];
 
-/** Authority ranking: IMDb > TVDB > TMDB. Lower = higher authority. */
-const SOURCE_PRIORITY: Record<string, number> = { imdb: 0, tvdb: 1, tmdb: 2 };
+/** Authority ranking: IMDb > TVDB > TMDB > TVMaze. Lower = higher authority. */
+const SOURCE_PRIORITY: Record<string, number> = { imdb: 0, tvdb: 1, tmdb: 2, tvmaze: 3 };
 
 /**
- * Scan <a> elements for TMDB, IMDb, or TVDB links.
+ * Scan <a> elements for TMDB, IMDb, TVDB, or TVMaze links.
  *
  * Collects the first match per source, then returns the highest-authority
- * one (IMDb > TVDB > TMDB). This prevents a stray TMDB sidebar link from
- * overriding the correct IMDb link further down the page.
+ * one (IMDb > TVDB > TMDB > TVMaze). This prevents a stray sidebar link
+ * from overriding the correct link further down the page.
  *
- * @param options.sources — restrict which sources to check (default: all three)
+ * @param options.sources — restrict which sources to check (default: all four)
  * @param options.container — scope the scan to a DOM subtree (default: document)
  */
 export function scanLinksForExternalId(
-  options?: { sources?: ("tmdb" | "imdb" | "tvdb")[]; container?: ParentNode },
+  options?: { sources?: ExternalIdSource[]; container?: ParentNode },
 ): ExternalIdFromLink | null {
   const sources = options?.sources ?? ALL_SOURCES;
   const root = options?.container ?? document;
@@ -153,6 +155,11 @@ export function scanLinksForExternalId(
         const tvdbQueryMatch = href.match(/thetvdb\.com\/.*[?&]id=(\d+)/);
         if (tvdbQueryMatch) found.set("tvdb", { source: "tvdb", id: tvdbQueryMatch[1], mediaType: "show" });
       }
+    }
+
+    if (sources.includes("tvmaze") && !found.has("tvmaze")) {
+      const tvmaze = extractTvmazeFromUrl(href);
+      if (tvmaze) found.set("tvmaze", { source: "tvmaze", id: tvmaze.id, mediaType: "show" });
     }
 
     if (found.size === sources.length) break;
