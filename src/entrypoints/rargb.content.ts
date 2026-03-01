@@ -41,13 +41,11 @@ async function checkAndBadge() {
     debugLog("RARGB", mediaType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
-    if (response.owned || mediaType === "movie") {
-      checkGaps({
-        mediaType,
-        source: extId.source,
-        id: extId.id,
-        response,
-      });
+    if (response.owned) {
+      checkGaps({ mediaType, source: extId.source, id: extId.id, response });
+    } else {
+      // Not owned — always try movie collection check (IMDb fallback may have flipped type)
+      checkGaps({ mediaType: "movie", source: extId.source, id: extId.id, response });
     }
   } catch (err) {
     errorLog("RARGB", err);

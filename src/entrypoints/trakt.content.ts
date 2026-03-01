@@ -47,13 +47,11 @@ async function checkAndBadge() {
     debugLog("Trakt", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
-    if (response.owned || resolvedType === "movie") {
-      checkGaps({
-        mediaType: resolvedType,
-        source: extId.source,
-        id: extId.id,
-        response,
-      });
+    if (response.owned) {
+      checkGaps({ mediaType: resolvedType, source: extId.source, id: extId.id, response });
+    } else {
+      // Not owned — always try movie collection check
+      checkGaps({ mediaType: "movie", source: extId.source, id: extId.id, response });
     }
   } catch (err) {
     errorLog("Trakt", err);

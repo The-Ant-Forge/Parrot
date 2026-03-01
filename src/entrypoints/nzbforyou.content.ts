@@ -66,6 +66,20 @@ async function checkAndBadge() {
         source,
         id,
       });
+      // Breadcrumb hint missed — try opposite media type
+      if (!response.owned) {
+        const opposite = resolvedType === "movie" ? "show" : "movie";
+        const altResponse: CheckResponse = await browser.runtime.sendMessage({
+          type: "CHECK",
+          mediaType: opposite,
+          source,
+          id,
+        });
+        if (altResponse.owned) {
+          resolvedType = opposite;
+          response = altResponse;
+        }
+      }
     } else {
       // No media type hint — try movie first, then show
       resolvedType = "movie";
@@ -89,14 +103,14 @@ async function checkAndBadge() {
     debugLog("NZBForYou", resolvedType, source + ":" + id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
-    // Gap detection: always for movies (collection check), owned-only for shows
-    if (resolvedType && (response.owned || resolvedType === "movie")) {
-      checkGaps({
-        mediaType: resolvedType,
-        source,
-        id,
-        response,
-      });
+    // Gap detection: owned shows get episode check; movies always get collection check.
+    // NZBForYou breadcrumbs can misidentify type, so for unowned items always try
+    // movie collection check too (checkGaps handles movie vs show logic internally).
+    if (resolvedType && response.owned) {
+      checkGaps({ mediaType: resolvedType, source, id, response });
+    } else {
+      // Not owned — always try movie collection check
+      checkGaps({ mediaType: "movie", source, id, response });
     }
   } catch (err) {
     errorLog("NZBForYou", err);
