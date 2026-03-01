@@ -145,8 +145,40 @@ button.primary:hover:not(:disabled) {
 }
 
 .status-pills {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 4px;
+}
+
+.library-summary {
+  flex: 1;
   display: flex;
-  gap: 4px;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.refresh-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+  line-height: 1.3;
+}
+
+.refresh-btn .sync-info {
+  font-size: 9px;
+  color: #999;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.refresh-btn .refresh-label {
+  font-size: 11px;
+}
+
+.refresh-btn:hover .sync-info {
+  color: #bbb;
 }
 
 .status-pill {
@@ -174,10 +206,6 @@ button.primary:hover:not(:disabled) {
 
 .status-pill.active {
   color: #ccc;
-}
-
-.spacer {
-  flex: 1;
 }
 
 /* --- Media card --- */
@@ -305,19 +333,3 @@ a.id-tag:hover {
   background: #444;
 }
 
-/* --- Footer --- */
-
-.footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.footer button {
-  flex-shrink: 0;
-}
-
-#footerInfo {
-  font-size: 11px;
-  color: #777;
-}

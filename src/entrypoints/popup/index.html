@@ -42,8 +42,14 @@
 
         <div class="status-bar">
           <div class="status-pills" id="statusPills"></div>
-          <span class="spacer"></span>
-          <span id="librarySummary"></span>
+          <div class="library-summary" id="librarySummary">
+            <span id="movieCount"></span>
+            <span id="showCount"></span>
+          </div>
+          <button id="refreshBtn" class="refresh-btn">
+            <span id="syncInfo" class="sync-info"></span>
+            <span class="refresh-label">Refresh</span>
+          </button>
         </div>
 
         <div id="mediaCard" class="media-card" hidden>
@@ -59,11 +65,6 @@
               <div id="mediaIds" class="media-ids"></div>
             </div>
           </div>
-        </div>
-
-        <div class="footer">
-          <button id="refreshBtn">Refresh</button>
-          <span id="footerInfo"></span>
         </div>
 
         <div id="dashFeedback" class="feedback" hidden></div>

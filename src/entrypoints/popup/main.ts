@@ -22,7 +22,9 @@ const setupFeedback = $<HTMLDivElement>("setupFeedback");
 const dashboardView = $<HTMLDivElement>("dashboardView");
 const settingsLink = $<HTMLAnchorElement>("settingsLink");
 const statusPills = $<HTMLDivElement>("statusPills");
-const librarySummary = $<HTMLSpanElement>("librarySummary");
+const librarySummary = $<HTMLDivElement>("librarySummary");
+const movieCountEl = $<HTMLSpanElement>("movieCount");
+const showCountEl = $<HTMLSpanElement>("showCount");
 const mediaCard = $<HTMLDivElement>("mediaCard");
 const mediaPoster = $<HTMLImageElement>("mediaPoster");
 const mediaTitle = $<HTMLDivElement>("mediaTitle");
@@ -31,7 +33,7 @@ const mediaSubtitle = $<HTMLDivElement>("mediaSubtitle");
 const mediaCollection = $<HTMLDivElement>("mediaCollection");
 const mediaIds = $<HTMLDivElement>("mediaIds");
 const refreshBtn = $<HTMLButtonElement>("refreshBtn");
-const footerInfo = $<HTMLSpanElement>("footerInfo");
+const syncInfo = $<HTMLSpanElement>("syncInfo");
 const dashFeedback = $<HTMLDivElement>("dashFeedback");
 
 // --- Helpers ---
@@ -156,17 +158,20 @@ saveBtn.addEventListener("click", async () => {
 
 refreshBtn.addEventListener("click", async () => {
   hideFeedback(dashFeedback);
-  setButtonLoading(refreshBtn, true);
+  refreshBtn.disabled = true;
+  const refreshLabel = refreshBtn.querySelector(".refresh-label")!;
+  refreshLabel.textContent = "...";
 
   const result: BuildIndexResponse = await browser.runtime.sendMessage({
     type: "BUILD_INDEX",
   });
 
-  setButtonLoading(refreshBtn, false);
+  refreshBtn.disabled = false;
+  refreshLabel.textContent = "Refresh";
 
   if (result.success) {
     showFeedback(dashFeedback, `Refreshed — ${result.itemCount} items`, "success");
-    updateFooter(result.itemCount ?? 0, Date.now());
+    updateSyncInfo(result.itemCount ?? 0, Date.now());
   } else {
     showFeedback(dashFeedback, result.error ?? "Refresh failed", "error");
   }
@@ -174,9 +179,9 @@ refreshBtn.addEventListener("click", async () => {
 
 // --- Dashboard rendering ---
 
-function updateFooter(itemCount: number, lastRefresh: number | null) {
+function updateSyncInfo(itemCount: number, lastRefresh: number | null) {
   const timeStr = lastRefresh ? formatTimestamp(lastRefresh) : "never";
-  footerInfo.textContent = `${itemCount} items \u00B7 ${timeStr}`;
+  syncInfo.textContent = `${itemCount} items \u00B7 ${timeStr}`;
 }
 
 async function initDashboard() {
@@ -187,19 +192,20 @@ async function initDashboard() {
     type: "GET_STATUS",
   });
 
-  // Service status pills
+  // Service status pills (always show all four)
   statusPills.innerHTML = "";
   const plexActive = status.configured && !!status.lastRefresh;
   addStatusPill("Plex", plexActive);
   addStatusPill("TMDB", status.tmdbConfigured);
-  if (status.tvdbConfigured) addStatusPill("TVDB", true);
-  if (status.omdbConfigured) addStatusPill("OMDb", true);
+  addStatusPill("TVDB", status.tvdbConfigured);
+  addStatusPill("OMDb", status.omdbConfigured);
 
-  // Library summary
-  librarySummary.textContent = `${status.movieCount} Movies \u00B7 ${status.showCount} Shows`;
+  // Library summary (stacked)
+  movieCountEl.textContent = `${status.movieCount} Movies`;
+  showCountEl.textContent = `${status.showCount} Shows`;
 
   // Footer
-  updateFooter(status.itemCount, status.lastRefresh);
+  updateSyncInfo(status.itemCount, status.lastRefresh);
 
   // Media card — check active tab
   try {
