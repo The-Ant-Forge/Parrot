@@ -678,3 +678,24 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 
 ### GitHub Repository
 - Repository URLs updated from `StephKoenig` to `The-Ant-Forge`
+
+---
+
+## v1.12 — Title Disambiguation & Deferred Ownership
+
+### Additive Title+Year Merge
+- Title-based sites (PSA, Rotten Tomatoes, Metacritic) now merge info from both URL slug and h1 text before lookup
+- Takes year from whichever source has it (h1 preferred as more authoritative), title from h1 when available
+- Slug fallback only fires when slug has a different title, not just a missing year
+- Fixes disambiguation for titles like "Matlock" where slug has no year but h1 shows "(2024)"
+
+### Yearless Fallback Removed from Title Matching
+- `tryTitleCheck` no longer retries without year when a year-keyed lookup fails
+- Prevents wrong-version matches (e.g. matching Matlock 1986 when browsing Matlock 2024)
+- Safe removal: when no year is present, the initial lookup is already yearless
+
+### Deferred Ownership via TMDB Re-Check
+- New `OWNERSHIP_UPDATED` message from background to content script
+- When `fetchTabMetadata` resolves a TMDB ID and finds the item in the library index (after title matching missed), the in-page pill now updates to "owned" state
+- `onOwnershipUpdated()` callback in badge.ts lets content scripts trigger gap checking with the resolved TMDB ID
+- Applied to all 4 title-based content scripts: PSA, JustWatch, Rotten Tomatoes, Metacritic
