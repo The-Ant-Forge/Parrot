@@ -36,6 +36,18 @@ export function extractPsaFromUrl(url: string): { mediaType: "movie" | "show"; s
   };
 }
 
+/** BBC iPlayer: extract mediaType and slug from an iPlayer URL. */
+export function extractIplayerFromUrl(url: string): { mediaType: "movie" | "show"; slug: string } | null {
+  // /iplayer/episode/{pid}/{slug} = movie (singular)
+  // /iplayer/episodes/{pid}/{slug} = show (plural)
+  const match = url.match(/bbc\.co\.uk\/iplayer\/(episodes?)\/[^/]+\/([^/?#]+)/);
+  if (!match) return null;
+  return {
+    mediaType: match[1] === "episode" ? "movie" : "show",
+    slug: match[2],
+  };
+}
+
 /** Trakt: extract media type from Trakt URL path. */
 export function extractTraktMediaType(pathname: string): "movie" | "show" | null {
   if (/\/movies\//.test(pathname)) return "movie";

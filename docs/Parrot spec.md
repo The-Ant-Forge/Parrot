@@ -52,6 +52,8 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **Metacritic** | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
 | **Metacritic** | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
 | **TVMaze** | `tvmaze.com/shows/{id}` | TVDB/IMDb via TVMaze API (free, no key) | `header.columns h1` or `h1` |
+| **BBC iPlayer** | `bbc.co.uk/iplayer/episode/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) | `.typo--buzzard` |
+| **BBC iPlayer** | `bbc.co.uk/iplayer/episodes/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) | `.typo--buzzard` |
 
 ### ID Extraction Strategies
 

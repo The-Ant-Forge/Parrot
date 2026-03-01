@@ -2,6 +2,15 @@ import type { SiteDefinition } from "./types";
 
 export const DEFAULT_SITES: SiteDefinition[] = [
   {
+    id: "iplayer",
+    name: "BBC iPlayer",
+    urlPattern: "*://*.bbc.co.uk/iplayer/episode/*, *://*.bbc.co.uk/iplayer/episodes/*",
+    mediaType: "auto",
+    badgeSelector: ".typo--buzzard",
+    isBuiltin: true,
+    enabled: true,
+  },
+  {
     id: "imdb",
     name: "IMDb",
     urlPattern: "*://*.imdb.com/title/*",

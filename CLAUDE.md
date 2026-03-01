@@ -223,6 +223,8 @@ Never use real movie or tv show names. Always make up example ones.
 
 | Site | URL pattern | ID type |
 |------|-------------|---------|
+| BBC iPlayer | `bbc.co.uk/iplayer/episode/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) |
+| BBC iPlayer | `bbc.co.uk/iplayer/episodes/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) |
 | IMDb | `imdb.com/title/{ttID}` | IMDb string |
 | JustWatch | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) |
 | JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
