@@ -699,3 +699,24 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 - When `fetchTabMetadata` resolves a TMDB ID and finds the item in the library index (after title matching missed), the in-page pill now updates to "owned" state
 - `onOwnershipUpdated()` callback in badge.ts lets content scripts trigger gap checking with the resolved TMDB ID
 - Applied to all 4 title-based content scripts: PSA, JustWatch, Rotten Tomatoes, Metacritic
+
+---
+
+## v1.14 — BBC iPlayer Support & Popup Dashboard Redesign
+
+### BBC iPlayer Support
+- New content script for `bbc.co.uk/iplayer` — movies and TV shows
+- Media type detected from URL: `/iplayer/episode/` (singular) = movie, `/iplayer/episodes/` (plural) = show
+- Title extracted via `.typo--buzzard` selector (shared across both movie and TV pages)
+- Additive merge of URL slug + DOM title, same pattern as PSA
+- `waitForElement` for dynamic page rendering (like JustWatch)
+- Deferred ownership via `onOwnershipUpdated` for TMDB re-check
+- New `extractIplayerFromUrl()` in `extractors.ts`, site definition in `sites.ts`
+
+### Popup Dashboard Redesign
+- Status bar redesigned as compact 3-column layout:
+  - Left: API status pills in 2x2 grid (Plex, TMDB, TVDB, OMDb)
+  - Center: Library counts stacked (Movies / Shows)
+  - Right: Sync info + Refresh as single two-line button
+- All four API status dots always visible (grey when unconfigured, green when active)
+- Footer section removed — refresh functionality moved into status bar

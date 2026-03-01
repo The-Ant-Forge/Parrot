@@ -8,7 +8,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 ## Features
 
-- **Library status badge** on 15 supported sites -- dark pill with gold/gray Plex chevron
+- **Library status badge** on 16 supported sites -- dark pill with gold/gray Plex chevron
 - **Media ratings** -- averaged TMDB + IMDb scores on badge pills and popup dashboard
 - **Deep linking** -- badges link directly to the item in Plex Web
 - **Collection gap detection** -- see which movies from the same collection are in your library and which are missing
@@ -30,6 +30,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 | Site | What Parrot Reads |
 |------|-------------------|
+| **BBC iPlayer** | Title matching from URL slug + DOM title |
 | **IMDb** | IMDb ID from URL |
 | **JustWatch** | Title matching from h1 text |
 | **Letterboxd** | TMDB/IMDb from page links |
