@@ -4,7 +4,7 @@ A browser extension that tells you whether media you're browsing is already in y
 
 When you visit a movie or TV show page on a supported site, Parrot shows a badge indicating whether its in your library. Library items link directly to the content in Plex Web.
 
-**Companion to [ComPlexionist](https://github.com/StephKoenig/ComPlexionist)** -- ComPlexionist finds gaps in your library; Parrot prevents you from hunting for something you already have.
+**Companion to [ComPlexionist](https://github.com/The-Ant-Forge/ComPlexionist)** -- ComPlexionist finds gaps in your library; Parrot prevents you from hunting for something you already have.
 
 ## Features
 

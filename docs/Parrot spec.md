@@ -6,8 +6,8 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 
 **Companion to ComPlexionist** — ComPlexionist finds gaps in your library; Parrot prevents you from hunting for something you already have.
 
-**Repository:** [github.com/StephKoenig/Parrot](https://github.com/StephKoenig/Parrot)
-**Parent project:** [github.com/StephKoenig/ComPlexionist](https://github.com/StephKoenig/ComPlexionist)
+**Repository:** [github.com/The-Ant-Forge/Parrot](https://github.com/The-Ant-Forge/Parrot)
+**Parent project:** [github.com/The-Ant-Forge/ComPlexionist](https://github.com/The-Ant-Forge/ComPlexionist)
 
 ---
 

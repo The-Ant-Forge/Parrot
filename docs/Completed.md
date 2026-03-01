@@ -619,3 +619,62 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 
 ### Test Suite
 - Total: 135 tests across 7 test files (up from 129)
+
+---
+
+## v1.9 — TV Show Search Fix, Debug Logging & Plex App
+
+### Bug Fix: TV Show Search
+- `searchTv()` in `tmdb.ts` was calling the `/search/movie` endpoint instead of `/search/tv`
+- Caused title-based TV show lookups to fail silently on all sites
+
+### Debug Logging
+- `debugLog()` and `errorLog()` in `src/common/logger.ts` gated by `enableDebugLog` option (default false)
+- Replaced all `console.log`/`console.warn` calls across 15+ files with logger functions
+- Options page toggle for debug logging
+
+### Plex App Content Script
+- **New file:** `src/entrypoints/plex-app.content.ts` — content script for `app.plex.tv`
+- Two modes: server library pages (extracts ratingKey from URL hash, direct index lookup) and discover/streaming pages (link scan + title-based fallback)
+- SPA-aware with `observeUrlChanges()`
+
+### Popup Dashboard
+- Media type tag changed from "TV Series" to "Show" for consistency
+
+---
+
+## v1.10 — TVMaze Link Scanner & NZBForYou Waterfall
+
+### TVMaze Added to Link Scanner
+- `scanLinksForExternalId()` now detects TVMaze links as a 4th source type
+- Source priority: IMDb (0) > TVDB (1) > TMDB (2) > TVMaze (3)
+- New `ExternalIdSource` type: `"tmdb" | "imdb" | "tvdb" | "tvmaze"`
+- TVMaze matches return `mediaType: "show"` (TVMaze is TV-only)
+- Updated `findExternalIdFromJsonLd()` defaults to include TVMaze
+- Rotten Tomatoes and Metacritic pick up TVMaze automatically via JSON-LD fallback
+
+### NZBForYou Waterfall Fallback
+- Rewrote NZBForYou with waterfall: IMDb scan first (fast path), then `scanLinksForExternalId()` fallback
+- Catches TMDB, TVDB, and TVMaze links when no IMDb link is present on the page
+- For link-scan results with a `mediaType` (e.g. TVMaze → "show"), uses it directly
+
+### Expanded Source Lists
+- Letterboxd, JustWatch, and TVDB Movies content scripts expanded from `["tmdb", "imdb"]` to `["tmdb", "imdb", "tvdb", "tvmaze"]`
+
+---
+
+## v1.11 — Episode Gap & Collection Panel Fixes
+
+### Bug Fix: excludeFuture Filtering Owned Episodes
+- `excludeFuture` option was removing future-dated episodes even when the user already owned them in Plex
+- Fixed in both TMDB and TVDB paths: episodes in the owned set are never filtered out regardless of air date
+- Added `clearEpisodeGapCache()` to storage and `browser.runtime.onInstalled` handler to flush stale cache on extension update
+
+### Bug Fix: Collection Panel for Unowned Movies
+- On NZBForYou, breadcrumbs containing "TV" caused `getMediaType()` to return "show" for movies
+- This made the gap check condition fail, skipping collection detection entirely
+- Fixed NZBForYou with opposite media type fallback when breadcrumb hint misses
+- Audited and fixed same vulnerability in RARGB, Trakt, and Trakt App: for unowned items, always call `checkGaps` with `mediaType: "movie"` to ensure movie collection detection runs
+
+### GitHub Repository
+- Repository URLs updated from `StephKoenig` to `The-Ant-Forge`
