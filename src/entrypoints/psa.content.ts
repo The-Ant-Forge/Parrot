@@ -1,4 +1,4 @@
-import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, onOwnershipUpdated, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
 import { extractPsaFromUrl } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
@@ -54,6 +54,17 @@ async function checkAndBadge() {
         response,
       });
     }
+
+    // Listen for deferred ownership update (TMDB re-check found it by ID)
+    onOwnershipUpdated((msg) => {
+      debugLog("PSA", "ownership updated via TMDB re-check →", msg.source + ":" + msg.id);
+      checkGaps({
+        mediaType: msg.mediaType,
+        source: msg.source as "tmdb",
+        id: msg.id,
+        response: { owned: true, plexUrl: msg.plexUrl },
+      });
+    });
   } catch (err) {
     errorLog("PSA", err);
     showErrorBadge(badge, "Could not check Plex library");

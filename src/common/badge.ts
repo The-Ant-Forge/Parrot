@@ -358,13 +358,57 @@ export function updateRatings(tmdbRating?: number, imdbRating?: number) {
   }
 }
 
+// Callback for when background discovers ownership via TMDB re-check
+let ownershipUpdatedCallback: ((msg: OwnershipUpdatedMessage) => void) | null = null;
+
+export interface OwnershipUpdatedMessage {
+  owned: boolean;
+  plexUrl?: string;
+  mediaType: "movie" | "show";
+  source: string;
+  id: string;
+}
+
+/** Register a callback for when background flips ownership via TMDB re-check. */
+export function onOwnershipUpdated(cb: (msg: OwnershipUpdatedMessage) => void) {
+  ownershipUpdatedCallback = cb;
+}
+
 function setupRatingsListener() {
   if (ratingsListenerSetup) return;
   ratingsListenerSetup = true;
   try {
-    browser.runtime.onMessage.addListener((message: { type: string; tmdbRating?: number; imdbRating?: number }) => {
+    browser.runtime.onMessage.addListener((message: {
+      type: string;
+      tmdbRating?: number;
+      imdbRating?: number;
+      owned?: boolean;
+      plexUrl?: string;
+      mediaType?: string;
+      source?: string;
+      id?: string;
+    }) => {
       if (message.type === "RATINGS_READY") {
         updateRatings(message.tmdbRating, message.imdbRating);
+      } else if (message.type === "OWNERSHIP_UPDATED" && message.owned) {
+        // Update the badge to "owned" state
+        const wrapper = findExistingBadge();
+        if (wrapper) {
+          updateBadgeFromResponse(wrapper, {
+            owned: true,
+            plexUrl: message.plexUrl,
+          });
+        }
+        // Notify content script callback for gap checking
+        if (ownershipUpdatedCallback) {
+          ownershipUpdatedCallback({
+            owned: message.owned,
+            plexUrl: message.plexUrl,
+            mediaType: message.mediaType as "movie" | "show",
+            source: message.source!,
+            id: message.id!,
+          });
+        }
       }
     });
   } catch {

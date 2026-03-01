@@ -401,6 +401,16 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
           if (item.title) info.title = item.title;
           if (item.year) info.year = item.year;
           await setTabIcon(tabId, "owned");
+          // Notify content script so the in-page pill updates
+          debugLog("BG", `META: ownership flipped via TMDB re-check, notifying tab ${tabId}`);
+          browser.tabs.sendMessage(tabId, {
+            type: "OWNERSHIP_UPDATED",
+            owned: true,
+            plexUrl: info.plexUrl,
+            mediaType: info.mediaType,
+            source: "tmdb",
+            id: String(tmdbId),
+          }).catch(() => {}); // content script may not be listening
         }
       }
     }
