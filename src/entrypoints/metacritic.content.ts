@@ -86,8 +86,8 @@ async function checkAndBadge() {
   try {
     let response = await tryTitleCheck(mediaType, title, year);
 
-    // If merged lookup missed but slug had different info, try slug as fallback
-    if (!response.owned && (slug.title !== title || slug.year !== year)) {
+    // If merged lookup missed and slug has a different title, try slug as fallback
+    if (!response.owned && slug.title !== title) {
       debugLog("Metacritic", "fallback → slug title:", slug.title, slug.year ?? "no year");
       response = await tryTitleCheck(mediaType, slug.title, slug.year);
     }
