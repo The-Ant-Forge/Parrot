@@ -21,25 +21,31 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   try {
-    // Strategy 1: title from URL slug
+    // Parse both sources and merge — take the richest info from each
     const slug = parseSlug(info.slug);
-    debugLog("PSA", "strategy 1 (slug) →", slug.title, slug.year ?? "no year");
-    let response = await tryTitleCheck(info.mediaType, slug.title, slug.year);
+    const h1 = h1Text ? parseTitleFromH1(h1Text) : undefined;
 
-    // Strategy 2: title from h1 text (may have better formatting than slug)
-    if (!response.owned && h1Text) {
-      debugLog("PSA", "strategy 2 (h1) →", h1Text);
-      const h1 = parseTitleFromH1(h1Text);
-      if (h1.title !== slug.title || h1.year !== slug.year) {
-        response = await tryTitleCheck(info.mediaType, h1.title, h1.year);
-      }
+    // Prefer h1 title (better formatted), fall back to slug
+    const title = h1?.title ?? slug.title;
+    // Take year from whichever has it (h1 is more authoritative)
+    const year = h1?.year ?? slug.year;
+
+    debugLog("PSA", "merged →", title, year ?? "no year",
+      `(slug: ${slug.title}/${slug.year ?? "none"}, h1: ${h1?.title ?? "none"}/${h1?.year ?? "none"})`);
+
+    let response = await tryTitleCheck(info.mediaType, title, year);
+
+    // If merged lookup missed but slug had different info, try slug as fallback
+    if (!response.owned && (slug.title !== title || slug.year !== year)) {
+      debugLog("PSA", "fallback → slug title:", slug.title, slug.year ?? "no year");
+      response = await tryTitleCheck(info.mediaType, slug.title, slug.year);
     }
 
-    debugLog("PSA", info.mediaType, "title:" + slug.title, response.owned ? "OWNED" : "not owned");
+    const titleKey = buildTitleKey(title, year);
+    debugLog("PSA", info.mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || info.mediaType === "movie") {
-      const titleKey = buildTitleKey(slug.title, slug.year);
       checkGaps({
         mediaType: info.mediaType,
         source: "title",

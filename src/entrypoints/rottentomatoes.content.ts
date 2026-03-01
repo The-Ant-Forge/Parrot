@@ -2,7 +2,7 @@ import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } fro
 import { extractRtMediaType, findExternalIdFromJsonLd } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
-import { parseSlug, buildTitleKey } from "../common/normalize";
+import { parseSlug, parseTitleFromH1, buildTitleKey } from "../common/normalize";
 import { tryTitleCheck } from "../common/title-check";
 import type { CheckResponse } from "../common/types";
 
@@ -22,6 +22,9 @@ async function checkAndBadge() {
     document.querySelector('rt-text[slot="title"]') ??
     document.querySelector("h1");
   if (!anchor) return;
+
+  // Capture h1 text BEFORE badge injection (badge adds "Plex" to textContent)
+  const h1Text = anchor.textContent?.trim();
 
   const badge = injectBadge(anchor);
 
@@ -68,16 +71,28 @@ async function checkAndBadge() {
     }
   }
 
-  // Strategy 2: title-based matching from URL slug
-  const slug = extractSlug();
-  debugLog("RT", "strategy 2 (slug) →", slug ?? "no slug");
-  if (!slug) return;
+  // Strategy 2: title-based matching — merge slug + h1 for richest info
+  const rawSlug = extractSlug();
+  debugLog("RT", "strategy 2 (slug) →", rawSlug ?? "no slug");
+  if (!rawSlug) return;
 
-  const { title, year } = parseSlug(slug);
+  const slug = parseSlug(rawSlug);
+  const h1 = h1Text ? parseTitleFromH1(h1Text) : undefined;
+  const title = h1?.title ?? slug.title;
+  const year = h1?.year ?? slug.year;
   const titleKey = buildTitleKey(title, year);
 
+  debugLog("RT", "merged →", title, year ?? "no year",
+    `(slug: ${slug.title}/${slug.year ?? "none"}, h1: ${h1?.title ?? "none"}/${h1?.year ?? "none"})`);
+
   try {
-    const response = await tryTitleCheck(mediaType, title, year);
+    let response = await tryTitleCheck(mediaType, title, year);
+
+    // If merged lookup missed but slug had different info, try slug as fallback
+    if (!response.owned && (slug.title !== title || slug.year !== year)) {
+      debugLog("RT", "fallback → slug title:", slug.title, slug.year ?? "no year");
+      response = await tryTitleCheck(mediaType, slug.title, slug.year);
+    }
 
     debugLog("RT", mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
