@@ -208,6 +208,30 @@ button.primary:hover:not(:disabled) {
   color: #ccc;
 }
 
+/* --- Update banner --- */
+
+.update-banner[hidden] {
+  display: none;
+}
+
+.update-banner {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #1b2a3a;
+  color: #6bace5;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.update-banner:hover {
+  background: #243648;
+  color: #8ec4f0;
+}
+
 /* --- Media card --- */
 
 .media-card {

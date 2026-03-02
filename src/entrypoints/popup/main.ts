@@ -25,6 +25,7 @@ const statusPills = $<HTMLDivElement>("statusPills");
 const librarySummary = $<HTMLDivElement>("librarySummary");
 const movieCountEl = $<HTMLSpanElement>("movieCount");
 const showCountEl = $<HTMLSpanElement>("showCount");
+const updateBanner = $<HTMLAnchorElement>("updateBanner");
 const mediaCard = $<HTMLDivElement>("mediaCard");
 const mediaPoster = $<HTMLImageElement>("mediaPoster");
 const mediaTitle = $<HTMLDivElement>("mediaTitle");
@@ -206,6 +207,15 @@ async function initDashboard() {
 
   // Footer
   updateSyncInfo(status.itemCount, status.lastRefresh);
+
+  // Update banner
+  if (status.updateAvailable && status.latestVersion && status.updateUrl) {
+    updateBanner.textContent = `v${status.latestVersion} available — click to download`;
+    updateBanner.href = status.updateUrl;
+    updateBanner.hidden = false;
+  } else {
+    updateBanner.hidden = true;
+  }
 
   // Media card — check active tab
   try {

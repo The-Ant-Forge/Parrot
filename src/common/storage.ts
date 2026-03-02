@@ -88,6 +88,25 @@ export async function clearEpisodeGapCache(): Promise<void> {
   await browser.storage.local.remove(EPISODE_GAP_CACHE_KEY);
 }
 
+// --- Update check ---
+
+const UPDATE_CHECK_KEY = "updateCheck";
+
+export interface UpdateCheckResult {
+  latestVersion: string;
+  downloadUrl: string;
+  checkedAt: number;
+}
+
+export async function getUpdateCheck(): Promise<UpdateCheckResult | null> {
+  const result = await browser.storage.local.get(UPDATE_CHECK_KEY);
+  return (result[UPDATE_CHECK_KEY] as UpdateCheckResult) ?? null;
+}
+
+export async function saveUpdateCheck(check: UpdateCheckResult): Promise<void> {
+  await browser.storage.local.set({ [UPDATE_CHECK_KEY]: check });
+}
+
 // --- Custom sites ---
 
 const CUSTOM_SITES_KEY = "customSites";

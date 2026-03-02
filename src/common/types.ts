@@ -121,6 +121,9 @@ export interface StatusResponse {
   tmdbConfigured: boolean;
   tvdbConfigured: boolean;
   omdbConfigured: boolean;
+  updateAvailable?: boolean;
+  latestVersion?: string;
+  updateUrl?: string;
 }
 
 export interface CheckResponse {
