@@ -113,6 +113,7 @@ function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string
       display: "inline-flex",
       alignItems: "center",
       gap: "3px",
+      webkitTextStroke: "0",
     });
     link.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
     pill.appendChild(link);
@@ -336,6 +337,7 @@ export function setBadgeGapData(data: GapPanelData) {
       display: "inline-flex",
       alignItems: "center",
       gap: "3px",
+      webkitTextStroke: "0",
     });
     link.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
     pill.appendChild(link);
