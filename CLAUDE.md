@@ -95,6 +95,7 @@ src/
     ├── normalize.ts               # Title normalization + h1 text parsing
     ├── dom-utils.ts               # DOM utilities (waitForElement)
     ├── title-check.ts             # Title-based CHECK with year fallback
+    ├── ui-helpers.ts              # Shared UI helpers (feedback, button loading, timestamps)
     ├── logger.ts                  # Debug/error logging gated by settings toggle
     └── sites.ts                   # Supported site definitions
 ```

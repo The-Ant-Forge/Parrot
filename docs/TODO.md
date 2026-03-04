@@ -29,6 +29,12 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 - [ ] Extract IMDb media type fallback pattern to shared function (6+ files)
 - [ ] Add unit tests for `gap-checker.ts` (needs browser.runtime mocking)
 - [ ] Add unit tests for `url-observer.ts` (needs MutationObserver mocking)
+- [x] Remove dead code (`movieKeys`/`showKeys` in plex.ts)
+- [x] Fix webkitTextStroke `!important` inconsistency (3 files)
+- [x] Optimise PLEX_LOOKUP from O(n) to O(1)
+- [x] Extract shared UI helpers (DRY popup/options)
+- [x] Add TTL to logger debug cache
+- [x] Add `extractIplayerFromUrl` test coverage
 
 ---
 

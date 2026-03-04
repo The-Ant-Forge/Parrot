@@ -47,7 +47,7 @@ function applyPillStyles(el: HTMLElement, status: BadgeStatus) {
     verticalAlign: "middle",
     fontFamily: "system-ui, -apple-system, sans-serif",
     whiteSpace: "nowrap",
-    webkitTextStroke: "0 !important",
+    webkitTextStroke: "0",
   });
 }
 
@@ -71,6 +71,13 @@ function getRatingText(): string {
   return avg.toFixed(1);
 }
 
+function createSeparator(): HTMLSpanElement {
+  const sep = document.createElement("span");
+  Object.assign(sep.style, { marginTop: "1px", opacity: "0.45" });
+  sep.textContent = "·";
+  return sep;
+}
+
 function createRatingSpan(): HTMLSpanElement | null {
   const text = getRatingText();
   if (!text) return null;
@@ -79,7 +86,7 @@ function createRatingSpan(): HTMLSpanElement | null {
     marginTop: "1px",
     opacity: "0.8",
   });
-  span.textContent = ` ${text}`;
+  span.textContent = text;
   return span;
 }
 
@@ -114,12 +121,16 @@ function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string
   }
 
   const ratingSpan = createRatingSpan();
-  if (ratingSpan) pill.appendChild(ratingSpan);
+  if (ratingSpan) {
+    pill.appendChild(createSeparator());
+    pill.appendChild(ratingSpan);
+  }
 
   if (currentResolution && status === "owned") {
+    pill.appendChild(createSeparator());
     const resSpan = document.createElement("span");
     Object.assign(resSpan.style, { marginTop: "1px", opacity: "0.8" });
-    resSpan.textContent = ` ${currentResolution}`;
+    resSpan.textContent = currentResolution;
     pill.appendChild(resSpan);
   }
 }
@@ -332,9 +343,21 @@ export function setBadgeGapData(data: GapPanelData) {
     pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
 
-  // Rating (between Plex and gap toggle)
+  // Rating
   const ratingSpan = createRatingSpan();
-  if (ratingSpan) pill.appendChild(ratingSpan);
+  if (ratingSpan) {
+    pill.appendChild(createSeparator());
+    pill.appendChild(ratingSpan);
+  }
+
+  // Resolution
+  if (currentResolution) {
+    pill.appendChild(createSeparator());
+    const resSpan = document.createElement("span");
+    Object.assign(resSpan.style, { marginTop: "1px", opacity: "0.8" });
+    resSpan.textContent = currentResolution;
+    pill.appendChild(resSpan);
+  }
 
   // Right zone: completeness toggle
   const toggle = document.createElement("span");
@@ -344,8 +367,8 @@ export function setBadgeGapData(data: GapPanelData) {
     cursor: "pointer",
     marginTop: "1px",
   });
-  const res = currentResolution ? `${currentResolution} ` : "";
-  toggle.textContent = data.state === "complete" ? ` : ${res}Complete` : ` : ${res}Incomplete`;
+  pill.appendChild(createSeparator());
+  toggle.textContent = data.state === "complete" ? "Complete" : "Incomplete";
   toggle.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();

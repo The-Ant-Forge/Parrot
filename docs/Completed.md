@@ -720,3 +720,56 @@ Support for N Plex servers with priority ordering, compact index storage, and co
   - Right: Sync info + Refresh as single two-line button
 - All four API status dots always visible (grey when unconfigured, green when active)
 - Footer section removed — refresh functionality moved into status bar
+
+### Resolution Display
+- Badge pill and popup dashboard show media quality (SD, 720p, 1080p, 4K)
+- Movies: highest resolution among all Plex media entries (users may keep multiple copies)
+- Shows: resolution of the most recent episode (highest season + episode number)
+- `formatResolution()` in `plex.ts` normalises raw Plex values (e.g. `"1080"` → `"1080p"`, `"4k"` → `"4K"`, `"sd"` → `"SD"`)
+- Propagated through `CheckResponse`, `EpisodeGapResponse`, `EpisodeGapCacheEntry`, `TabMediaInfo`
+- Popup subtitle shows resolution between rating and status (e.g. `7.5 · 720p · In Library`)
+
+### Dashboard Polish
+- Compact collection line: `{name} — {owned}/{total}` instead of full sentence
+- Trimmed show status to first word (e.g. "Returning Series" → "Returning")
+- Compact API ID tags: smaller font, tighter padding, abbreviated labels
+- Server name shown on Plex link when available (e.g. `Open in Plex (MyServer)`)
+
+### Badge Pill Separator Consistency
+- All pill fields now separated by `·` (middle dot), matching popup dashboard style
+- Format: `Plex · 7.2 · 1080p · Complete` instead of `Plex 7.2 : 1080p Complete`
+- Resolution and completeness state are separate DOM elements for cleaner rendering
+
+### Bug Fix: PSA Badge Bold Inheritance
+- PSA content pages use `<b>` tags around titles, which caused badge text to inherit bold weight
+- Added `webkitTextStroke: "0"` to pill styles to prevent this
+
+---
+
+## Code Consolidation (Post-v1.14)
+
+### Dead Code Removal
+- Removed unused `movieKeys` and `showKeys` Sets from `buildLibraryIndex()` in `plex.ts`
+
+### webkitTextStroke Consistency
+- Normalised `webkitTextStroke: "0 !important"` to `"0"` in `badge.ts`, `panel-utils.ts`, and `collection-panel.ts`
+- `!important` is silently ignored in JavaScript inline style assignments (`element.style`), so the suffix had no effect
+
+### PLEX_LOOKUP Performance Optimisation
+- Replaced O(n) linear scan with O(1) reverse lookup map
+- New lazy `plexKeyMap` (Map<"serverId:ratingKey", itemIndex>) and `movieIndexSet` (Set<number>)
+- Caches invalidated via `setIndex()` helper when library index changes
+- Eliminates `items.indexOf()` and `Object.values().includes()` hot paths
+
+### DRY: Shared UI Helpers
+- Extracted `showFeedback`, `hideFeedback`, `setButtonLoading`, `formatTimestamp` into `src/common/ui-helpers.ts`
+- Removed duplicate implementations from `popup/main.ts` and `options/main.ts`
+- Options page keeps its own `formatTimestamp` variant (uses `toLocaleDateString()` for older timestamps)
+
+### Logger TTL
+- Debug logging cache (`_debugEnabled`) now re-checks storage every 60 seconds
+- Previously cached forever — toggling the option had no effect until page/worker reload
+
+### Test Coverage
+- Added 5 tests for `extractIplayerFromUrl` (movie, show, non-iPlayer, no slug, other BBC pages)
+- Total: 152 tests across 7 test files

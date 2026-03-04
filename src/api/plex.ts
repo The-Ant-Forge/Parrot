@@ -219,8 +219,6 @@ export async function buildLibraryIndex(
   servers: PlexServerConfig[],
 ): Promise<LibraryIndex> {
   const index = emptyIndex();
-  const movieKeys = new Set<string>(); // unique ratingKeys across all servers
-  const showKeys = new Set<string>();
 
   for (const server of servers) {
     const sections = await fetchLibrarySections(server);
@@ -290,14 +288,12 @@ export async function buildLibraryIndex(
             if (ids.imdbId) index.movies.byImdbId[ids.imdbId] = idx;
             if (item.year) index.movies.byTitle[buildTitleKey(item.title, item.year)] = idx;
             index.movies.byTitle[buildTitleKey(item.title)] = idx;
-            movieKeys.add(`${server.id}:${item.ratingKey}`);
           } else if (section.type === "show") {
             if (ids.tvdbId) index.shows.byTvdbId[String(ids.tvdbId)] = idx;
             if (ids.tmdbId) index.shows.byTmdbId[String(ids.tmdbId)] = idx;
             if (ids.imdbId) index.shows.byImdbId[ids.imdbId] = idx;
             if (item.year) index.shows.byTitle[buildTitleKey(item.title, item.year)] = idx;
             index.shows.byTitle[buildTitleKey(item.title)] = idx;
-            showKeys.add(`${server.id}:${item.ratingKey}`);
           }
         }
       }

@@ -37,6 +37,10 @@ let cachedServers: PlexServerConfig[] | null = null;
 let autoRefreshing = false;
 const tabMediaCache = new Map<number, TabMediaInfo>();
 
+// Reverse lookup: "serverId:ratingKey" → index into items[] (built lazily from cachedIndex)
+let plexKeyMap: Map<string, number> | null = null;
+let movieIndexSet: Set<number> | null = null;
+
 const SESSION_KEY = "tabMedia";
 const MAX_SESSION_ENTRIES = 20;
 
@@ -95,9 +99,15 @@ async function removeTabMedia(tabId: number) {
   }
 }
 
+function setIndex(index: LibraryIndex | null) {
+  cachedIndex = index;
+  plexKeyMap = null; // invalidate reverse lookups
+  movieIndexSet = null;
+}
+
 async function loadIndex(): Promise<LibraryIndex | null> {
   if (!cachedIndex) {
-    cachedIndex = await getLibraryIndex();
+    setIndex(await getLibraryIndex());
     if (cachedIndex) {
       const movieTmdb = Object.keys(cachedIndex.movies.byTmdbId).length;
       const movieImdb = Object.keys(cachedIndex.movies.byImdbId).length;
@@ -126,7 +136,7 @@ async function loadIndex(): Promise<LibraryIndex | null> {
             debugLog("BG", `auto-refresh — index is ${Math.floor(ageMs / 86400000)}d old, refreshing`);
             const newIndex = await buildLibraryIndex(servers);
             await saveLibraryIndex(newIndex);
-            cachedIndex = newIndex;
+            setIndex(newIndex);
             debugLog("BG", `auto-refresh complete — ${newIndex.itemCount} items`);
           } catch (err) {
             errorLog("BG", "auto-refresh failed", err);
@@ -197,6 +207,23 @@ function resolveItemPlex(item: OwnedItem, servers: PlexServerConfig[]): { url: s
     if (plexKey) return { url: buildPlexUrl(server.id, plexKey), serverName: server.name };
   }
   return undefined;
+}
+
+/** Build lazy reverse lookups for PLEX_LOOKUP (plexKey→index, movie index set). */
+function ensurePlexKeyMap(index: LibraryIndex) {
+  if (plexKeyMap) return;
+  const map = new Map<string, number>();
+  for (let i = 0; i < index.items.length; i++) {
+    for (const [serverId, ratingKey] of Object.entries(index.items[i].plexKeys)) {
+      map.set(`${serverId}:${ratingKey}`, i);
+    }
+  }
+  plexKeyMap = map;
+  movieIndexSet = new Set([
+    ...Object.values(index.movies.byTmdbId),
+    ...Object.values(index.movies.byImdbId),
+    ...Object.values(index.movies.byTitle),
+  ]);
 }
 
 /**
@@ -611,7 +638,7 @@ export default defineBackground(() => {
             try {
               const index = await buildLibraryIndex(servers);
               await saveLibraryIndex(index);
-              cachedIndex = index;
+              setIndex(index);
 
               // Update per-server item counts
               const counts = new Map<string, number>();
@@ -777,7 +804,7 @@ export default defineBackground(() => {
 
           case "CLEAR_CACHE": {
             await browser.storage.local.clear();
-            cachedIndex = null;
+            setIndex(null);
             debugLog("BG", "cache cleared");
             sendResponse({ success: true } satisfies ClearCacheResponse);
             break;
@@ -1105,20 +1132,14 @@ export default defineBackground(() => {
             }
 
             const { machineIdentifier, ratingKey } = message;
-            let foundMediaType: "movie" | "show" | undefined;
-            let foundItem: OwnedItem | undefined;
+            ensurePlexKeyMap(index);
+            const itemIdx = plexKeyMap!.get(`${machineIdentifier}:${ratingKey}`);
+            const foundItem = itemIdx !== undefined ? index.items[itemIdx] : undefined;
 
-            for (const item of index.items) {
-              if (item.plexKeys[machineIdentifier] === ratingKey) {
-                foundItem = item;
-                // Determine media type from which maps contain this item
-                const itemIdx = index.items.indexOf(item);
-                const inMovies = Object.values(index.movies.byTmdbId).includes(itemIdx)
-                  || Object.values(index.movies.byImdbId).includes(itemIdx)
-                  || Object.values(index.movies.byTitle).includes(itemIdx);
-                foundMediaType = inMovies ? "movie" : "show";
-                break;
-              }
+            // Determine media type via cached set (O(1) lookup)
+            let foundMediaType: "movie" | "show" | undefined;
+            if (foundItem && itemIdx !== undefined) {
+              foundMediaType = movieIndexSet!.has(itemIdx) ? "movie" : "show";
             }
 
             if (!foundItem || !foundMediaType) {

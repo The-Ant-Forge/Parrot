@@ -9,6 +9,7 @@ import {
   extractJustWatchMediaType,
   extractRtMediaType,
   extractMetacriticMediaType,
+  extractIplayerFromUrl,
 } from "../src/common/extractors";
 
 describe("extractTmdbFromUrl", () => {
@@ -184,6 +185,34 @@ describe("extractRtMediaType", () => {
 
   it("returns null for other paths", () => {
     expect(extractRtMediaType("/celebrity/someone")).toBeNull();
+  });
+});
+
+describe("extractIplayerFromUrl", () => {
+  it("extracts movie (singular /episode/) with slug", () => {
+    expect(extractIplayerFromUrl("https://www.bbc.co.uk/iplayer/episode/p0abc123/some-film")).toEqual({
+      mediaType: "movie",
+      slug: "some-film",
+    });
+  });
+
+  it("extracts show (plural /episodes/) with slug", () => {
+    expect(extractIplayerFromUrl("https://www.bbc.co.uk/iplayer/episodes/p0xyz789/some-series")).toEqual({
+      mediaType: "show",
+      slug: "some-series",
+    });
+  });
+
+  it("returns null for non-iPlayer URL", () => {
+    expect(extractIplayerFromUrl("https://example.com/iplayer/episode/p0abc123/slug")).toBeNull();
+  });
+
+  it("returns null for iPlayer URL without slug", () => {
+    expect(extractIplayerFromUrl("https://www.bbc.co.uk/iplayer/episode/p0abc123")).toBeNull();
+  });
+
+  it("returns null for other BBC pages", () => {
+    expect(extractIplayerFromUrl("https://www.bbc.co.uk/iplayer/categories")).toBeNull();
   });
 });
 

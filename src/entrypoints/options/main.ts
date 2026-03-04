@@ -1,4 +1,5 @@
 import { getServers, saveServers, getCustomSites, saveCustomSites } from "../../common/storage";
+import { showFeedback, hideFeedback, setButtonLoading } from "../../common/ui-helpers";
 import { DEFAULT_SITES } from "../../common/sites";
 import type {
   PlexServerConfig,
@@ -102,26 +103,6 @@ async function saveAllOptions(): Promise<void> {
     type: "SAVE_OPTIONS",
     options: gatherOptions(),
   });
-}
-
-function showFeedback(el: HTMLDivElement, message: string, type: "success" | "error" | "info") {
-  el.textContent = message;
-  el.className = `feedback ${type}`;
-  el.hidden = false;
-}
-
-function hideFeedback(el: HTMLDivElement) {
-  el.hidden = true;
-}
-
-function setButtonLoading(btn: HTMLButtonElement, loading: boolean) {
-  btn.disabled = loading;
-  if (loading) {
-    btn.dataset.originalText = btn.textContent ?? "";
-    btn.textContent = "...";
-  } else {
-    btn.textContent = btn.dataset.originalText ?? btn.textContent;
-  }
 }
 
 function formatTimestamp(ts: number): string {

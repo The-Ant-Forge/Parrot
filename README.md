@@ -9,6 +9,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 ## Features
 
 - **Library status badge** on 16 supported sites -- dark pill with gold/gray Plex chevron
+- **Resolution display** -- see media quality (SD, 720p, 1080p, 4K) on badges and popup dashboard
 - **Media ratings** -- averaged TMDB + IMDb scores on badge pills and popup dashboard
 - **Deep linking** -- badges link directly to the item in Plex Web
 - **Collection gap detection** -- see which movies from the same collection are in your library and which are missing
@@ -51,11 +52,11 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 - **Not in library** -- Dark pill with gray Plex chevron: `[Plex]`
 - **In library** -- Dark pill with gold Plex chevron, click opens Plex: `[Plex]`
-- **In library + complete** -- Split-click pill: "Plex" opens Plex, "Complete" toggles gap panel: `[Plex : Complete]`
-- **In library + incomplete** -- Split-click pill: "Plex" opens Plex, "Incomplete" toggles gap panel: `[Plex : Incomplete]`
+- **In library + complete** -- Split-click pill: "Plex" opens Plex, "Complete" toggles gap panel: `[Plex · Complete]`
+- **In library + incomplete** -- Split-click pill: "Plex" opens Plex, "Incomplete" toggles gap panel: `[Plex · Incomplete]`
 - **Error** -- Red pill with tooltip
 
-When ratings are available, the averaged score appears after "Plex" text: `[Plex 7.2]` or `[Plex 7.2 : Complete]`.
+Fields are separated by `·` and may include ratings and resolution: `[Plex · 7.2 · 1080p · Complete]`.
 
 Gap panels float as overlays anchored to the badge (no page layout shift).
 

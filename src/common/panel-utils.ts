@@ -18,7 +18,7 @@ const CSS_RESET = {
   textAlign: "left",
   textShadow: "none",
   whiteSpace: "normal",
-  webkitTextStroke: "0 !important",
+  webkitTextStroke: "0",
 } as const;
 
 /** Create a styled panel container div. */

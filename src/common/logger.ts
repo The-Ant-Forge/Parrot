@@ -7,15 +7,19 @@
 import { getOptions } from "./storage";
 
 let _debugEnabled: boolean | undefined;
+let _debugCheckedAt = 0;
+const DEBUG_TTL = 60_000; // re-check storage every 60 s
 
 async function isDebugEnabled(): Promise<boolean> {
-  if (_debugEnabled !== undefined) return _debugEnabled;
+  const now = Date.now();
+  if (_debugEnabled !== undefined && now - _debugCheckedAt < DEBUG_TTL) return _debugEnabled;
   try {
     const opts = await getOptions();
     _debugEnabled = opts.debugLogging;
   } catch {
     _debugEnabled = false;
   }
+  _debugCheckedAt = now;
   return _debugEnabled;
 }
 

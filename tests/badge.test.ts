@@ -263,7 +263,7 @@ describe("setBadgeGapData", () => {
 
     const toggle = badge.querySelector(".parrot-gap-toggle");
     expect(toggle).not.toBeNull();
-    expect(toggle?.textContent).toBe(" : Complete");
+    expect(toggle?.textContent).toBe("Complete");
   });
 
   it("adds Incomplete text to pill", () => {
@@ -272,7 +272,7 @@ describe("setBadgeGapData", () => {
     setBadgeGapData({ state: "incomplete", panelElement: panel });
 
     const toggle = badge.querySelector(".parrot-gap-toggle");
-    expect(toggle?.textContent).toBe(" : Incomplete");
+    expect(toggle?.textContent).toBe("Incomplete");
   });
 
   it("preserves plex link as split-click zone", () => {
@@ -350,30 +350,39 @@ describe("setBadgeGapData", () => {
     expect(() => setBadgeGapData({ state: "complete", panelElement: panel })).not.toThrow();
   });
 
-  it("includes resolution in toggle text when provided", () => {
+  it("includes resolution in pill when provided", () => {
     const badge = setupOwnedBadge();
     const panel = document.createElement("div");
     setBadgeGapData({ state: "complete", panelElement: panel, resolution: "720p" });
 
+    const pill = badge.querySelector(".parrot-pill")!;
+    expect(pill.textContent).toContain("720p");
+    expect(pill.textContent).toContain("Complete");
+    // Resolution is a separate span, not inside the toggle
     const toggle = badge.querySelector(".parrot-gap-toggle");
-    expect(toggle?.textContent).toBe(" : 720p Complete");
+    expect(toggle?.textContent).toBe("Complete");
   });
 
-  it("includes resolution in incomplete toggle text", () => {
+  it("includes resolution in incomplete pill", () => {
     const badge = setupOwnedBadge();
     const panel = document.createElement("div");
     setBadgeGapData({ state: "incomplete", panelElement: panel, resolution: "4K" });
 
+    const pill = badge.querySelector(".parrot-pill")!;
+    expect(pill.textContent).toContain("4K");
+    expect(pill.textContent).toContain("Incomplete");
     const toggle = badge.querySelector(".parrot-gap-toggle");
-    expect(toggle?.textContent).toBe(" : 4K Incomplete");
+    expect(toggle?.textContent).toBe("Incomplete");
   });
 
-  it("omits resolution from toggle text when not provided", () => {
+  it("omits resolution from pill when not provided", () => {
     const badge = setupOwnedBadge();
     const panel = document.createElement("div");
     setBadgeGapData({ state: "complete", panelElement: panel });
 
+    const pill = badge.querySelector(".parrot-pill")!;
+    expect(pill.textContent).not.toContain("720p");
     const toggle = badge.querySelector(".parrot-gap-toggle");
-    expect(toggle?.textContent).toBe(" : Complete");
+    expect(toggle?.textContent).toBe("Complete");
   });
 });

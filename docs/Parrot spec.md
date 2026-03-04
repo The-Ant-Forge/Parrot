@@ -518,24 +518,24 @@ async function checkAndBadge() {
 
 A compact pill badge injected next to the title element on each supported page. Uses a wrapper+pill DOM architecture: the outer `<span data-parrot-badge>` is stable (never replaced), the inner `.parrot-pill` rebuilds on state transitions. The wrapper has `position: relative` to anchor floating gap panels.
 
-**Four states (with optional rating):**
+**Four states (with optional rating and resolution):**
 
 | State | Appearance | Interaction |
 |-------|-----------|-------------|
 | Not in library | `[Plex]` gray | None |
-| Not in library + incomplete collection | `[Plex : Incomplete]` gold | "Plex" links to Plex, "Incomplete" toggles collection panel |
+| Not in library + incomplete collection | `[Plex · Incomplete]` gold | "Plex" links to Plex, "Incomplete" toggles collection panel |
 | In library (no gap data) | `[Plex]` gold | Click opens Plex |
-| In library + complete | `[Plex : Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
-| In library + incomplete | `[Plex : Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |
+| In library + complete | `[Plex · Complete]` gold | "Plex" opens Plex, "Complete" toggles panel |
+| In library + incomplete | `[Plex · Incomplete]` gold | "Plex" opens Plex, "Incomplete" toggles panel |
 
-When ratings are available (TMDB and/or IMDb via OMDb), the averaged score appears after "Plex" text: `[Plex 7.2]` or `[Plex 7.2 : Complete]`. Ratings are delivered asynchronously via a `RATINGS_READY` message from the background and rendered with a gold accent color.
+Fields are separated by `·` (middle dot) for visual consistency with the popup dashboard. When available, ratings and resolution appear between "Plex" and the gap state: `[Plex · 7.2 · 1080p · Complete]`. Any combination of fields may be present — resolution without rating, rating without gap data, etc. Resolution shows the quality of the media in Plex (e.g. SD, 720p, 1080p, 4K). For movies, resolution is the highest quality copy; for shows, it's the most recent episode's resolution. Ratings are delivered asynchronously via a `RATINGS_READY` message from the background.
 
 **Styling:**
 - **In library:** Dark pill (`#282828`), gold Plex chevron icon (inline SVG), white "Plex" text, gold border (`#ebaf00`)
 - **Not in library:** Dark pill (`#3a3a3a`), gray Plex chevron, gray text, gray border (`#555`)
 - **Error:** Red pill (`#f44336`) with white "!" text and tooltip
 
-When gap data is available, the pill transitions to split-click mode: the left zone ("Plex" + icon) is an `<a>` link to Plex Web, and the right zone (": Complete" or ": Incomplete") toggles the floating gap panel.
+When gap data is available, the pill transitions to split-click mode: the left zone ("Plex" + icon) is an `<a>` link to Plex Web, and the right zone ("Complete" or "Incomplete") toggles the floating gap panel.
 
 ### Floating Gap Panels
 
