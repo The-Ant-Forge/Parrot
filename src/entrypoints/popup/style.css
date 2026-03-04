@@ -308,11 +308,6 @@ button.primary:hover:not(:disabled) {
   margin-top: 1px;
 }
 
-.media-collection .collection-count {
-  color: #ebaf00;
-  font-weight: 600;
-}
-
 .media-ids {
   display: flex;
   flex-wrap: wrap;

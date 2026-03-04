@@ -25,6 +25,7 @@ let currentPlexUrl: string | undefined;
 let currentBadgeStatus: BadgeStatus = "not-owned";
 let currentRatings: { tmdbRating?: number; imdbRating?: number } | null = null;
 let currentGapData: GapPanelData | null = null;
+let currentResolution: string | undefined;
 let ratingsListenerSetup = false;
 
 // --- Internal helpers ---
@@ -46,6 +47,7 @@ function applyPillStyles(el: HTMLElement, status: BadgeStatus) {
     verticalAlign: "middle",
     fontFamily: "system-ui, -apple-system, sans-serif",
     whiteSpace: "nowrap",
+    webkitTextStroke: "0 !important",
   });
 }
 
@@ -113,6 +115,13 @@ function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string
 
   const ratingSpan = createRatingSpan();
   if (ratingSpan) pill.appendChild(ratingSpan);
+
+  if (currentResolution && status === "owned") {
+    const resSpan = document.createElement("span");
+    Object.assign(resSpan.style, { marginTop: "1px", opacity: "0.8" });
+    resSpan.textContent = ` ${currentResolution}`;
+    pill.appendChild(resSpan);
+  }
 }
 
 // --- Floating panel positioning ---
@@ -223,6 +232,7 @@ function resetPanelState() {
 export interface GapPanelData {
   state: "complete" | "incomplete";
   panelElement: HTMLDivElement;
+  resolution?: string;
 }
 
 /** Create the stable badge wrapper (hidden initially). */
@@ -269,6 +279,7 @@ export function updateBadgeFromResponse(
   const status = response.owned ? "owned" : "not-owned";
   currentPlexUrl = response.plexUrl;
   currentBadgeStatus = status;
+  currentResolution = response.resolution;
 
   const pill = ensurePill(badge);
   setPillContent(pill, status, response.plexUrl);
@@ -289,6 +300,7 @@ export function setBadgeGapData(data: GapPanelData) {
   currentPanelElement = data.panelElement;
   currentGapData = data;
   currentBadgeStatus = "owned";
+  if (data.resolution) currentResolution = data.resolution;
 
   const pill = ensurePill(wrapper);
   const s = STYLES.owned;
@@ -332,7 +344,8 @@ export function setBadgeGapData(data: GapPanelData) {
     cursor: "pointer",
     marginTop: "1px",
   });
-  toggle.textContent = data.state === "complete" ? " : Complete" : " : Incomplete";
+  const res = currentResolution ? `${currentResolution} ` : "";
+  toggle.textContent = data.state === "complete" ? ` : ${res}Complete` : ` : ${res}Incomplete`;
   toggle.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -384,6 +397,7 @@ function setupRatingsListener() {
       imdbRating?: number;
       owned?: boolean;
       plexUrl?: string;
+      resolution?: string;
       mediaType?: string;
       source?: string;
       id?: string;
@@ -397,6 +411,7 @@ function setupRatingsListener() {
           updateBadgeFromResponse(wrapper, {
             owned: true,
             plexUrl: message.plexUrl,
+            resolution: message.resolution,
           });
         }
         // Notify content script callback for gap checking
@@ -426,6 +441,7 @@ export function removeBadge() {
   resetPanelState();
   currentRatings = null;
   currentGapData = null;
+  currentResolution = undefined;
   currentBadgeStatus = "not-owned";
   findExistingBadge()?.remove();
 }

@@ -49,12 +49,14 @@ describe("buildLibraryIndex", () => {
             year: 2023,
             ratingKey: "101",
             Guid: [{ id: "tmdb://550" }, { id: "imdb://tt0000550" }],
+            Media: [{ videoResolution: "1080" }],
           },
           {
             title: "Nebula Spark",
             year: 2020,
             ratingKey: "102",
             Guid: [{ id: "tmdb://999" }],
+            Media: [{ videoResolution: "720" }, { videoResolution: "1080" }],
           },
         ]),
       )
@@ -70,6 +72,7 @@ describe("buildLibraryIndex", () => {
               { id: "tmdb://1234" },
               { id: "imdb://tt1111111" },
             ],
+            Media: [{ videoResolution: "720" }],
           },
         ]),
       );
@@ -92,6 +95,8 @@ describe("buildLibraryIndex", () => {
     const nebulaIdx = index.movies.byTmdbId["999"];
     expect(nebulaIdx).toBeDefined();
     expect(index.items[nebulaIdx].title).toBe("Nebula Spark");
+    // Nebula Spark has two Media entries (720 + 1080), should pick highest
+    expect(index.items[nebulaIdx].resolution).toBe("1080");
 
     // Show lookups
     const showIdx = index.shows.byTvdbId["81189"];
@@ -102,6 +107,10 @@ describe("buildLibraryIndex", () => {
     // All IDs point to the same item index
     expect(index.shows.byTmdbId["1234"]).toBe(showIdx);
     expect(index.shows.byImdbId["tt1111111"]).toBe(showIdx);
+
+    // Resolution stored on items
+    expect(index.items[cosmicIdx].resolution).toBe("1080");
+    expect(index.items[showIdx].resolution).toBe("720");
   });
 
   it("enriches OwnedItem with external IDs", async () => {
@@ -248,6 +257,7 @@ describe("buildLibraryIndex", () => {
             year: 2023,
             ratingKey: "101",
             Guid: [{ id: "tmdb://550" }],
+            Media: [{ videoResolution: "720" }],
           },
         ]),
       )
@@ -263,6 +273,7 @@ describe("buildLibraryIndex", () => {
             year: 2023,
             ratingKey: "555",
             Guid: [{ id: "tmdb://550" }, { id: "imdb://tt0000550" }],
+            Media: [{ videoResolution: "1080" }],
           },
         ]),
       );
@@ -282,6 +293,9 @@ describe("buildLibraryIndex", () => {
     // Enriched with imdbId from server 2
     expect(item.imdbId).toBe("tt0000550");
     expect(index.movies.byImdbId["tt0000550"]).toBe(idx);
+
+    // Resolution should be highest across servers (1080 > 720)
+    expect(item.resolution).toBe("1080");
   });
 
   it("keeps items separate when IDs differ", async () => {

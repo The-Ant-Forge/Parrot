@@ -1,4 +1,4 @@
-import { getServers, saveServers } from "../../common/storage";
+import { getServers, saveServers, getOptions } from "../../common/storage";
 import type {
   PlexServerConfig,
   TestConnectionResponse,
@@ -228,8 +228,9 @@ async function initDashboard() {
       tabId: activeTab.id,
     });
 
+    const opts = await getOptions();
     if (response.media) {
-      renderMediaCard(response.media);
+      renderMediaCard(response.media, opts.debugLogging);
 
       // Retry once after 1s if metadata fetch hasn't completed yet (no poster)
       if (!response.media.posterPath && !response.media.posterUrl && activeTab.id) {
@@ -241,7 +242,7 @@ async function initDashboard() {
               tabId: retryTabId,
             });
             if (retry.media?.posterPath || retry.media?.posterUrl) {
-              renderMediaCard(retry.media);
+              renderMediaCard(retry.media, opts.debugLogging);
             }
           } catch {
             // ignore retry failure
@@ -254,7 +255,7 @@ async function initDashboard() {
   }
 }
 
-function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
+function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>, debug = false) {
   mediaCard.hidden = false;
 
   // Poster
@@ -284,9 +285,10 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   mediaSubtitle.innerHTML = "";
   if (media.mediaType === "show") {
     const parts: string[] = [];
+    if (media.resolution) parts.push(media.resolution);
     if (media.seasonCount) parts.push(`${media.seasonCount} seasons`);
     if (media.episodeCount) parts.push(`${media.episodeCount} episodes`);
-    if (media.showStatus) parts.push(media.showStatus);
+    if (media.showStatus) parts.push(media.showStatus.replace(/ Series$/i, ""));
     if (ratingText) {
       const ratingSpan = document.createElement("span");
       ratingSpan.className = "rating-score";
@@ -298,27 +300,26 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
     }
   } else {
     const statusText = media.owned ? "In Library" : "Not in Library";
+    const middleParts: string[] = [];
+    if (media.resolution) middleParts.push(media.resolution);
+    middleParts.push(statusText);
+    const suffix = middleParts.join(" \u00B7 ");
     if (ratingText) {
       const ratingSpan = document.createElement("span");
       ratingSpan.className = "rating-score";
       ratingSpan.textContent = ratingText;
       mediaSubtitle.appendChild(ratingSpan);
-      mediaSubtitle.appendChild(document.createTextNode(` \u00B7 ${statusText}`));
+      mediaSubtitle.appendChild(document.createTextNode(` \u00B7 ${suffix}`));
     } else {
-      mediaSubtitle.textContent = statusText;
+      mediaSubtitle.textContent = suffix;
     }
   }
 
   // Collection summary (movies only)
   if (media.collectionName && media.collectionTotal) {
     mediaCollection.hidden = false;
-    mediaCollection.innerHTML = "";
-    mediaCollection.appendChild(document.createTextNode(media.collectionName));
-    mediaCollection.appendChild(document.createElement("br"));
-    const countSpan = document.createElement("span");
-    countSpan.className = "collection-count";
-    countSpan.textContent = `${media.collectionOwned ?? 0} of ${media.collectionTotal} owned`;
-    mediaCollection.appendChild(countSpan);
+    const owned = media.collectionOwned ?? 0;
+    mediaCollection.textContent = `${media.collectionName} \u00B7 ${owned}/${media.collectionTotal} In Library`;
   } else {
     mediaCollection.hidden = true;
   }
@@ -333,7 +334,7 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   if (media.plexUrl) {
     const plexLink = document.createElement("a");
     plexLink.className = "id-tag plex";
-    plexLink.textContent = "Plex";
+    plexLink.textContent = `\u25B6 ${media.plexServerName ?? "Plex"}`;
     plexLink.href = media.plexUrl;
     plexLink.target = "_blank";
     plexLink.rel = "noopener noreferrer";
@@ -341,9 +342,9 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>) {
   }
 
   const tmdbPath = media.mediaType === "movie" ? "movie" : "tv";
-  if (media.tmdbId) addRatedIdLink(media.tmdbRating, `TMDB ${media.tmdbId}`, `https://www.themoviedb.org/${tmdbPath}/${media.tmdbId}`);
-  if (media.imdbId) addRatedIdLink(media.imdbRating, `IMDb ${media.imdbId}`, `https://www.imdb.com/title/${media.imdbId}/`);
-  if (media.tvdbId) addIdLink(`TVDB ${media.tvdbId}`, `https://www.thetvdb.com/dereferrer/series/${media.tvdbId}`);
+  if (media.tmdbId) addRatedIdLink(media.tmdbRating, "TMDB", `TMDB ${media.tmdbId}`, `https://www.themoviedb.org/${tmdbPath}/${media.tmdbId}`, debug);
+  if (media.imdbId) addRatedIdLink(media.imdbRating, "IMDb", `IMDb ${media.imdbId}`, `https://www.imdb.com/title/${media.imdbId}/`, debug);
+  if (media.tvdbId) addIdLink("TVDB", `TVDB ${media.tvdbId}`, `https://www.thetvdb.com/dereferrer/series/${media.tvdbId}`, debug);
 }
 
 function addStatusPill(label: string, active: boolean) {
@@ -356,19 +357,21 @@ function addStatusPill(label: string, active: boolean) {
   statusPills.appendChild(pill);
 }
 
-function addIdLink(text: string, url: string) {
+function addIdLink(label: string, fullText: string, url: string, debug: boolean) {
   const link = document.createElement("a");
   link.className = "id-tag";
-  link.textContent = text;
+  link.textContent = debug ? fullText : label;
+  link.title = fullText;
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   mediaIds.appendChild(link);
 }
 
-function addRatedIdLink(rating: number | undefined, text: string, url: string) {
+function addRatedIdLink(rating: number | undefined, label: string, fullText: string, url: string, debug: boolean) {
   const link = document.createElement("a");
   link.className = "id-tag";
+  link.title = fullText;
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
@@ -378,7 +381,7 @@ function addRatedIdLink(rating: number | undefined, text: string, url: string) {
     ratingSpan.textContent = `${rating.toFixed(1)} `;
     link.appendChild(ratingSpan);
   }
-  link.appendChild(document.createTextNode(text));
+  link.appendChild(document.createTextNode(debug ? fullText : label));
   mediaIds.appendChild(link);
 }
 

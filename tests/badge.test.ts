@@ -146,6 +146,32 @@ describe("updateBadgeFromResponse", () => {
     expect(link.target).toBe("_blank");
     expect(pill.style.borderColor).toBe("#ebaf00");
   });
+
+  it("shows resolution in pill when owned", () => {
+    const badge = createBadge();
+    document.body.appendChild(badge);
+
+    updateBadgeFromResponse(badge, {
+      owned: true,
+      resolution: "1080p",
+    });
+
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.textContent).toContain("1080p");
+  });
+
+  it("does not show resolution when not owned", () => {
+    const badge = createBadge();
+    document.body.appendChild(badge);
+
+    updateBadgeFromResponse(badge, {
+      owned: false,
+      resolution: "1080p",
+    });
+
+    const pill = badge.querySelector(".parrot-pill") as HTMLElement;
+    expect(pill.textContent).not.toContain("1080p");
+  });
 });
 
 describe("findExistingBadge", () => {
@@ -322,5 +348,32 @@ describe("setBadgeGapData", () => {
   it("does nothing when no badge exists", () => {
     const panel = document.createElement("div");
     expect(() => setBadgeGapData({ state: "complete", panelElement: panel })).not.toThrow();
+  });
+
+  it("includes resolution in toggle text when provided", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "complete", panelElement: panel, resolution: "720p" });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle");
+    expect(toggle?.textContent).toBe(" : 720p Complete");
+  });
+
+  it("includes resolution in incomplete toggle text", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "incomplete", panelElement: panel, resolution: "4K" });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle");
+    expect(toggle?.textContent).toBe(" : 4K Incomplete");
+  });
+
+  it("omits resolution from toggle text when not provided", () => {
+    const badge = setupOwnedBadge();
+    const panel = document.createElement("div");
+    setBadgeGapData({ state: "complete", panelElement: panel });
+
+    const toggle = badge.querySelector(".parrot-gap-toggle");
+    expect(toggle?.textContent).toBe(" : Complete");
   });
 });

@@ -16,6 +16,7 @@ export interface OwnedItem {
   tmdbId?: number;
   tvdbId?: number;
   imdbId?: string;
+  resolution?: string; // raw Plex videoResolution (e.g. "1080", "4k")
 }
 
 /** Cached index of the user's Plex library (stored in browser.storage.local) */
@@ -130,6 +131,8 @@ export interface CheckResponse {
   owned: boolean;
   item?: OwnedItem;
   plexUrl?: string;
+  plexServerName?: string;
+  resolution?: string;
 }
 
 export interface TestConnectionResponse {
@@ -194,6 +197,7 @@ export interface TabMediaInfo {
   id: string;
   owned: boolean;
   plexUrl?: string;
+  plexServerName?: string;
   tmdbId?: number;
   imdbId?: string;
   tvdbId?: number;
@@ -209,6 +213,7 @@ export interface TabMediaInfo {
   collectionTotal?: number;
   tmdbRating?: number;
   imdbRating?: number;
+  resolution?: string;
 }
 
 export interface TabMediaResponse {
@@ -250,6 +255,7 @@ export interface SeasonGapInfo {
 
 export interface EpisodeGapResponse {
   hasGaps: boolean;
+  resolution?: string;
   gaps?: {
     showTitle: string;
     totalOwned: number;
@@ -269,6 +275,7 @@ export interface EpisodeGapCacheEntry {
   completeSeasons: number;
   totalSeasons: number;
   fetchedAt: number;
+  resolution?: string;
 }
 
 export interface CollectionCheckResponse {

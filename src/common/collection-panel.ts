@@ -50,6 +50,7 @@ export function createCollectionPanel(collection: CollectionData, expanded = fal
         textDecoration: "none",
         fontSize: "11px",
         flexShrink: "0",
+         webkitTextStroke: "0 !important",
       });
       row.appendChild(plexLink);
     }

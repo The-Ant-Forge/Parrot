@@ -17,6 +17,38 @@ async function plexFetch(config: { serverUrl: string; token: string }, path: str
   });
 }
 
+// --- Resolution helpers ---
+
+const RESOLUTION_PRIORITY: Record<string, number> = {
+  sd: 1, "480": 2, "720": 3, "1080": 4, "4k": 5,
+};
+
+/** Format raw Plex videoResolution for display: "480"→"480p", "4k"→"4K" */
+export function formatResolution(raw: string): string {
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (lower === "4k") return "4K";
+  if (lower === "sd") return "SD";
+  return `${raw}p`;
+}
+
+/** Pick the highest resolution from a Plex Media array */
+function pickHighestResolution(
+  mediaArray: Array<{ videoResolution?: string }>,
+): string | undefined {
+  let best: string | undefined;
+  let bestPriority = -1;
+  for (const media of mediaArray) {
+    if (!media.videoResolution) continue;
+    const p = RESOLUTION_PRIORITY[media.videoResolution.toLowerCase()] ?? 0;
+    if (p > bestPriority) {
+      bestPriority = p;
+      best = media.videoResolution;
+    }
+  }
+  return best;
+}
+
 export async function testConnection(
   config: { serverUrl: string; token: string },
 ): Promise<{ success: boolean; error?: string; libraryCount?: number; machineIdentifier?: string; friendlyName?: string }> {
@@ -67,7 +99,7 @@ export async function fetchLibrarySections(
 export async function fetchSectionItems(
   config: { serverUrl: string; token: string },
   sectionKey: string,
-): Promise<Array<{ title: string; year?: number; ratingKey: string; guids: Array<{ id: string }> }>> {
+): Promise<Array<{ title: string; year?: number; ratingKey: string; guids: Array<{ id: string }>; resolution?: string }>> {
   const res = await plexFetch(
     config,
     `/library/sections/${sectionKey}/all?includeGuids=1`,
@@ -76,11 +108,12 @@ export async function fetchSectionItems(
   const data = await res.json();
   const items = data.MediaContainer?.Metadata ?? [];
   return items.map(
-    (item: { title: string; year?: number; ratingKey: string; Guid?: Array<{ id: string }> }) => ({
+    (item: { title: string; year?: number; ratingKey: string; Guid?: Array<{ id: string }>; Media?: Array<{ videoResolution?: string }> }) => ({
       title: item.title,
       year: item.year,
       ratingKey: item.ratingKey,
       guids: item.Guid ?? [],
+      resolution: item.Media ? pickHighestResolution(item.Media) : undefined,
     }),
   );
 }
@@ -88,18 +121,39 @@ export async function fetchSectionItems(
 export async function fetchShowEpisodes(
   config: { serverUrl: string; token: string },
   ratingKey: string,
-): Promise<Array<{ seasonNumber: number; episodeNumber: number }>> {
+): Promise<{
+  episodes: Array<{ seasonNumber: number; episodeNumber: number }>;
+  latestResolution?: string;
+}> {
   const res = await plexFetch(config, `/library/metadata/${ratingKey}/allLeaves`);
   if (!res.ok) throw new Error(`Plex API error: ${res.status}`);
   const data = await res.json();
-  const episodes: Array<{ parentIndex?: number; index?: number }> =
+  const raw: Array<{ parentIndex?: number; index?: number; Media?: Array<{ videoResolution?: string }> }> =
     data.MediaContainer?.Metadata ?? [];
-  return episodes
-    .filter((ep) => ep.parentIndex != null && ep.index != null)
-    .map((ep) => ({
+
+  const valid = raw.filter((ep) => ep.parentIndex != null && ep.index != null);
+
+  // Find resolution of the most recent episode (highest season, then highest episode)
+  let latestResolution: string | undefined;
+  let latestSeason = -1;
+  let latestEpisode = -1;
+  for (const ep of valid) {
+    const s = ep.parentIndex!;
+    const e = ep.index!;
+    if (s > latestSeason || (s === latestSeason && e > latestEpisode)) {
+      latestSeason = s;
+      latestEpisode = e;
+      latestResolution = ep.Media ? pickHighestResolution(ep.Media) : undefined;
+    }
+  }
+
+  return {
+    episodes: valid.map((ep) => ({
       seasonNumber: ep.parentIndex!,
       episodeNumber: ep.index!,
-    }));
+    })),
+    latestResolution,
+  };
 }
 
 export function extractExternalIds(
@@ -183,6 +237,15 @@ export async function buildLibraryIndex(
           const existing = index.items[existingIdx];
           existing.plexKeys[server.id] = item.ratingKey;
 
+          // Take highest resolution across servers
+          if (item.resolution) {
+            if (!existing.resolution ||
+              (RESOLUTION_PRIORITY[item.resolution.toLowerCase()] ?? 0) >
+              (RESOLUTION_PRIORITY[existing.resolution.toLowerCase()] ?? 0)) {
+              existing.resolution = item.resolution;
+            }
+          }
+
           // Enrich with any new IDs the existing item was missing
           if (section.type === "movie") {
             if (!existing.tmdbId && ids.tmdbId) {
@@ -216,6 +279,7 @@ export async function buildLibraryIndex(
             tmdbId: ids.tmdbId,
             tvdbId: ids.tvdbId,
             imdbId: ids.imdbId,
+            resolution: item.resolution,
           };
 
           const idx = index.items.length;

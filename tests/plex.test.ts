@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractExternalIds } from "../src/api/plex";
+import { extractExternalIds, formatResolution } from "../src/api/plex";
 
 describe("extractExternalIds", () => {
   it("extracts TMDB ID from guid", () => {
@@ -41,5 +41,35 @@ describe("extractExternalIds", () => {
 
   it("ignores malformed tmdb guid without number", () => {
     expect(extractExternalIds([{ id: "tmdb://abc" }])).toEqual({});
+  });
+});
+
+describe("formatResolution", () => {
+  it("formats 480 as 480p", () => {
+    expect(formatResolution("480")).toBe("480p");
+  });
+
+  it("formats 720 as 720p", () => {
+    expect(formatResolution("720")).toBe("720p");
+  });
+
+  it("formats 1080 as 1080p", () => {
+    expect(formatResolution("1080")).toBe("1080p");
+  });
+
+  it("formats 4k as 4K", () => {
+    expect(formatResolution("4k")).toBe("4K");
+  });
+
+  it("formats 4K (uppercase) as 4K", () => {
+    expect(formatResolution("4K")).toBe("4K");
+  });
+
+  it("formats sd as SD", () => {
+    expect(formatResolution("sd")).toBe("SD");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(formatResolution("")).toBe("");
   });
 });

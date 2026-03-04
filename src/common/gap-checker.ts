@@ -136,11 +136,13 @@ async function checkShowGaps(
       setBadgeGapData({
         state: hasGaps ? "incomplete" : "complete",
         panelElement,
+        resolution: result.resolution,
       });
     } else {
       setBadgeGapData({
         state: "complete",
         panelElement: document.createElement("div"), // empty placeholder
+        resolution: result.resolution,
       });
     }
   } catch (err) {

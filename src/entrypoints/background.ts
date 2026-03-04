@@ -1,5 +1,5 @@
 import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps, clearEpisodeGapCache, getUpdateCheck, saveUpdateCheck } from "../common/storage";
-import { testConnection, buildLibraryIndex, fetchShowEpisodes } from "../api/plex";
+import { testConnection, buildLibraryIndex, fetchShowEpisodes, formatResolution } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie, searchTv } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
@@ -189,12 +189,12 @@ function buildPlexUrl(machineIdentifier: string, plexKey: string): string {
 
 /**
  * Resolve the best Plex URL for an owned item, using server priority order.
- * Returns the URL for the highest-priority server that owns the item.
+ * Returns the URL and server name for the highest-priority server that owns the item.
  */
-function resolveItemPlexUrl(item: OwnedItem, servers: PlexServerConfig[]): string | undefined {
+function resolveItemPlex(item: OwnedItem, servers: PlexServerConfig[]): { url: string; serverName: string } | undefined {
   for (const server of servers) {
     const plexKey = item.plexKeys[server.id];
-    if (plexKey) return buildPlexUrl(server.id, plexKey);
+    if (plexKey) return { url: buildPlexUrl(server.id, plexKey), serverName: server.name };
   }
   return undefined;
 }
@@ -317,9 +317,15 @@ async function handleCheck(
   if (!item) return { owned: false };
 
   const servers = await loadServers();
-  const plexUrl = resolveItemPlexUrl(item, servers);
+  const plex = resolveItemPlex(item, servers);
 
-  return { owned: true, item, plexUrl };
+  return {
+    owned: true,
+    item,
+    plexUrl: plex?.url,
+    plexServerName: plex?.serverName,
+    resolution: item.resolution ? formatResolution(item.resolution) : undefined,
+  };
 }
 
 type IconState = "owned" | "not-owned" | "inactive";
@@ -436,12 +442,15 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
         if (itemIdx !== undefined) {
           const item = index.items[itemIdx];
           const servers = await loadServers();
+          const plex = resolveItemPlex(item, servers);
           info.owned = true;
-          info.plexUrl = resolveItemPlexUrl(item, servers);
+          info.plexUrl = plex?.url;
+          info.plexServerName = plex?.serverName;
           if (item.imdbId) info.imdbId = item.imdbId;
           if (item.tvdbId) info.tvdbId = item.tvdbId;
           if (item.title) info.title = item.title;
           if (item.year) info.year = item.year;
+          if (item.resolution) info.resolution = formatResolution(item.resolution);
           await setTabIcon(tabId, "owned");
           // Notify content script so the in-page pill updates
           debugLog("BG", `META: ownership flipped via TMDB re-check, notifying tab ${tabId}`);
@@ -449,6 +458,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
             type: "OWNERSHIP_UPDATED",
             owned: true,
             plexUrl: info.plexUrl,
+            resolution: info.resolution,
             mediaType: info.mediaType,
             source: "tmdb",
             id: String(tmdbId),
@@ -687,11 +697,13 @@ export default defineBackground(() => {
                 id: message.id,
                 owned: result.owned,
                 plexUrl: result.plexUrl,
+                plexServerName: result.plexServerName,
                 tmdbId: result.item?.tmdbId ?? (message.source === "tmdb" && /^\d+$/.test(message.id) ? parseInt(message.id, 10) : undefined),
                 imdbId: result.item?.imdbId ?? (message.source === "imdb" ? message.id : undefined),
                 tvdbId: result.item?.tvdbId ?? (message.source === "tvdb" && /^\d+$/.test(message.id) ? parseInt(message.id, 10) : undefined),
                 title: result.item?.title ?? titleFromKey,
                 year: result.item?.year ?? yearFromKey,
+                resolution: result.resolution,
               };
               persistTabMedia(tabId, mediaInfo);
               // Fire-and-forget metadata fetch
@@ -843,6 +855,7 @@ export default defineBackground(() => {
                 debugLog("BG", `EPISODES: cache hit for ${cacheKey}`);
                 sendResponse({
                   hasGaps: cachedGaps.seasons.some((s) => s.missing.length > 0),
+                  resolution: cachedGaps.resolution,
                   gaps: {
                     showTitle: cachedGaps.showTitle,
                     totalOwned: cachedGaps.totalOwned,
@@ -858,14 +871,19 @@ export default defineBackground(() => {
               // Fetch Plex episodes from ALL servers that own this show (merge for most accurate gaps)
               const servers = await loadServers();
               const ownedSet = new Set<string>();
+              let latestResolution: string | undefined;
 
               for (const server of servers) {
                 const plexKey = ownedShow.plexKeys[server.id];
                 if (!plexKey) continue;
                 try {
-                  const plexEpisodes = await fetchShowEpisodes(server, plexKey);
-                  for (const ep of plexEpisodes) {
+                  const plexResult = await fetchShowEpisodes(server, plexKey);
+                  for (const ep of plexResult.episodes) {
                     ownedSet.add(`S${ep.seasonNumber}E${ep.episodeNumber}`);
+                  }
+                  // Take resolution from first server that returns it (primary server)
+                  if (!latestResolution && plexResult.latestResolution) {
+                    latestResolution = plexResult.latestResolution;
                   }
                 } catch (err) {
                   errorLog("BG", `failed to fetch episodes from server ${server.name}`, err);
@@ -999,6 +1017,7 @@ export default defineBackground(() => {
               const totalEpisodes = seasonGaps.reduce((sum, s) => sum + s.totalCount, 0);
               const completeSeasons = seasonGaps.filter((s) => s.missing.length === 0).length;
               const hasAnyGaps = seasonGaps.some((s) => s.missing.length > 0);
+              const formattedResolution = latestResolution ? formatResolution(latestResolution) : undefined;
 
               // Cache the result
               const cacheEntry: EpisodeGapCacheEntry = {
@@ -1010,6 +1029,7 @@ export default defineBackground(() => {
                 completeSeasons,
                 totalSeasons: seasonGaps.length,
                 fetchedAt: Date.now(),
+                resolution: formattedResolution,
               };
               await saveCachedEpisodeGaps(cacheEntry);
 
@@ -1017,8 +1037,19 @@ export default defineBackground(() => {
                 `EPISODES: ${showTitle} — ${totalOwned}/${totalEpisodes} episodes, ${completeSeasons}/${seasonGaps.length} seasons complete`,
               );
 
+              // Update TabMediaInfo with resolution for popup dashboard
+              const epTabId = sender.tab?.id;
+              if (formattedResolution && epTabId) {
+                const existingMedia = await getTabMedia(epTabId);
+                if (existingMedia) {
+                  existingMedia.resolution = formattedResolution;
+                  persistTabMedia(epTabId, existingMedia);
+                }
+              }
+
               sendResponse({
                 hasGaps: hasAnyGaps,
+                resolution: formattedResolution,
                 gaps: {
                   showTitle,
                   totalOwned,
@@ -1167,11 +1198,11 @@ export default defineBackground(() => {
 
                 if (itemIdx !== undefined && index) {
                   const ownedItem = index.items[itemIdx];
-                  const plexUrl = resolveItemPlexUrl(ownedItem, servers);
+                  const plexResult = resolveItemPlex(ownedItem, servers);
                   ownedMovies.push({
                     title: part.title,
                     year: part.release_date ? parseInt(part.release_date.slice(0, 4), 10) : undefined,
-                    plexUrl,
+                    plexUrl: plexResult?.url,
                   });
                 } else {
                   missingMovies.push({
