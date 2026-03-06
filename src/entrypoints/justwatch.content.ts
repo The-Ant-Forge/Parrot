@@ -1,4 +1,5 @@
-import { injectBadge, onOwnershipUpdated, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { checkWithImdbFallback, setupOwnershipListener } from "../common/check-helpers";
 import { waitForElement } from "../common/dom-utils";
 import { extractJustWatchMediaType, scanLinksForExternalId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
@@ -32,24 +33,14 @@ async function checkAndBadge() {
   debugLog("JustWatch", "strategy 1 (links) →", extId ? extId.source + ":" + extId.id : "no links");
   if (extId) {
     try {
-      let resolvedType = mediaType;
-      let response: CheckResponse = await browser.runtime.sendMessage({
+      const initialResponse: CheckResponse = await browser.runtime.sendMessage({
         type: "CHECK",
         mediaType,
         source: extId.source,
         id: extId.id,
       });
 
-      // IMDb fallback: try opposite media type
-      if (!response.owned && extId.source === "imdb") {
-        resolvedType = mediaType === "movie" ? "show" : "movie";
-        response = await browser.runtime.sendMessage({
-          type: "CHECK",
-          mediaType: resolvedType,
-          source: "imdb",
-          id: extId.id,
-        });
-      }
+      const { mediaType: resolvedType, response } = await checkWithImdbFallback(mediaType, extId.source, extId.id, initialResponse);
 
       debugLog("JustWatch", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
       updateBadgeFromResponse(badge, response);
@@ -92,16 +83,7 @@ async function checkAndBadge() {
       });
     }
 
-    // Listen for deferred ownership update (TMDB re-check found it by ID)
-    onOwnershipUpdated((msg) => {
-      debugLog("JustWatch", "ownership updated via TMDB re-check →", msg.source + ":" + msg.id);
-      checkGaps({
-        mediaType: msg.mediaType,
-        source: msg.source as "tmdb",
-        id: msg.id,
-        response: { owned: true, plexUrl: msg.plexUrl },
-      });
-    });
+    setupOwnershipListener("JustWatch");
   } catch (err) {
     errorLog("JustWatch", err);
     showErrorBadge(badge, "Could not check Plex library");

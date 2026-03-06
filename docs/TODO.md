@@ -26,7 +26,8 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 
 > Spec: [`Phase 14 - Consolidation 2.md`](Phase%2014%20-%20Consolidation%202.md)
 
-- [ ] Extract IMDb media type fallback pattern to shared function (6+ files)
+- [x] Extract IMDb media type fallback pattern to shared function (6+ files)
+- [x] Extract ownership listener + gap-check-with-fallback to shared helpers (8 files)
 - [ ] Add unit tests for `gap-checker.ts` (needs browser.runtime mocking)
 - [ ] Add unit tests for `url-observer.ts` (needs MutationObserver mocking)
 - [x] Remove dead code (`movieKeys`/`showKeys` in plex.ts)

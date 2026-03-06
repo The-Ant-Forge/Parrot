@@ -1,4 +1,5 @@
-import { injectBadge, onOwnershipUpdated, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { setupOwnershipListener } from "../common/check-helpers";
 import { waitForElement } from "../common/dom-utils";
 import { extractIplayerFromUrl } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
@@ -56,16 +57,7 @@ async function checkAndBadge() {
       });
     }
 
-    // Listen for deferred ownership update (TMDB re-check found it by ID)
-    onOwnershipUpdated((msg) => {
-      debugLog("iPlayer", "ownership updated via TMDB re-check →", msg.source + ":" + msg.id);
-      checkGaps({
-        mediaType: msg.mediaType,
-        source: msg.source as "tmdb",
-        id: msg.id,
-        response: { owned: true, plexUrl: msg.plexUrl },
-      });
-    });
+    setupOwnershipListener("iPlayer");
   } catch (err) {
     errorLog("iPlayer", err);
     showErrorBadge(badge, "Could not check Plex library");

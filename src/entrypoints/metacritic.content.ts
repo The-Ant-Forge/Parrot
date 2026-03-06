@@ -1,4 +1,5 @@
-import { injectBadge, onOwnershipUpdated, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { checkWithImdbFallback, setupOwnershipListener } from "../common/check-helpers";
 import { extractMetacriticMediaType, findExternalIdFromJsonLd } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
@@ -31,24 +32,14 @@ async function checkAndBadge() {
   debugLog("Metacritic", "strategy 1 (JSON-LD/links) →", extId ? extId.source + ":" + extId.id : "no external ID");
   if (extId) {
     try {
-      let resolvedType = mediaType;
-      let response: CheckResponse = await browser.runtime.sendMessage({
+      const initialResponse: CheckResponse = await browser.runtime.sendMessage({
         type: "CHECK",
         mediaType,
         source: extId.source,
         id: extId.id,
       });
 
-      // IMDb fallback: try opposite media type
-      if (!response.owned && extId.source === "imdb") {
-        resolvedType = mediaType === "movie" ? "show" : "movie";
-        response = await browser.runtime.sendMessage({
-          type: "CHECK",
-          mediaType: resolvedType,
-          source: "imdb",
-          id: extId.id,
-        });
-      }
+      const { mediaType: resolvedType, response } = await checkWithImdbFallback(mediaType, extId.source, extId.id, initialResponse);
 
       debugLog("Metacritic", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
       updateBadgeFromResponse(badge, response);
@@ -104,16 +95,7 @@ async function checkAndBadge() {
       });
     }
 
-    // Listen for deferred ownership update (TMDB re-check found it by ID)
-    onOwnershipUpdated((msg) => {
-      debugLog("Metacritic", "ownership updated via TMDB re-check →", msg.source + ":" + msg.id);
-      checkGaps({
-        mediaType: msg.mediaType,
-        source: msg.source as "tmdb",
-        id: msg.id,
-        response: { owned: true, plexUrl: msg.plexUrl },
-      });
-    });
+    setupOwnershipListener("Metacritic");
   } catch (err) {
     errorLog("Metacritic", err);
     showErrorBadge(badge, "Could not check Plex library");

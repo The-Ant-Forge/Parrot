@@ -1,6 +1,6 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { checkGapsWithFallback, checkWithImdbFallback } from "../common/check-helpers";
 import { scanLinksForExternalId } from "../common/extractors";
-import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
 
@@ -19,34 +19,20 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   try {
-    let mediaType = extId.mediaType ?? "movie";
-    let response: CheckResponse = await browser.runtime.sendMessage({
+    const initialMediaType = extId.mediaType ?? "movie";
+    const initialResponse: CheckResponse = await browser.runtime.sendMessage({
       type: "CHECK",
-      mediaType,
+      mediaType: initialMediaType,
       source: extId.source,
       id: extId.id,
     });
 
-    // IMDb fallback: try show if movie missed
-    if (!response.owned && extId.source === "imdb") {
-      mediaType = "show";
-      response = await browser.runtime.sendMessage({
-        type: "CHECK",
-        mediaType: "show",
-        source: "imdb",
-        id: extId.id,
-      });
-    }
+    const { mediaType, response } = await checkWithImdbFallback(initialMediaType, extId.source, extId.id, initialResponse);
 
     debugLog("RARGB", mediaType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
-    if (response.owned) {
-      checkGaps({ mediaType, source: extId.source, id: extId.id, response });
-    } else {
-      // Not owned — always try movie collection check (IMDb fallback may have flipped type)
-      checkGaps({ mediaType: "movie", source: extId.source, id: extId.id, response });
-    }
+    checkGapsWithFallback(mediaType, extId.source, extId.id, response);
   } catch (err) {
     errorLog("RARGB", err);
     showErrorBadge(badge, "Could not check Plex library");
