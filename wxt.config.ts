@@ -17,6 +17,7 @@ export default defineConfig({
       "https://api4.thetvdb.com/*",
       "https://api.tvmaze.com/*",
       "https://api.github.com/*",
+      "https://www.omdbapi.com/*",
     ],
   },
 });

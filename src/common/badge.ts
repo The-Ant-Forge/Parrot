@@ -8,8 +8,29 @@ const GAP_TOGGLE_CLASS = "parrot-gap-toggle";
 type BadgeStatus = "owned" | "not-owned" | "error";
 
 // Plex chevron icon as inline SVG (extracted from official logo)
-const PLEX_ICON_SVG = (fill: string) =>
-  `<svg viewBox="100 10 35 48" width="14" height="14" style="vertical-align:middle;flex-shrink:0"><polygon points="117.9,33.9 104.1,13.5 118.3,13.5 132,33.9 118.3,54.2 104.1,54.2" fill="${fill}"/></svg>`;
+function plexIconSvg(fill: string) {
+  return `<svg viewBox="100 10 35 48" width="14" height="14" style="vertical-align:middle;flex-shrink:0"><polygon points="117.9,33.9 104.1,13.5 118.3,13.5 132,33.9 118.3,54.2 104.1,54.2" fill="${fill}"/></svg>`;
+}
+
+/** Create a styled Plex link element (icon + "Plex" text). */
+function createPlexLink(url: string, iconColor: string): HTMLAnchorElement {
+  const link = document.createElement("a");
+  link.className = PLEX_LINK_CLASS;
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  Object.assign(link.style, {
+    textDecoration: "none",
+    cursor: "pointer",
+    color: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "3px",
+    webkitTextStroke: "0",
+  });
+  link.innerHTML = `${plexIconSvg(iconColor)}<span style="margin-top:1px">Plex</span>`;
+  return link;
+}
 
 const STYLES: Record<BadgeStatus, { bg: string; color: string; border: string; icon: string }> = {
   owned: { bg: "#282828", color: "#fff", border: "#ebaf00", icon: "#ebaf00" },
@@ -100,25 +121,9 @@ function setPillContent(pill: HTMLElement, status: BadgeStatus, plexUrl?: string
   }
 
   if (status === "owned" && plexUrl) {
-    // Entire pill content is a link
-    const link = document.createElement("a");
-    link.className = PLEX_LINK_CLASS;
-    link.href = plexUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    Object.assign(link.style, {
-      textDecoration: "none",
-      cursor: "pointer",
-      color: "inherit",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "3px",
-      webkitTextStroke: "0",
-    });
-    link.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
-    pill.appendChild(link);
+    pill.appendChild(createPlexLink(plexUrl, s.icon));
   } else {
-    pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
+    pill.innerHTML = `${plexIconSvg(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
 
   const ratingSpan = createRatingSpan();
@@ -180,6 +185,7 @@ function positionPanel(wrapper: HTMLElement, panel: HTMLDivElement) {
 // --- Click-outside dismissal ---
 
 function setupClickOutside(wrapper: HTMLElement) {
+  if (clickOutsideHandler) teardownClickOutside();
   const handler = (e: MouseEvent) => {
     if (!wrapper.contains(e.target as Node)) {
       hidePanel();
@@ -325,24 +331,9 @@ export function setBadgeGapData(data: GapPanelData) {
 
   // Left zone: Plex link (or plain text if no plexUrl)
   if (currentPlexUrl) {
-    const link = document.createElement("a");
-    link.className = PLEX_LINK_CLASS;
-    link.href = currentPlexUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    Object.assign(link.style, {
-      textDecoration: "none",
-      cursor: "pointer",
-      color: "inherit",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "3px",
-      webkitTextStroke: "0",
-    });
-    link.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
-    pill.appendChild(link);
+    pill.appendChild(createPlexLink(currentPlexUrl, s.icon));
   } else {
-    pill.innerHTML = `${PLEX_ICON_SVG(s.icon)}<span style="margin-top:1px">Plex</span>`;
+    pill.innerHTML = `${plexIconSvg(s.icon)}<span style="margin-top:1px">Plex</span>`;
   }
 
   // Rating

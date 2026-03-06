@@ -5,65 +5,10 @@ Read agents.md
 ## Project basics
 
 - **Purpose:** Browser extension that checks if media you're browsing (TMDB, TVDB, IMDb) is already in your Plex library
-- **Companion to:** [ComPlexionist](https://github.com/StephKoenig/ComPlexionist) (finds library gaps; Parrot prevents duplicate hunting)
+- **Companion to:** [ComPlexionist](https://github.com/The-Ant-Forge/ComPlexionist) (finds library gaps; Parrot prevents duplicate hunting)
 - **Tech stack:** TypeScript, Manifest V3, Vite/WXT
 - **Target browsers:** Chrome (primary), Firefox (secondary)
-
-Key files:
-- `docs/Parrot spec.md` — Full specification and architecture
-- `wxt.config.ts` — WXT/Vite configuration (manifest is auto-generated)
-- `src/entrypoints/background.ts` — Library cache, Plex API proxy
-- `src/entrypoints/*.content.ts` — Content scripts per supported site
-- `src/entrypoints/popup/` — Settings and status popup
-- `src/api/plex.ts` — Plex API client
-- `tests/` — Vitest test suite
-
----
-
-## Plex API Reference
-
-### Authentication
-
-```
-Header: X-Plex-Token: {token}
-Base URL: http://{server}:32400
-```
-
-Users get their token from Plex Settings > Account > Authorized Devices.
-
-### Key Endpoints
-
-```
-GET /library/sections                           → List all libraries
-GET /library/sections/{id}/all                  → All items in a library
-```
-
-Request `Accept: application/json` for JSON responses.
-
-### External ID System (GUIDs)
-
-Each Plex item has a `guids` array with external database references:
-
-```json
-{ "guids": [{ "id": "tmdb://550" }, { "id": "imdb://tt0137523" }] }
-```
-
-**Patterns:**
-- TMDB: `tmdb://(\d+)` → numeric ID
-- TVDB: `tvdb://(\d+)` → numeric ID
-- IMDb: `imdb://(tt\d+)` → string ID
-
-### URL ID Extraction
-
-```typescript
-// TMDB: https://www.themoviedb.org/movie/550-fight-club → 550
-url.match(/themoviedb\.org\/(movie|tv)\/(\d+)/)
-
-// IMDb: https://www.imdb.com/title/tt0137523/ → tt0137523
-url.match(/imdb\.com\/title\/(tt\d+)/)
-
-// TVDB: ID from page metadata or DOM
-```
+- **Full spec:** `docs/Parrot spec.md`
 
 ---
 
@@ -204,50 +149,40 @@ Never use real movie or tv show names. Always make up example ones.
 
 ## Storage
 
-| Store | Contents | Notes |
-|-------|----------|-------|
-| `browser.storage.sync` | Plex servers array, options, custom sites | Syncs across devices |
-| `browser.storage.local` | Library index (compact), collection/episode caches | `unlimitedStorage` removes 10MB cap |
+- **`browser.storage.sync`** — Plex servers, options, custom sites (syncs across devices)
+- **`browser.storage.local`** — Library index, collection/episode caches (`unlimitedStorage`)
 
 ---
 
-## Error handling
+## Code Review Phases
 
-- Invalid/missing token → popup prompts setup
-- Server unreachable → badge shows error, tooltip explains
-- Unsupported page → extension stays dormant
-- Empty library → "No libraries found" message
+Periodically we do a consolidation review covering all source, tests, build config, and metadata.
 
----
+### Review Checklist
+1. **Dead code** — unused functions, classes, modules, imports, config keys
+2. **Dead dependencies** — libraries that are unused or underused relative
+   to what we could replace inline
+3. **Duplication** — repeated or near-identical logic that should be shared
+4. **Naming & consistency** — mixed conventions, unclear names, stale comments
+5. **Error handling** — inconsistent patterns, swallowed exceptions, missing
+   user-facing messages
+6. **Security** — input validation gaps, credential handling, OWASP patterns
+7. **Type safety** — missing annotations, `Any` overuse, type errors
+8. **Test gaps** — untested code paths, stale tests, missing edge cases
+9. **Documentation drift** — specs, docstrings, or README sections that no
+   longer match the code
+10. **Performance** — unnecessary work, avoidable allocations, slow patterns
+11. **Robustness** — race conditions, resource leaks, missing cleanup
+12. **TODO/FIXME/HACK audit** — resolve or remove stale markers
 
-## Supported sites
+### Deliverable
+A review document in `docs/` named `Code-Review-YYMMDD.md` (or similar) with:
+- Summary table: Category, Description, Action, Impact, Effort, Risk
+- Detailed findings grouped by category, ordered by impact then effort
+- Out-of-scope items noted for TODO.md
 
-| Site | URL pattern | ID type |
-|------|-------------|---------|
-| BBC iPlayer | `bbc.co.uk/iplayer/episode/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) |
-| BBC iPlayer | `bbc.co.uk/iplayer/episodes/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) |
-| IMDb | `imdb.com/title/{ttID}` | IMDb string |
-| JustWatch | `justwatch.com/*/movie/{slug}` | Title-based from h1 (link scan fallback) |
-| JustWatch | `justwatch.com/*/tv-series/{slug}` | Title-based from h1 (link scan fallback) |
-| Letterboxd | `letterboxd.com/film/{slug}` | TMDB/IMDb (from page links) |
-| Metacritic | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
-| Metacritic | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) |
-| NZBForYou | `nzbforyou.com/viewtopic.php` | IMDb (from page links), link scan fallback (TMDB/TVDB/TVMaze) |
-| NZBGeek | `nzbgeek.info/geekseek.php?movieid={id}` | TMDB/IMDb (from page links) |
-| NZBGeek | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB (from page links) |
-| Plex | `app.plex.tv/#!/server/*/details` | PlexKey from URL hash (index lookup) |
-| Plex | `app.plex.tv/#!/provider/*/details` | Link scan / title-based fallback (discover) |
-| PSA | `psa.wf/movie/{slug}` | Title-based matching from URL slug |
-| PSA | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug |
-| RARGB | `rargb.to/torrent/*` | TMDB/IMDb/TVDB (from page links) |
-| Rotten Tomatoes | `rottentomatoes.com/m/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
-| Rotten Tomatoes | `rottentomatoes.com/tv/{slug}` | Title-based from URL slug (JSON-LD/link scan fallback) |
-| TMDB | `themoviedb.org/movie/{id}` | TMDB numeric |
-| TMDB | `themoviedb.org/tv/{id}` | TMDB numeric |
-| Trakt | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB (from page links) |
-| Trakt | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB (from page links) |
-| Trakt App | `app.trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB (from page links, SvelteKit SPA) |
-| Trakt App | `app.trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB (from page links, SvelteKit SPA) |
-| TVDB | `thetvdb.com/series/{slug}` | TVDB numeric (from DOM) |
-| TVDB | `thetvdb.com/movies/{slug}` | TMDB/IMDb (from page links) |
-| TVMaze | `tvmaze.com/shows/{id}` | TVDB/IMDb via TVMaze API (free, no key) |
+### Process
+1. Produce the review document — do NOT implement during review
+2. Review and approve findings with the user
+3. Implement approved items in focused commits
+4. Re-run tests after each change

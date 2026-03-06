@@ -83,7 +83,7 @@ async function checkMovieGaps(
 
         // Update toolbar icon to "owned" when collection data confirms ownership/recognition
         if (!response.owned) {
-          browser.runtime.sendMessage({ type: "UPDATE_ICON", state: "owned" }).catch(() => {});
+          browser.runtime.sendMessage({ type: "UPDATE_ICON", state: "owned" }).catch(() => debugLog("GapChecker", "icon update failed"));
         }
       }
     }

@@ -3,11 +3,11 @@
  * Calls the handler when location.href changes, debounced to avoid
  * rapid re-checks during SPA navigation transitions.
  */
-export function observeUrlChanges(handler: () => void, debounceMs = 150): void {
+export function observeUrlChanges(handler: () => void, debounceMs = 150): () => void {
   let lastUrl = location.href;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  new MutationObserver(() => {
+  const observer = new MutationObserver(() => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       if (timeoutId !== null) clearTimeout(timeoutId);
@@ -16,5 +16,7 @@ export function observeUrlChanges(handler: () => void, debounceMs = 150): void {
         handler();
       }, debounceMs);
     }
-  }).observe(document.body, { childList: true, subtree: true });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  return () => observer.disconnect();
 }

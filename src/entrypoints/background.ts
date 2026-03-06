@@ -282,12 +282,12 @@ async function handleCheck(
               if (item) debugLog("BG", `CHECK: found via TVMaze→TMDB:${tmdbId}`);
             }
           }
-        } catch {
-          // cross-reference failed
+        } catch (err) {
+          debugLog("BG", "CHECK: TMDB cross-reference via TVMaze failed", err);
         }
       }
-    } catch {
-      // TVMaze API failed — fall through to not-owned
+    } catch (err) {
+      debugLog("BG", "CHECK: TVMaze API failed", err);
     }
   } else {
     debugLog("BG", `CHECK: direct index lookup ${message.mediaType} ${message.source}:${message.id}`);
@@ -315,8 +315,8 @@ async function handleCheck(
               if (item) debugLog("BG", `CHECK: found via TVMaze cross-ref → IMDb:${ext.imdbId}`);
             }
           }
-        } catch {
-          // TVMaze cross-reference failed — try TMDB next
+        } catch (err) {
+          debugLog("BG", "CHECK: TVMaze cross-reference failed", err);
         }
       }
 
@@ -334,8 +334,8 @@ async function handleCheck(
               if (item) debugLog("BG", `CHECK: found via TMDB cross-ref → TMDB:${tmdbId}`);
             }
           }
-        } catch {
-          // TMDB cross-reference failed — fall through to not-owned
+        } catch (err) {
+          debugLog("BG", "CHECK: TMDB cross-reference failed", err);
         }
       }
     }
@@ -423,7 +423,7 @@ function sendRatingsToTab(tabId: number, info: TabMediaInfo) {
       type: "RATINGS_READY",
       tmdbRating: info.tmdbRating,
       imdbRating: info.imdbRating,
-    }).catch(() => {}); // content script may not be listening
+    }).catch(() => debugLog("BG", "RATINGS: content script not listening"));
   }
 }
 
@@ -489,7 +489,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
             mediaType: info.mediaType,
             source: "tmdb",
             id: String(tmdbId),
-          }).catch(() => {}); // content script may not be listening
+          }).catch(() => debugLog("BG", "OWNERSHIP: content script not listening"));
         }
       }
     }

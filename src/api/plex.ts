@@ -303,12 +303,16 @@ export async function buildLibraryIndex(
   index.lastRefresh = Date.now();
   index.itemCount = index.items.length;
   // Count unique items by type (items in movies maps vs shows maps)
-  index.movieCount = new Set(Object.values(index.movies.byTmdbId)
-    .concat(Object.values(index.movies.byImdbId))
-    .concat(Object.values(index.movies.byTitle))).size;
-  index.showCount = new Set(Object.values(index.shows.byTvdbId)
-    .concat(Object.values(index.shows.byTmdbId))
-    .concat(Object.values(index.shows.byImdbId))
-    .concat(Object.values(index.shows.byTitle))).size;
+  const movieIndices = new Set<number>();
+  for (const v of Object.values(index.movies.byTmdbId)) movieIndices.add(v);
+  for (const v of Object.values(index.movies.byImdbId)) movieIndices.add(v);
+  for (const v of Object.values(index.movies.byTitle)) movieIndices.add(v);
+  index.movieCount = movieIndices.size;
+  const showIndices = new Set<number>();
+  for (const v of Object.values(index.shows.byTvdbId)) showIndices.add(v);
+  for (const v of Object.values(index.shows.byTmdbId)) showIndices.add(v);
+  for (const v of Object.values(index.shows.byImdbId)) showIndices.add(v);
+  for (const v of Object.values(index.shows.byTitle)) showIndices.add(v);
+  index.showCount = showIndices.size;
   return index;
 }

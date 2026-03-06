@@ -141,6 +141,7 @@ export function scanLinksForExternalId(
   options?: { sources?: ExternalIdSource[]; container?: ParentNode },
 ): ExternalIdFromLink | null {
   const sources = options?.sources ?? ALL_SOURCES;
+  const sourceSet = new Set<ExternalIdSource>(sources);
   const root = options?.container ?? document;
   const links = root.querySelectorAll<HTMLAnchorElement>("a[href]");
 
@@ -149,17 +150,17 @@ export function scanLinksForExternalId(
   for (const link of links) {
     const href = link.href;
 
-    if (sources.includes("tmdb") && !found.has("tmdb")) {
+    if (sourceSet.has("tmdb") && !found.has("tmdb")) {
       const tmdb = extractTmdbFromUrl(href);
       if (tmdb) found.set("tmdb", { source: "tmdb", id: tmdb.id, mediaType: tmdb.mediaType });
     }
 
-    if (sources.includes("imdb") && !found.has("imdb")) {
+    if (sourceSet.has("imdb") && !found.has("imdb")) {
       const imdbId = extractImdbId(href);
       if (imdbId) found.set("imdb", { source: "imdb", id: imdbId });
     }
 
-    if (sources.includes("tvdb") && !found.has("tvdb")) {
+    if (sourceSet.has("tvdb") && !found.has("tvdb")) {
       const tvdbPathMatch = href.match(/thetvdb\.com\/series\/(\d+)/);
       if (tvdbPathMatch) {
         found.set("tvdb", { source: "tvdb", id: tvdbPathMatch[1], mediaType: "show" });
@@ -169,7 +170,7 @@ export function scanLinksForExternalId(
       }
     }
 
-    if (sources.includes("tvmaze") && !found.has("tvmaze")) {
+    if (sourceSet.has("tvmaze") && !found.has("tvmaze")) {
       const tvmaze = extractTvmazeFromUrl(href);
       if (tvmaze) found.set("tvmaze", { source: "tvmaze", id: tvmaze.id, mediaType: "show" });
     }
