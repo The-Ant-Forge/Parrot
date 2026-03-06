@@ -773,3 +773,52 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 ### Test Coverage
 - Added 5 tests for `extractIplayerFromUrl` (movie, show, non-iPlayer, no slug, other BBC pages)
 - Total: 152 tests across 7 test files
+
+---
+
+## Code Review Fixes (Post-v1.15)
+
+### Critical: OMDb Host Permission
+- Added `https://www.omdbapi.com/*` to `host_permissions` in `wxt.config.ts`
+- Without this, Chrome silently blocked OMDb API requests from the service worker
+
+### Debug Logging in Silent Catches
+- Added `debugLog()` calls to 6 silent catch blocks in `background.ts` (cross-reference fallbacks, RATINGS_READY, OWNERSHIP_UPDATED)
+- Added debug logging to gap-checker icon update catch
+
+### DRY: Plex Link Helper
+- Extracted `createPlexLink()` in `badge.ts` — eliminates duplicated Plex `<a>` element creation in `setPillContent()` and `setBadgeGapData()`
+- Renamed `PLEX_ICON_SVG` to `plexIconSvg` (function, not constant)
+- `webkitTextStroke: "0"` now applied once in the helper
+
+### Click-Outside Listener Guard
+- `setupClickOutside()` now tears down existing listener before adding a new one
+
+### Performance: Set in scanLinksForExternalId
+- `sources.includes()` replaced with `Set.has()` for O(1) lookups
+
+### URL Observer Cleanup
+- `observeUrlChanges()` now returns a cleanup function: `() => observer.disconnect()`
+
+### ESLint Scope
+- Expanded lint target to include `tests/**/*.ts`
+
+### Incremental Set for Library Counts
+- `buildLibraryIndex()` builds movieCount/showCount with incremental `Set.add()` instead of `.concat()` + `new Set()`
+
+### Content Script Consolidation
+- New `src/common/check-helpers.ts` with 3 shared helpers:
+  - `checkWithImdbFallback()` — retries with opposite media type for ambiguous IMDb IDs
+  - `checkGapsWithFallback()` — gap check that falls back to movie type for unowned items
+  - `setupOwnershipListener()` — deferred TMDB re-check handler
+- Applied across 8 content scripts, net -113 lines of duplication
+
+### Episode Gap Panel: Missing Episode Numbers
+- Partial seasons now show specific missing episode numbers instead of count
+- Format: `S1  6/10  (e3-4, e7, e10)` instead of `S1  6/10  (missing 4)`
+- Consecutive episodes compressed into ranges (e.g. `e3-5` instead of `e3, e4, e5`)
+
+### Test Coverage Expansion
+- New test files: `api-tmdb.test.ts` (22), `api-tvmaze.test.ts` (11), `api-omdb.test.ts` (11), `ui-helpers.test.ts` (11), `panel-utils.test.ts` (12)
+- Updated `episode-panel.test.ts` with `formatMissingEpisodes` tests (8 new)
+- Total: 227 tests across 12 test files (up from 152)

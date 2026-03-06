@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupSeasons } from "../src/common/episode-panel";
+import { groupSeasons, formatMissingEpisodes } from "../src/common/episode-panel";
 import type { SeasonGapInfo } from "../src/common/types";
 
 function makeSeason(num: number, owned: number, total: number, missingCount = 0): SeasonGapInfo {
@@ -26,6 +26,7 @@ describe("groupSeasons", () => {
       ownedCount: 30,
       totalCount: 30,
       missingCount: 0,
+      missingEpisodes: [],
     });
   });
 
@@ -122,5 +123,50 @@ describe("groupSeasons", () => {
   it("handles empty seasons array", () => {
     const groups = groupSeasons([]);
     expect(groups).toHaveLength(0);
+  });
+
+  it("populates missingEpisodes for partial seasons", () => {
+    const seasons: SeasonGapInfo[] = [{
+      seasonNumber: 1,
+      ownedCount: 7,
+      totalCount: 10,
+      missing: [
+        { number: 3, name: "Ep 3" },
+        { number: 7, name: "Ep 7" },
+        { number: 10, name: "Ep 10" },
+      ],
+    }];
+    const groups = groupSeasons(seasons);
+    expect(groups[0].missingEpisodes).toEqual([3, 7, 10]);
+  });
+});
+
+describe("formatMissingEpisodes", () => {
+  it("formats single episodes", () => {
+    expect(formatMissingEpisodes([3, 7, 10])).toBe("e3, e7, e10");
+  });
+
+  it("formats consecutive episodes as range", () => {
+    expect(formatMissingEpisodes([3, 4, 5])).toBe("e3-5");
+  });
+
+  it("formats mix of ranges and singles", () => {
+    expect(formatMissingEpisodes([1, 2, 3, 5, 8, 9])).toBe("e1-3, e5, e8-9");
+  });
+
+  it("handles single episode", () => {
+    expect(formatMissingEpisodes([4])).toBe("e4");
+  });
+
+  it("handles empty array", () => {
+    expect(formatMissingEpisodes([])).toBe("");
+  });
+
+  it("handles two consecutive episodes", () => {
+    expect(formatMissingEpisodes([6, 7])).toBe("e6-7");
+  });
+
+  it("sorts unsorted input", () => {
+    expect(formatMissingEpisodes([10, 3, 7])).toBe("e3, e7, e10");
   });
 });

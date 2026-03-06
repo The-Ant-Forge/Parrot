@@ -12,6 +12,7 @@ interface SeasonGroup {
   ownedCount: number;
   totalCount: number;
   missingCount: number;
+  missingEpisodes: number[];
 }
 
 /** Group contiguous complete or fully-missing seasons into ranges. */
@@ -37,11 +38,33 @@ export function groupSeasons(seasons: SeasonGapInfo[]): SeasonGroup[] {
         ownedCount: season.ownedCount,
         totalCount: season.totalCount,
         missingCount: season.missing.length,
+        missingEpisodes: season.missing.map((m) => m.number),
       });
     }
   }
 
   return groups;
+}
+
+/** Format episode numbers into compact ranges: [1,2,3,5,8,9] → "e1-3, e5, e8-9" */
+export function formatMissingEpisodes(episodes: number[]): string {
+  if (episodes.length === 0) return "";
+  const sorted = [...episodes].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let end = start;
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === end + 1) {
+      end = sorted[i];
+    } else {
+      ranges.push(start === end ? `e${start}` : `e${start}-${end}`);
+      start = sorted[i];
+      end = start;
+    }
+  }
+  ranges.push(start === end ? `e${start}` : `e${start}-${end}`);
+  return ranges.join(", ");
 }
 
 function formatSeasonLabel(group: SeasonGroup): string {
@@ -57,8 +80,8 @@ function formatSeasonLabel(group: SeasonGroup): string {
   if (group.type === "missing") {
     return `${range}     ${count}  (missing all)`;
   }
-  // partial
-  return `${range}     ${count}  (missing ${group.missingCount})`;
+  // partial — show specific missing episodes
+  return `${range}     ${count}  (${formatMissingEpisodes(group.missingEpisodes)})`;
 }
 
 export function createEpisodePanel(gaps: GapData, expanded = false): HTMLDivElement {
