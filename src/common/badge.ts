@@ -263,6 +263,7 @@ export function createBadge(): HTMLSpanElement {
     display: "none",
     verticalAlign: "middle",
     marginLeft: "8px",
+    pointerEvents: "auto",
   });
   // Create inner pill
   const pill = document.createElement("span");
