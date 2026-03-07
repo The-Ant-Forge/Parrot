@@ -1107,10 +1107,11 @@ export default defineBackground(() => {
                 const parts = message.id.split("|");
                 const query = parts[0];
                 const year = parts[1] ? parseInt(parts[1], 10) : undefined;
-                tmdbId = await searchMovie(options.tmdbApiKey, query, year);
+                const searcher = message.mediaType === "show" ? searchTv : searchMovie;
+                tmdbId = await searcher(options.tmdbApiKey, query, year);
                 // Retry without year if no match
                 if (!tmdbId && year) {
-                  tmdbId = await searchMovie(options.tmdbApiKey, query);
+                  tmdbId = await searcher(options.tmdbApiKey, query);
                 }
               } else {
                 const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;

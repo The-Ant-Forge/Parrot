@@ -104,7 +104,7 @@ export type Message =
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
-  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string }
+  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string; mediaType?: "movie" | "show" }
   | { type: "GET_TAB_MEDIA"; tabId: number }
   | { type: "GET_STORAGE_USAGE" }
   | { type: "UPDATE_ICON"; state: "owned" | "not-owned" }

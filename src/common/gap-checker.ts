@@ -110,7 +110,7 @@ async function checkShowGaps(
       episodeSource = "tvdb";
       episodeId = id;
     } else {
-      // IMDb or title — use enriched OwnedItem IDs
+      // IMDb or title — use enriched OwnedItem IDs, with TMDB search fallback
       if (response.item?.tvdbId) {
         episodeSource = "tvdb";
         episodeId = String(response.item.tvdbId);
@@ -118,7 +118,25 @@ async function checkShowGaps(
         episodeSource = "tmdb";
         episodeId = String(response.item.tmdbId);
       } else {
-        return; // Can't resolve episode source
+        // OwnedItem lacks external IDs — resolve via TMDB search
+        try {
+          const result: FindTmdbIdResponse = await browser.runtime.sendMessage({
+            type: "FIND_TMDB_ID",
+            source,
+            id,
+            mediaType: "show",
+          });
+          if (result.tmdbId) {
+            episodeSource = "tmdb";
+            episodeId = String(result.tmdbId);
+          } else {
+            debugLog("GapChecker", `cannot resolve episode source for ${source}:${id} — no external IDs`);
+            return;
+          }
+        } catch (err) {
+          errorLog("GapChecker", "FIND_TMDB_ID failed for show", err);
+          return;
+        }
       }
     }
 

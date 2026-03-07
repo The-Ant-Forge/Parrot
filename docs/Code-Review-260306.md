@@ -6,21 +6,21 @@ Comprehensive audit of all source, tests, build config, and metadata.
 
 ## Summary Table
 
-| # | Category | Description | Impact | Effort | Risk |
-|---|----------|-------------|--------|--------|------|
-| 1 | Missing Config | OMDb API missing from host_permissions | High | Trivial | None |
-| 2 | Duplication | Plex link creation repeated in badge.ts (2 paths) | Medium | Low | Low |
-| 3 | Duplication | `webkitTextStroke: "0"` scattered across 5 locations | Medium | Low | Low |
-| 4 | Duplication | Content script patterns repeated 7-9 times (IMDb fallback, title merge, ownership listener, gap check with movie fallback) | High | High | Medium |
-| 5 | Performance | `scanLinksForExternalId` uses `sources.includes()` — should be Set | Low | Trivial | None |
-| 6 | Robustness | `observeUrlChanges` creates MutationObserver with no cleanup | Medium | Low | Low |
-| 7 | Robustness | `setupClickOutside` could accumulate listeners if called twice | Low | Trivial | None |
-| 8 | Error Handling | ~8 silent catches in background.ts cross-reference paths — no debug logging | Medium | Low | None |
-| 9 | Error Handling | gap-checker.ts line 86 swallows icon update error silently | Low | Trivial | None |
-| 10 | Config | ESLint doesn't lint tests/ or config files | Low | Trivial | None |
-| 11 | Test Coverage | ~45 exported functions have zero test coverage (API modules, storage, panel-utils, ui-helpers, gap-checker, etc.) | High | High | None |
-| 12 | Performance | `background.ts` movieCount/showCount uses `.concat()` to build intermediate arrays | Low | Trivial | None |
-| 13 | Naming | `PLEX_ICON_SVG` is a function, not a constant | Low | Trivial | None |
+| # | Category | Description | Impact | Effort | Risk | Status |
+|---|----------|-------------|--------|--------|------|--------|
+| 1 | Missing Config | OMDb API missing from host_permissions | High | Trivial | None | **Done** |
+| 2 | Duplication | Plex link creation repeated in badge.ts (2 paths) | Medium | Low | Low | **Done** |
+| 3 | Duplication | `webkitTextStroke: "0"` scattered across 5 locations | Medium | Low | Low | **Done** (reduced to 3 via #2) |
+| 4 | Duplication | Content script patterns repeated 7-9 times (IMDb fallback, title merge, ownership listener, gap check with movie fallback) | High | High | Medium | **Done** (A, C, D — B deferred) |
+| 5 | Performance | `scanLinksForExternalId` uses `sources.includes()` — should be Set | Low | Trivial | None | **Done** |
+| 6 | Robustness | `observeUrlChanges` creates MutationObserver with no cleanup | Medium | Low | Low | **Done** |
+| 7 | Robustness | `setupClickOutside` could accumulate listeners if called twice | Low | Trivial | None | **Done** |
+| 8 | Error Handling | ~8 silent catches in background.ts cross-reference paths — no debug logging | Medium | Low | None | **Done** |
+| 9 | Error Handling | gap-checker.ts line 86 swallows icon update error silently | Low | Trivial | None | **Done** |
+| 10 | Config | ESLint doesn't lint tests/ or config files | Low | Trivial | None | **Done** |
+| 11 | Test Coverage | ~45 exported functions have zero test coverage (API modules, storage, panel-utils, ui-helpers, gap-checker, etc.) | High | High | None | **Partial** (67 new tests) |
+| 12 | Performance | `background.ts` movieCount/showCount uses `.concat()` to build intermediate arrays | Low | Trivial | None | **Done** |
+| 13 | Naming | `PLEX_ICON_SVG` is a function, not a constant | Low | Trivial | None | **Done** |
 
 ---
 
@@ -33,6 +33,8 @@ Comprehensive audit of all source, tests, build config, and metadata.
 `host_permissions` lists TMDB, TVDB, TVMaze, and GitHub APIs but omits OMDb (`https://www.omdbapi.com/*`). The `src/api/omdb.ts` module calls `fetch()` directly to this domain from the service worker. Without the permission, Chrome will block these requests.
 
 **Fix:** Add `"https://www.omdbapi.com/*"` to host_permissions.
+
+**Resolution:** Fixed in `fbfc887`. Added to `wxt.config.ts` host_permissions.
 
 ---
 
@@ -48,6 +50,8 @@ Both were independently patched with `webkitTextStroke: "0"` in separate commits
 
 **Fix:** Extract `createPlexLink(url: string, iconColor: string): HTMLAnchorElement` helper. Both paths call it.
 
+**Resolution:** Fixed in `fbfc887`. Extracted `createPlexLink()` helper in `badge.ts`; both `setPillContent()` and `setBadgeGapData()` now call it.
+
 ---
 
 ### 3. webkitTextStroke Scattered
@@ -62,6 +66,8 @@ Both were independently patched with `webkitTextStroke: "0"` in separate commits
 Five separate `webkitTextStroke: "0"` assignments. If fix #2 extracts a helper, that reduces to 4. `badge.ts` could also import `CSS_RESET` from `panel-utils.ts` instead of inline resets.
 
 **Fix:** After extracting `createPlexLink`, apply reset there once. Consider whether `applyPillStyles` needs it separately (it does — it covers the non-link text spans).
+
+**Resolution:** Fixed in `fbfc887`. Reduced from 5 to 3 locations via the `createPlexLink()` extraction (#2). Remaining 3 are structurally necessary (pill container, panel CSS reset, collection panel link).
 
 ---
 
@@ -81,6 +87,8 @@ Four patterns are repeated across 7-17 content scripts:
 
 **Note:** This was already flagged in TODO.md as "Extract IMDb media type fallback pattern to shared function (6+ files)". Patterns B, C, D are additional consolidation opportunities.
 
+**Resolution:** Patterns A, C, D fixed in `5cc06e0`. Created `src/common/check-helpers.ts` with three shared helpers: `checkWithImdbFallback()` (pattern A), `setupOwnershipListener()` (pattern C), and `checkGapsWithFallback()` (pattern D). Applied across 8 content scripts, removing ~113 lines of duplication. Pattern B (title merge) deferred — each site has enough variation to make a shared helper awkward.
+
 ---
 
 ### 5. scanLinksForExternalId Performance
@@ -90,6 +98,8 @@ Four patterns are repeated across 7-17 content scripts:
 Inner loop checks `sources.includes(source)` for each link — O(n) per link. Sources array is small (3-4 items) so real-world impact is negligible, but converting to `Set` is trivial.
 
 **Fix:** `const sourceSet = new Set(sources);` then `sourceSet.has()`.
+
+**Resolution:** Fixed in `fbfc887`. Converted to `Set` with `.has()` lookup.
 
 ---
 
@@ -101,6 +111,8 @@ Creates a `MutationObserver` on `document.body` but provides no way to disconnec
 
 **Fix:** Return a cleanup function: `return () => observer.disconnect();`. Low effort, good practice.
 
+**Resolution:** Fixed in `fbfc887`. `observeUrlChanges()` now returns a cleanup function.
+
 ---
 
 ### 7. Click-Outside Listener Guard
@@ -111,6 +123,8 @@ If `showPanel()` were called twice without `hidePanel()` in between, a second do
 
 **Fix:** Add `if (clickOutsideHandler) teardownClickOutside();` at the top of `setupClickOutside()`.
 
+**Resolution:** Fixed in `fbfc887`. Added guard at the top of `setupClickOutside()`.
+
 ---
 
 ### 8. Silent Catches in background.ts
@@ -120,6 +134,8 @@ If `showPanel()` were called twice without `hidePanel()` in between, a second do
 Cross-reference fallback paths (TMDB, TVMaze, IMDb) catch errors silently with comments like `// cross-reference failed`. No `debugLog()` calls, making troubleshooting difficult when a user reports "badge didn't appear".
 
 **Fix:** Add `debugLog("BG", "cross-reference failed", err)` to each catch block.
+
+**Resolution:** Fixed in `fbfc887`. Added `debugLog()` calls to all ~8 silent catch blocks in `background.ts`.
 
 ---
 
@@ -135,6 +151,8 @@ Icon update error swallowed with no logging.
 
 **Fix:** `.catch(() => debugLog("GapChecker", "icon update failed"))`.
 
+**Resolution:** Fixed in `fbfc887`. Added `debugLog()` to the gap-checker catch block.
+
 ---
 
 ### 10. ESLint Scope
@@ -144,6 +162,8 @@ Icon update error swallowed with no logging.
 Only lints `src/**/*.ts`. Doesn't cover `tests/**/*.ts`, `*.config.ts`, or itself.
 
 **Fix:** Expand `files` glob to include test and config files.
+
+**Resolution:** Fixed in `fbfc887`. ESLint `files` glob expanded to include `tests/**/*.ts` and `*.config.ts`.
 
 ---
 
@@ -170,6 +190,8 @@ API modules and storage are the biggest gaps. They require mocking `fetch` and `
 
 **Recommendation:** Prioritise API module tests (they're pure functions with fetch mocking) and ui-helpers tests (pure DOM, easy to test).
 
+**Resolution:** Partially addressed in `175c63b`. Added 67 new tests across 5 new test files: `api-tmdb.test.ts` (22), `api-tvmaze.test.ts` (11), `api-omdb.test.ts` (11), `ui-helpers.test.ts` (11), `panel-utils.test.ts` (12). Remaining gaps: TVDB API, storage module, gap-checker, collection-panel, title-check (deferred as ongoing work).
+
 ---
 
 ### 12. movieCount/showCount Allocation
@@ -180,6 +202,8 @@ Actually traced to `plex.ts` — uses `.concat()` to merge three `Object.values(
 
 **Fix:** Build Set incrementally with `forEach` instead of concat+spread.
 
+**Resolution:** Fixed in `fbfc887`. Replaced `.concat()` chains with incremental `Set` building via `forEach`.
+
 ---
 
 ### 13. PLEX_ICON_SVG Naming
@@ -189,6 +213,8 @@ Actually traced to `plex.ts` — uses `.concat()` to merge three `Object.values(
 `PLEX_ICON_SVG` is named like a constant (UPPER_SNAKE) but is actually a function that takes an `iconColor` parameter. Misleading.
 
 **Fix:** Rename to `plexIconSvg` or `createPlexIconSvg`.
+
+**Resolution:** Fixed in `fbfc887`. Renamed to `createPlexIconSvg()`.
 
 ---
 
