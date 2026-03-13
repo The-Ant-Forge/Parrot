@@ -10,7 +10,8 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 - **Library status badge** on 16 supported sites -- dark pill with gold/gray Plex chevron
 - **Resolution display** -- see media quality (SD, 720p, 1080p, 4K) on badges and popup dashboard
-- **Media ratings** -- averaged TMDB + IMDb scores on badge pills and popup dashboard
+- **Zero-config community proxies** -- free Radarr and Sonarr proxies provide movie and TV metadata out of the box; no API keys needed for basic functionality, just configure your Plex server
+- **Media ratings** -- up to 6 sources for movies (TMDB, IMDb, Rotten Tomatoes, Metacritic, Trakt) and TVDB rating for TV shows
 - **Deep linking** -- badges link directly to the item in Plex Web
 - **Collection gap detection** -- see which movies from the same collection are in your library and which are missing
 - **Episode gap detection** -- on TMDB and TVDB TV show pages, see a season-by-season breakdown of missing episodes
@@ -64,12 +65,13 @@ The toolbar icon also changes per-tab: gold border when in library, gray when no
 
 ## Ratings
 
-Parrot can display media ratings from TMDB and IMDb on both the in-page badge and the popup dashboard.
+Parrot can display media ratings from multiple sources on both the in-page badge and the popup dashboard.
 
-- **TMDB ratings** are included automatically when you have a TMDB API key configured (required for gap detection anyway)
-- **IMDb ratings** require an OMDb API key (free, 1000 requests/day) -- [get one here](https://www.omdbapi.com/apikey.aspx)
+- **Movies** -- up to 5 rating sources: TMDB, IMDb, Rotten Tomatoes, Metacritic, and Trakt. The Radarr community proxy provides most of these automatically; no API keys needed.
+- **TV shows** -- TVDB rating via the Sonarr community proxy, plus TMDB rating if a TMDB key is configured.
+- **Fallback** -- if community proxies are unavailable, Parrot falls back to user-configured API keys (TMDB, OMDb).
 
-When both sources are available, the badge and popup status line show the averaged score. The popup ID pills show each source's individual score (e.g. `7.2 TMDB 550`, `8.8 IMDb tt0137523`). Ratings are fetched for all items, whether in your library or not.
+When multiple sources are available, the badge and popup status line show the averaged score. The popup ID pills show each source's individual score (e.g. `7.2 TMDB 550`, `8.8 IMDb tt0137523`). Ratings are fetched for all items, whether in your library or not.
 
 ## Gap Detection
 
@@ -81,8 +83,8 @@ When viewing a movie that belongs to a collection on any supported site, Parrot 
 
 When viewing a TV show that's in your library on TMDB or TVDB, Parrot shows a collapsible season-by-season panel indicating how many episodes you have per season and which are missing.
 
-- Uses TMDB API for episode data by default
-- Optionally uses TVDB v4 API (when configured) for more accurate episode numbering on TVDB pages
+- Works out of the box via the Sonarr community proxy -- no API keys required
+- Falls back to TMDB API or TVDB v4 API (when configured) if the proxy is unavailable
 
 ## Setup
 
@@ -90,9 +92,9 @@ When viewing a TV show that's in your library on TMDB or TVDB, Parrot shows a co
 
 - A Plex server with media libraries
 - Your Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
-- A TMDB API key for collection/episode gaps and TMDB ratings ([get one free](https://www.themoviedb.org/settings/api))
-- (Optional) A TVDB API key for accurate TVDB episode numbering ([get one](https://thetvdb.com/api-information))
-- (Optional) An OMDb API key for IMDb ratings ([get one free](https://www.omdbapi.com/apikey.aspx))
+- (Optional) A TMDB API key -- the community proxy handles movie metadata and most ratings; a TMDB key adds TV show ratings and serves as a fallback ([get one free](https://www.themoviedb.org/settings/api))
+- (Optional) A TVDB API key -- the Sonarr proxy provides episode data; a TVDB key serves as a fallback for episode numbering ([get one](https://thetvdb.com/api-information))
+- (Optional) An OMDb API key -- the Radarr proxy provides IMDb ratings for movies; an OMDb key serves as a fallback ([get one free](https://www.omdbapi.com/apikey.aspx))
 
 ### Install from Source
 

@@ -7,13 +7,10 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 ## Future Enhancements
 
 ### User-Configurable Sites (advanced)
-- [x] Custom site CRUD in options page (add/remove/reset)
 - [ ] Universal content script with dynamic registration (`browser.scripting.registerContentScripts`)
 - [ ] Per-site permission request (`browser.permissions.request`)
 
 ### Polish & Reliability (remaining)
-
-> Spec: [`Phase 9 - Consolidation Polish and Reliability.md`](Phase%209%20-%20Consolidation%20Polish%20and%20Reliability.md)
 
 **Error Handling**
 - [ ] Graceful handling of Plex server going offline mid-session
@@ -22,50 +19,24 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 **Performance**
 - [ ] Measure index build time for large libraries (1000+ items)
 
-### Code Hygiene (deferred from Phase 14)
+### Code Hygiene
 
-> Spec: [`Phase 14 - Consolidation 2.md`](Phase%2014%20-%20Consolidation%202.md)
-
-- [x] Extract IMDb media type fallback pattern to shared function (6+ files)
-- [x] Extract ownership listener + gap-check-with-fallback to shared helpers (8 files)
 - [ ] Add unit tests for `gap-checker.ts` (needs browser.runtime mocking)
 - [ ] Add unit tests for `url-observer.ts` (needs MutationObserver mocking)
-- [x] Remove dead code (`movieKeys`/`showKeys` in plex.ts)
-- [x] Fix webkitTextStroke `!important` inconsistency (3 files)
-- [x] Optimise PLEX_LOOKUP from O(n) to O(1)
-- [x] Extract shared UI helpers (DRY popup/options)
-- [x] Add TTL to logger debug cache
-- [x] Add `extractIplayerFromUrl` test coverage
 
 ---
 
 ## Additional Sites
 
-- [x] Letterboxd (`letterboxd.com/film/{slug}`)
-- [x] Trakt (`trakt.tv/movies/{slug}`, `trakt.tv/shows/{slug}`)
-- [x] JustWatch (`justwatch.com/{locale}/movie/{slug}`)
-- [x] Rotten Tomatoes (`rottentomatoes.com/m/{slug}`)
-- [x] Metacritic (`metacritic.com/movie/*`, `metacritic.com/tv/*`)
-- [x] TVMaze (`tvmaze.com/shows/*`)
 - [ ] TV Time (`tvtime.com/show/*`)
 - [ ] Simkl (`simkl.com/movies/*`, `simkl.com/tv/*`)
 
 ---
 
-## Multi-Server & Advanced Settings
+## Advanced Settings
 
-**Multi-Server Support**
-- [x] Allow multiple Plex server configurations
-- [x] Merge indexes from multiple servers
-- [x] Per-server sync status in options page (status dots, Test All)
-- [x] Compact index (items stored once, maps hold numeric indices)
-- [x] Multi-server episode aggregation for gap detection
-- [x] Server priority ordering (first = primary for deep linking)
-
-**Advanced Settings**
 - [ ] Configurable badge position (before/after title)
 - [ ] Toggle per-site enablement
-- [x] Custom refresh interval (configurable days, default 7)
 - [ ] Show/hide "not owned" badge (default: hidden)
 - [ ] Dark/light badge theme override
 

@@ -50,8 +50,6 @@ The initial extension skeleton, ported from the ComPlexionist desktop app.
 
 ## Phase 5: Options Page
 
-> Spec: [`Phase 5 - Options Page.md`](Phase%205%20-%20Options%20Page.md)
-
 Full-tab WXT options page for API credentials, gap detection preferences, and cache management.
 
 - `ParrotOptions` type with defaults in `types.ts`
@@ -69,8 +67,6 @@ Full-tab WXT options page for API credentials, gap detection preferences, and ca
 
 ## Phase 6: TMDB Collection Gap Detection
 
-> Spec: [`Phase 6 - TMDB Collection Gaps.md`](Phase%206%20-%20TMDB%20Collection%20Gaps.md)
-
 Collapsible panel on TMDB movie pages showing owned/missing movies from the same collection.
 
 - TMDB API client (`src/api/tmdb.ts`) — `getMovie`, `getCollection`, `tmdbFetch` helper
@@ -83,8 +79,6 @@ Collapsible panel on TMDB movie pages showing owned/missing movies from the same
 ---
 
 ## Phase 7: TV Episode Gap Detection
-
-> Spec: [`Phase 7 - TV Episode Gaps.md`](Phase%207%20-%20TV%20Episode%20Gaps.md)
 
 Season-level episode gap panel on TMDB and TVDB TV show pages.
 
@@ -111,8 +105,6 @@ Optional TVDB API key for more accurate TV episode numbering on TVDB pages.
 ---
 
 ## Phase 9: Consolidation — Polish & Reliability
-
-> Spec: [`Phase 9 - Consolidation Polish and Reliability.md`](Phase%209%20-%20Consolidation%20Polish%20and%20Reliability.md)
 
 Test coverage, error feedback, and performance hardening without changing user-facing features.
 
@@ -142,8 +134,6 @@ Test coverage, error feedback, and performance hardening without changing user-f
 ---
 
 ## Phase 10: Quality of Life
-
-> Spec: [`Phase 10 - QOL.md`](Phase%2010%20-%20QOL.md)
 
 UX polish, broader gap detection coverage, popup redesign, and expanded test suite.
 
@@ -208,8 +198,6 @@ UX polish, broader gap detection coverage, popup redesign, and expanded test sui
 
 ## Phase 11: Bride of QOL
 
-> Spec: [`Phase 11 - Bride of QOL.md`](Phase%2011%20-%20Bride%20of%20QOL.md)
-
 UX polish, dashboard enhancements, dark mode, custom sites, and 5 new content scripts.
 
 ### Gap Panel — Show When Complete
@@ -273,8 +261,6 @@ UX polish, dashboard enhancements, dark mode, custom sites, and 5 new content sc
 
 ## Phase 12: Code Hygiene
 
-> Spec: [`Phase 12 - Code Hygiene.md`](Phase%2012%20-%20Code%20Hygiene.md)
-
 Post-Phase 11 consolidation: bug fixes, code deduplication, robustness improvements, and cleanup without changing user-facing features.
 
 ### Bug Fix: TVDB Metadata Fallback
@@ -318,8 +304,6 @@ Post-Phase 11 consolidation: bug fixes, code deduplication, robustness improveme
 ---
 
 ## Phase 13: Smart Badge with Floating Gap Panel
-
-> Spec: [`Phase 13 - Smart Badge.md`](Phase%2013%20-%20Smart%20Badge.md)
 
 Redesigned the badge as a unified smart pill with four states and moved gap panels to floating overlays anchored to the badge. Zero layout shift, lighter DOM footprint.
 
@@ -822,3 +806,63 @@ Support for N Plex servers with priority ordering, compact index storage, and co
 - New test files: `api-tmdb.test.ts` (22), `api-tvmaze.test.ts` (11), `api-omdb.test.ts` (11), `ui-helpers.test.ts` (11), `panel-utils.test.ts` (12)
 - Updated `episode-panel.test.ts` with `formatMissingEpisodes` tests (8 new)
 - Total: 227 tests across 12 test files (up from 152)
+
+---
+
+## v1.15 — Community Proxy Integration
+
+Zero-config metadata and ratings via free community API proxies, with circuit breakers for resilience and graceful fallback to user API keys.
+
+### Radarr Community Proxy (Movies)
+- Integrated `api.radarr.video/v1` proxy for movie metadata
+- Provides 5 rating sources in a single request: TMDB, IMDb, Rotten Tomatoes, Metacritic, Trakt
+- Collection data (e.g. "The Starbound Saga") included in proxy response
+- **New file:** `src/api/radarr.ts`
+
+### Sonarr Community Proxy (TV)
+- Integrated `skyhook.sonarr.tv/v1` proxy for TV show metadata
+- Returns full episode lists with air dates, external IDs (TMDB, IMDb, TVDB), and TVDB rating
+- **New file:** `src/api/sonarr.ts`
+
+### Circuit Breakers
+- **New file:** `src/common/circuit-breaker.ts`
+- Per-proxy circuit breaker: 3 consecutive failures triggers 5-minute cooldown
+- During cooldown, requests skip the proxy entirely and fall back to user API keys
+- Automatic recovery after cooldown expires
+
+### Response Caching
+- 7-day TTL for ID-based lookups (e.g. "find movie by TMDB ID 550")
+- 24-hour TTL for search queries (e.g. "search for 'The Wandering Cosmos'")
+- Reduces redundant proxy calls on repeat visits
+
+### Graceful Fallback
+- When proxies are unavailable (circuit open, timeout, error), requests transparently fall back to user-configured API keys (TMDB, TVDB, OMDb)
+- 4-second timeout per proxy request to avoid blocking the UI
+
+### Options & Configuration
+- `useCommunityProxies` toggle in options page (default: ON)
+- When enabled, proxies are tried first; user API keys serve as fallback
+- When disabled, only user API keys are used (previous behaviour)
+
+### Badge Rating Improvements
+- Badge now averages ratings from up to 6 sources (TMDB, IMDb, Rotten Tomatoes, Metacritic, Trakt, TVDB)
+- All scores normalised to 0-10 scale before averaging
+
+### Title Lookup Fixes
+- Strip embedded year from Plex titles (e.g. "The Midnight Patrol (2019)" matched as title key without year suffix)
+- Yearless fallback: when year-keyed lookup fails, retry without year for broader matching
+
+### Bug Fixes
+- Badge `pointer-events` fix for sites like iPlayer where CSS inheritance caused badge to be non-clickable
+- Fixed episode gap panel not appearing on title-based sites (iPlayer)
+- Fixed lint issues: unused variable in `background.ts`, unused import in `badge.ts`
+
+### Documentation Cleanup
+- Removed superseded phase specification docs (Phases 5-14)
+- Removed outdated release docs (Release v1.5, Release v1.6)
+- Consolidated all historical information into `completed.md`
+
+### Test Suite
+- **New test files:** `tests/api-radarr.test.ts`, `tests/api-sonarr.test.ts`, `tests/circuit-breaker.test.ts`
+- 26 new tests covering proxy clients and circuit breaker behaviour
+- Total: 253 tests across 15 test files (up from 227)

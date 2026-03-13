@@ -128,10 +128,12 @@ parrot/
 │   │       └── style.css              # Popup styles
 │   ├── api/
 │   │   ├── plex.ts                    # Plex API client
-│   │   ├── tmdb.ts                    # TMDB v3 API client
-│   │   ├── tvdb.ts                    # TVDB v4 API client (optional)
+│   │   ├── radarr.ts                  # Radarr community proxy (free movies + 5 rating sources)
+│   │   ├── sonarr.ts                  # Sonarr community proxy (free TV + episodes)
+│   │   ├── tmdb.ts                    # TMDB v3 API client (fallback)
+│   │   ├── tvdb.ts                    # TVDB v4 API client (fallback)
 │   │   ├── tvmaze.ts                  # TVMaze API client (free, no key)
-│   │   └── omdb.ts                    # OMDb API client (IMDb ratings, optional)
+│   │   └── omdb.ts                    # OMDb API client (IMDb ratings, fallback)
 │   └── common/
 │       ├── types.ts                   # Shared types (LibraryIndex, OwnedItem, etc.)
 │       ├── storage.ts                 # Storage helpers
@@ -144,10 +146,11 @@ parrot/
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
 │       ├── title-check.ts             # Title-based CHECK with year fallback
+│       ├── circuit-breaker.ts         # Circuit breaker for community proxy resilience
 │       ├── logger.ts                  # Debug/error logging gated by settings toggle
 │       ├── dom-utils.ts               # DOM utilities (waitForElement)
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (135 tests)
+├── tests/                             # Vitest test suite (253 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -189,9 +192,11 @@ parrot/
 
 **API Clients (`api/`)**
 - `plex.ts` — Plex server connection, library fetching, episode data
-- `tmdb.ts` — TMDB v3 (movies, collections, TV shows/seasons, TVDB-to-TMDB ID conversion, external IDs)
-- `tvdb.ts` — TVDB v4 (bearer token auth, paginated episode fetching, key validation)
-- `omdb.ts` — OMDb (IMDb ratings lookup, key validation)
+- `radarr.ts` — Radarr community proxy (free movie metadata + 5 rating sources + collection data)
+- `sonarr.ts` — Sonarr community proxy (free TV metadata + full episode lists + external IDs)
+- `tmdb.ts` — TMDB v3 (fallback: movies, collections, TV shows/seasons, TVDB-to-TMDB ID conversion, external IDs)
+- `tvdb.ts` — TVDB v4 (fallback: bearer token auth, paginated episode fetching, key validation)
+- `omdb.ts` — OMDb (fallback: IMDb ratings lookup, key validation)
 - `tvmaze.ts` — TVMaze (free, no key; TVDB/IMDb ID resolution)
 
 ### Data Flow
@@ -203,6 +208,30 @@ Content Script → Message → Service Worker → Library Index / API Clients
                                 ↓
 Badge + Panel + Icon ← Content Script
 ```
+
+1. Content script extracts media ID from URL/DOM (via `extractors.ts`)
+2. Sends message to service worker: `{ type: "CHECK", mediaType: "movie", source: "tmdb", id: "550" }`
+3. Service worker checks cached library index
+4. Returns library status + plexUrl
+5. Content script injects smart badge (wrapper+pill architecture)
+6. Service worker enriches metadata via community proxies (Radarr for movies, Sonarr for TV) — falls back to user API keys
+7. Ratings from up to 6 sources (TMDB, IMDb, RT, Metacritic, Trakt, TVDB) sent to badge via `RATINGS_READY`
+8. For items in library, `gap-checker.ts` triggers collection or episode gap detection
+9. Gap data delivered to badge via `setBadgeGapData()` as floating panel
+
+### Community Proxies (Zero-Config)
+
+Parrot uses free community API proxies by default (toggle: `useCommunityProxies`, default ON):
+
+- **Radarr** (`api.radarr.video/v1`) — movie metadata + 5 rating sources (TMDB, IMDb, RT, Metacritic, Trakt), collection data
+- **Sonarr** (`skyhook.sonarr.tv/v1`) — TV show metadata + full episode lists + external IDs
+
+Both proxies use:
+- **Circuit breakers** (3 failures → 5-minute cooldown) for resilience
+- **4-second timeouts** to avoid slow page loads
+- **Response caching** — 7-day TTL for ID lookups, 24-hour TTL for searches
+
+User API keys (TMDB, TVDB, OMDb) serve as automatic fallback when community proxies are unavailable or circuit-broken. This means Parrot works out of the box with zero configuration for metadata enrichment — API keys are only needed for direct Plex library access.
 
 ### Message Protocol
 
@@ -308,7 +337,30 @@ The `machineIdentifier` is fetched once during server setup (from `GET /`) and u
 
 ## External API Clients
 
-### TMDB v3 (`src/api/tmdb.ts`)
+### Radarr Community Proxy (`src/api/radarr.ts`) — Primary (Free, No Key)
+
+Base URL: `https://api.radarr.video/v1`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `lookupByTmdbId` | `GET /movie/lookup/tmdb?tmdbId={id}` | Movie metadata + ratings by TMDB ID |
+| `lookupByImdbId` | `GET /movie/lookup/imdb?imdbId={id}` | Movie metadata + ratings by IMDb ID |
+| `searchByTitle` | `GET /movie/lookup?term={query}` | Search movies by title |
+
+Returns movie metadata with up to 5 rating sources (TMDB, IMDb, Rotten Tomatoes, Metacritic, Trakt), collection membership, and external IDs. Responses are cached locally (7-day TTL for ID lookups, 24-hour for searches). Protected by a circuit breaker.
+
+### Sonarr Community Proxy (`src/api/sonarr.ts`) — Primary (Free, No Key)
+
+Base URL: `https://skyhook.sonarr.tv/v1`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `lookupByTvdbId` | `GET /tvdb/shows/en/{tvdbId}` | TV show metadata + episodes by TVDB ID |
+| `searchByTitle` | `GET /tvdb/search/en/?term={query}` | Search TV shows by title |
+
+Returns TV show metadata with full episode lists (season/episode numbers, air dates, titles) and external IDs (TVDB, TMDB, IMDb). Responses are cached locally (7-day TTL for ID lookups, 24-hour for searches). Protected by a circuit breaker.
+
+### TMDB v3 (`src/api/tmdb.ts`) — Fallback
 
 Auth: API key as query param (`?api_key={key}`). Base URL: `https://api.themoviedb.org/3`
 
@@ -324,7 +376,7 @@ Auth: API key as query param (`?api_key={key}`). Base URL: `https://api.themovie
 | `searchTv` | `GET /search/tv?query={q}&first_air_date_year={y}` | Search TV show by title + optional year |
 | `validateTmdbKey` | `GET /configuration` | Key validation (200 = valid) |
 
-### TVDB v4 (`src/api/tvdb.ts`) — Optional
+### TVDB v4 (`src/api/tvdb.ts`) — Fallback
 
 Auth: bearer token via `POST /login` with `{ apikey: "..." }`. Base URL: `https://api4.thetvdb.com/v4`
 
@@ -337,7 +389,7 @@ Token is cached in-memory (service worker lifetime). Auto-retries on 401 (expire
 
 Used only when a TVDB API key is configured **and** the source page is TVDB. TMDB pages always use the TMDB API. If no TVDB key is set, TVDB pages fall back to TMDB via `findByTvdbId`.
 
-### OMDb (`src/api/omdb.ts`) — Optional
+### OMDb (`src/api/omdb.ts`) — Fallback
 
 Auth: API key as query param (`?apikey={key}`). Base URL: `https://www.omdbapi.com`
 
@@ -475,9 +527,10 @@ When viewing a TV show page on TMDB or TVDB, if the show is in the user's librar
 
 - Triggered by `CHECK_EPISODES` message after library status badge (for shows in library only)
 - Source-based API routing:
+  - Community proxies enabled → Sonarr proxy for episode lists (free, no key needed)
   - TVDB pages with TVDB key configured → TVDB v4 API (direct, accurate numbering)
   - TVDB pages without TVDB key → falls back to TMDB API via ID conversion
-  - TMDB pages → always TMDB API
+  - TMDB pages without community proxies → TMDB API
 - Episode data fetched on demand, never stored in the library index
 - Gap results cached 24 hours in `storage.local` (keyed by `source:id`)
 - Respects `excludeSpecials` (skip Season 0) and `excludeFuture` (skip unaired episodes)
@@ -605,9 +658,10 @@ Full-tab settings page with four sections:
 - On page load, TEST_ALL_SERVERS runs and status dots update
 
 ### 2. API Keys
-- TMDB API key input + Validate button (required for collection/episode gap features)
-- TVDB API key input + Validate button (optional, for more accurate TV episode numbering)
-- OMDb API key input + Validate button (optional, enables IMDb ratings on badges and popup)
+- Community proxies toggle (`useCommunityProxies`, default ON) — enables zero-config metadata via Radarr/Sonarr proxies
+- TMDB API key input + Validate button (fallback for collection/episode gap features when proxies unavailable)
+- TVDB API key input + Validate button (fallback, for more accurate TV episode numbering)
+- OMDb API key input + Validate button (fallback, enables IMDb ratings on badges and popup)
 
 ### 3. Gap Detection
 - Toggle: "Exclude future/unreleased movies" (default: on)
@@ -630,9 +684,11 @@ Key permissions:
 - `unlimitedStorage` — removes 10MB cap on `storage.local` for large multi-server indexes
 - `host_permissions`:
   - `http://*/library/*`, `https://*/library/*` — Plex API access
-  - `https://api.themoviedb.org/*` — TMDB API
-  - `https://api4.thetvdb.com/*` — TVDB API
-  - `https://www.omdbapi.com/*` — OMDb API
+  - `https://api.radarr.video/*` — Radarr community proxy
+  - `https://skyhook.sonarr.tv/*` — Sonarr community proxy
+  - `https://api.themoviedb.org/*` — TMDB API (fallback)
+  - `https://api4.thetvdb.com/*` — TVDB API (fallback)
+  - `https://www.omdbapi.com/*` — OMDb API (fallback)
   - `https://api.tvmaze.com/*` — TVMaze API
 
 Content script URL matches are defined in each `*.content.ts` file via WXT's `defineContentScript()`.
