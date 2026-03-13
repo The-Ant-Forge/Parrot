@@ -107,6 +107,37 @@ export async function saveUpdateCheck(check: UpdateCheckResult): Promise<void> {
   await browser.storage.local.set({ [UPDATE_CHECK_KEY]: check });
 }
 
+// --- Proxy response cache (Radarr/Sonarr) ---
+
+const PROXY_CACHE_KEY = "proxyCache";
+
+interface ProxyCacheEntry {
+  data: unknown;
+  fetchedAt: number;
+}
+
+type ProxyCache = Record<string, ProxyCacheEntry>;
+
+export async function getProxyCache<T>(key: string, ttlMs: number): Promise<T | null> {
+  const result = await browser.storage.local.get(PROXY_CACHE_KEY);
+  const cache = (result[PROXY_CACHE_KEY] as ProxyCache) ?? {};
+  const entry = cache[key];
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > ttlMs) return null;
+  return entry.data as T;
+}
+
+export async function setProxyCache(key: string, data: unknown): Promise<void> {
+  const result = await browser.storage.local.get(PROXY_CACHE_KEY);
+  const cache = (result[PROXY_CACHE_KEY] as ProxyCache) ?? {};
+  cache[key] = { data, fetchedAt: Date.now() };
+  await browser.storage.local.set({ [PROXY_CACHE_KEY]: cache });
+}
+
+export async function clearProxyCache(): Promise<void> {
+  await browser.storage.local.remove(PROXY_CACHE_KEY);
+}
+
 // --- Custom sites ---
 
 const CUSTOM_SITES_KEY = "customSites";

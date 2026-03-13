@@ -83,7 +83,17 @@
         <section class="card">
           <h2>API Keys</h2>
 
-          <label for="tmdbApiKey">TMDB API Key</label>
+          <div class="toggle-row">
+            <label for="useCommunityProxies">Use community proxies (Radarr/Sonarr)</label>
+            <input type="checkbox" id="useCommunityProxies" />
+          </div>
+          <p class="hint" id="proxyHint">
+            When enabled, Parrot uses free community metadata services for movies
+            and TV shows. No API keys needed for basic functionality. Keys below
+            serve as fallback or provide additional data.
+          </p>
+
+          <label for="tmdbApiKey">TMDB API Key <span class="optional">(optional with proxies)</span></label>
           <div class="input-with-button">
             <input
               type="password"

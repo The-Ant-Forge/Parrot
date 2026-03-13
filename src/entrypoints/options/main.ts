@@ -52,6 +52,9 @@ const omdbApiKeyInput = $<HTMLInputElement>("omdbApiKey");
 const validateOmdbBtn = $<HTMLButtonElement>("validateOmdbBtn");
 const omdbFeedback = $<HTMLDivElement>("omdbFeedback");
 
+// --- Community proxy elements ---
+const useCommunityProxiesInput = $<HTMLInputElement>("useCommunityProxies");
+
 // --- Options elements ---
 const excludeFutureInput = $<HTMLInputElement>("excludeFuture");
 const excludeSpecialsInput = $<HTMLInputElement>("excludeSpecials");
@@ -87,6 +90,7 @@ function gatherOptions(): ParrotOptions {
     tmdbApiKey: tmdbApiKeyInput.value.trim(),
     tvdbApiKey: tvdbApiKeyInput.value.trim(),
     omdbApiKey: omdbApiKeyInput.value.trim(),
+    useCommunityProxies: useCommunityProxiesInput.checked,
     excludeFuture: excludeFutureInput.checked,
     excludeSpecials: excludeSpecialsInput.checked,
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
@@ -410,6 +414,12 @@ autoRefreshDaysInput.addEventListener("change", async () => {
   await saveAllOptions();
 });
 
+// --- Community proxy handler ---
+
+useCommunityProxiesInput.addEventListener("change", async () => {
+  await saveAllOptions();
+});
+
 // --- TMDB handlers ---
 
 validateTmdbBtn.addEventListener("click", async () => {
@@ -619,6 +629,7 @@ resetSitesBtn.addEventListener("click", async () => {
   tmdbApiKeyInput.value = options.tmdbApiKey;
   tvdbApiKeyInput.value = options.tvdbApiKey;
   omdbApiKeyInput.value = options.omdbApiKey;
+  useCommunityProxiesInput.checked = options.useCommunityProxies;
   excludeFutureInput.checked = options.excludeFuture;
   excludeSpecialsInput.checked = options.excludeSpecials;
   minCollectionSizeInput.value = String(options.minCollectionSize);

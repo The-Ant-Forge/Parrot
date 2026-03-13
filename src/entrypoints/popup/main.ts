@@ -23,7 +23,6 @@ const setupFeedback = $<HTMLDivElement>("setupFeedback");
 const dashboardView = $<HTMLDivElement>("dashboardView");
 const settingsLink = $<HTMLAnchorElement>("settingsLink");
 const statusPills = $<HTMLDivElement>("statusPills");
-const librarySummary = $<HTMLDivElement>("librarySummary");
 const movieCountEl = $<HTMLSpanElement>("movieCount");
 const showCountEl = $<HTMLSpanElement>("showCount");
 const updateBanner = $<HTMLAnchorElement>("updateBanner");

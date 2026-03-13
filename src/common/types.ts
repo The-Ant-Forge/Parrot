@@ -59,6 +59,7 @@ export interface ParrotOptions {
   tmdbApiKey: string;
   tvdbApiKey: string;
   omdbApiKey: string;
+  useCommunityProxies: boolean;
   excludeFuture: boolean;
   excludeSpecials: boolean;
   minCollectionSize: number;
@@ -73,6 +74,7 @@ export const DEFAULT_OPTIONS: ParrotOptions = {
   tmdbApiKey: "",
   tvdbApiKey: "",
   omdbApiKey: "",
+  useCommunityProxies: true,
   excludeFuture: true,
   excludeSpecials: true,
   minCollectionSize: 2,
@@ -213,6 +215,10 @@ export interface TabMediaInfo {
   collectionTotal?: number;
   tmdbRating?: number;
   imdbRating?: number;
+  rtRating?: number;          // 0-100 Rotten Tomatoes (movies via Radarr)
+  metacriticRating?: number;  // 0-100 Metacritic (movies via Radarr)
+  traktRating?: number;       // 0-10 Trakt (movies via Radarr)
+  tvdbRating?: number;        // 0-10 TVDB (TV via Sonarr)
   resolution?: string;
 }
 

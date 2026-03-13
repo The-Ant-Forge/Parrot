@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { showFeedback, hideFeedback, setButtonLoading, formatTimestamp } from "../src/common/ui-helpers";
 
 beforeEach(() => {

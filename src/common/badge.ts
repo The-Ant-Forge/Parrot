@@ -44,7 +44,14 @@ let clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
 let panelVisible = false;
 let currentPlexUrl: string | undefined;
 let currentBadgeStatus: BadgeStatus = "not-owned";
-let currentRatings: { tmdbRating?: number; imdbRating?: number } | null = null;
+let currentRatings: {
+  tmdbRating?: number;
+  imdbRating?: number;
+  rtRating?: number;
+  metacriticRating?: number;
+  traktRating?: number;
+  tvdbRating?: number;
+} | null = null;
 let currentGapData: GapPanelData | null = null;
 let currentResolution: string | undefined;
 let ratingsListenerSetup = false;
@@ -87,6 +94,10 @@ function getRatingText(): string {
   const values: number[] = [];
   if (currentRatings.tmdbRating && currentRatings.tmdbRating > 0) values.push(currentRatings.tmdbRating);
   if (currentRatings.imdbRating && currentRatings.imdbRating > 0) values.push(currentRatings.imdbRating);
+  if (currentRatings.rtRating && currentRatings.rtRating > 0) values.push(currentRatings.rtRating / 10);
+  if (currentRatings.metacriticRating && currentRatings.metacriticRating > 0) values.push(currentRatings.metacriticRating / 10);
+  if (currentRatings.traktRating && currentRatings.traktRating > 0) values.push(currentRatings.traktRating);
+  if (currentRatings.tvdbRating && currentRatings.tvdbRating > 0) values.push(currentRatings.tvdbRating);
   if (values.length === 0) return "";
   const avg = values.reduce((a, b) => a + b, 0) / values.length;
   return avg.toFixed(1);
@@ -372,8 +383,15 @@ export function setBadgeGapData(data: GapPanelData) {
 }
 
 /** Update ratings and re-render the badge pill. */
-export function updateRatings(tmdbRating?: number, imdbRating?: number) {
-  currentRatings = { tmdbRating, imdbRating };
+export function updateRatings(ratings: {
+  tmdbRating?: number;
+  imdbRating?: number;
+  rtRating?: number;
+  metacriticRating?: number;
+  traktRating?: number;
+  tvdbRating?: number;
+}) {
+  currentRatings = ratings;
   const wrapper = findExistingBadge();
   if (!wrapper) return;
 
@@ -412,6 +430,10 @@ function setupRatingsListener() {
       type: string;
       tmdbRating?: number;
       imdbRating?: number;
+      rtRating?: number;
+      metacriticRating?: number;
+      traktRating?: number;
+      tvdbRating?: number;
       owned?: boolean;
       plexUrl?: string;
       resolution?: string;
@@ -420,7 +442,14 @@ function setupRatingsListener() {
       id?: string;
     }) => {
       if (message.type === "RATINGS_READY") {
-        updateRatings(message.tmdbRating, message.imdbRating);
+        updateRatings({
+          tmdbRating: message.tmdbRating,
+          imdbRating: message.imdbRating,
+          rtRating: message.rtRating,
+          metacriticRating: message.metacriticRating,
+          traktRating: message.traktRating,
+          tvdbRating: message.tvdbRating,
+        });
       } else if (message.type === "OWNERSHIP_UPDATED" && message.owned) {
         // Update the badge to "owned" state
         const wrapper = findExistingBadge();
