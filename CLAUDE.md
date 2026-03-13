@@ -23,10 +23,12 @@ src/
 │   └── popup/                     # Settings/status popup
 ├── api/
 │   ├── plex.ts                    # Plex API client
-│   ├── tmdb.ts                    # TMDB v3 API client
-│   ├── tvdb.ts                    # TVDB v4 API client (optional)
+│   ├── radarr.ts                  # Radarr community proxy (free movies + 5 rating sources)
+│   ├── sonarr.ts                  # Sonarr community proxy (free TV + episodes)
+│   ├── tmdb.ts                    # TMDB v3 API client (fallback)
+│   ├── tvdb.ts                    # TVDB v4 API client (fallback)
 │   ├── tvmaze.ts                  # TVMaze API client (free, no key)
-│   └── omdb.ts                    # OMDb API client (IMDb ratings, optional)
+│   └── omdb.ts                    # OMDb API client (IMDb ratings, fallback)
 └── common/
     ├── types.ts                   # Shared types
     ├── storage.ts                 # Storage helpers
@@ -40,6 +42,7 @@ src/
     ├── normalize.ts               # Title normalization + h1 text parsing
     ├── dom-utils.ts               # DOM utilities (waitForElement)
     ├── title-check.ts             # Title-based CHECK with year fallback
+    ├── circuit-breaker.ts         # Circuit breaker for community proxy resilience
     ├── ui-helpers.ts              # Shared UI helpers (feedback, button loading, timestamps)
     ├── logger.ts                  # Debug/error logging gated by settings toggle
     └── sites.ts                   # Supported site definitions
@@ -52,8 +55,19 @@ src/
 3. Service worker checks cached library index
 4. Returns library status + plexUrl
 5. Content script injects smart badge (wrapper+pill architecture)
-6. For items in library, `gap-checker.ts` triggers collection or episode gap detection
-7. Gap data delivered to badge via `setBadgeGapData()` as floating panel
+6. Service worker enriches metadata via community proxies (Radarr for movies, Sonarr for TV) → falls back to user API keys
+7. Ratings from up to 6 sources (TMDB, IMDb, RT, Metacritic, Trakt, TVDB) sent to badge via `RATINGS_READY`
+8. For items in library, `gap-checker.ts` triggers collection or episode gap detection
+9. Gap data delivered to badge via `setBadgeGapData()` as floating panel
+
+### Community Proxies (Zero-Config)
+
+Parrot uses free community API proxies by default (toggle: `useCommunityProxies`):
+
+- **Radarr** (`api.radarr.video/v1`) — movie metadata + 5 rating sources, collection data
+- **Sonarr** (`skyhook.sonarr.tv/v1`) — TV show metadata + full episode lists + external IDs
+
+Both use circuit breakers (3 failures → 5-min cooldown) and 4-second timeouts. User API keys (TMDB, TVDB, OMDb) serve as fallback when proxies are unavailable.
 
 ### Library Index (Compact, Multi-Server)
 
@@ -160,20 +174,32 @@ Periodically we do a consolidation review covering all source, tests, build conf
 
 ### Review Checklist
 1. **Dead code** — unused functions, classes, modules, imports, config keys
-2. **Dead dependencies** — libraries that are unused or underused relative
-   to what we could replace inline
-3. **Duplication** — repeated or near-identical logic that should be shared
+2. **Dead dependencies** — unused or replaceable libraries
+3. **Duplication** — repeated logic that should be shared
 4. **Naming & consistency** — mixed conventions, unclear names, stale comments
-5. **Error handling** — inconsistent patterns, swallowed exceptions, missing
-   user-facing messages
-6. **Security** — input validation gaps, credential handling, OWASP patterns
-7. **Type safety** — missing annotations, `Any` overuse, type errors
-8. **Test gaps** — untested code paths, stale tests, missing edge cases
-9. **Documentation drift** — specs, docstrings, or README sections that no
-   longer match the code
-10. **Performance** — unnecessary work, avoidable allocations, slow patterns
-11. **Robustness** — race conditions, resource leaks, missing cleanup
-12. **TODO/FIXME/HACK audit** — resolve or remove stale markers
+5. **Error handling & reporting** — inconsistent patterns, swallowed exceptions,
+   missing user-facing messages, silent catch blocks
+6. **Security boundaries** — input validation, XSS/innerHTML in content scripts,
+   message origin checks, credential handling, token leakage in logs
+7. **Type safety** — missing annotations, `Any` overuse, unsafe type assertions
+8. **Test gaps** — untested paths, stale tests, missing edge cases
+9. **Documentation drift** — specs, README, CLAUDE.md out of sync with code
+10. **Performance, caching & quotas** — hot-path storage reads, bundle size,
+    cache TTL policy, API rate limits, redundant network calls
+11. **MV3 lifecycle** — service worker cold starts, idempotent listeners, SPA
+    navigation, tab sleep/wake, alarm/reconnect logic
+12. **Content script safety** — DOM injection hygiene (no raw innerHTML with
+    external data), style isolation, Shadow DOM handling, duplicate badge
+    prevention, host page breakage
+13. **API contract drift** — type assertions vs actual API responses, changed
+    endpoints or response shapes across all providers
+14. **Storage schema migration** — backward compat when stored data shapes change
+15. **Manifest & permissions** — unused permissions, missing host_permissions
+    matches, web_accessible_resources, CSP
+16. **Cross-browser compat** — Firefox vs Chrome API differences
+17. **Graceful degradation** — offline/rate-limit/proxy-down behaviour, circuit
+    breaker coverage, stale-cache fallback, user-facing failure messages
+18. **TODO/FIXME/HACK audit** — resolve or remove stale markers
 
 ### Deliverable
 A review document in `docs/` named `Code-Review-YYMMDD.md` (or similar) with:
