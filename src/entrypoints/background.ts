@@ -1,14 +1,17 @@
-import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps, clearEpisodeGapCache, getUpdateCheck, saveUpdateCheck } from "../common/storage";
+import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps, clearEpisodeGapCache, getUpdateCheck } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes, formatResolution } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie, searchTv } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
 import { getImdbRating, validateOmdbKey } from "../api/omdb";
 import { getRadarrMovie, getRadarrMovieByImdb, getRadarrCollection, searchRadarrMovie } from "../api/radarr";
-import type { RadarrMovie, RadarrMovieRatings } from "../api/radarr";
+import type { RadarrMovie } from "../api/radarr";
 import { getSonarrShow, searchSonarrShow } from "../api/sonarr";
 import type { SonarrShow } from "../api/sonarr";
 import { debugLog, errorLog } from "../common/logger";
+import { isNewerVersion, maybeCheckForUpdate } from "./bg/version";
+import { resolveItemPlex, lookupItem } from "./bg/library";
+import { applyRadarrMetadata, applySonarrMetadata, hasAnyRatings } from "./bg/metadata";
 import type {
   Message,
   CheckResponse,
@@ -38,6 +41,7 @@ import type {
 
 let cachedIndex: LibraryIndex | null = null;
 let cachedServers: PlexServerConfig[] | null = null;
+let cachedOpts: import("../common/types").ParrotOptions | null = null;
 let autoRefreshing = false;
 const tabMediaCache = new Map<number, TabMediaInfo>();
 
@@ -53,6 +57,13 @@ async function loadServers(): Promise<PlexServerConfig[]> {
     cachedServers = await getServers();
   }
   return cachedServers;
+}
+
+async function loadOptions(): Promise<import("../common/types").ParrotOptions> {
+  if (!cachedOpts) {
+    cachedOpts = await getOptions();
+  }
+  return cachedOpts;
 }
 
 async function persistTabMedia(tabId: number, info: TabMediaInfo) {
@@ -128,7 +139,7 @@ async function loadIndex(): Promise<LibraryIndex | null> {
 
   // Auto-refresh if stale (fire-and-forget, returns current index immediately)
   if (cachedIndex && !autoRefreshing) {
-    const options = await getOptions();
+    const options = await loadOptions();
     if (options.autoRefresh) {
       const ageMs = Date.now() - (cachedIndex.lastRefresh ?? 0);
       const thresholdMs = options.autoRefreshDays * 24 * 60 * 60 * 1000;
@@ -155,64 +166,6 @@ async function loadIndex(): Promise<LibraryIndex | null> {
   return cachedIndex;
 }
 
-// --- Update checker ---
-
-const UPDATE_CHECK_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-
-function isNewerVersion(latest: string, current: string): boolean {
-  const latestParts = latest.split(".").map(Number);
-  const currentParts = current.split(".").map(Number);
-  for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
-    const l = latestParts[i] ?? 0;
-    const c = currentParts[i] ?? 0;
-    if (l > c) return true;
-    if (l < c) return false;
-  }
-  return false;
-}
-
-async function checkForUpdate(): Promise<void> {
-  try {
-    const response = await fetch("https://api.github.com/repos/The-Ant-Forge/Parrot/releases/latest", {
-      headers: { Accept: "application/vnd.github.v3+json" },
-    });
-    if (!response.ok) {
-      errorLog("BG", `update check failed: ${response.status}`);
-      return;
-    }
-    const data = await response.json();
-    const tagName = data.tag_name as string;
-    const latestVersion = tagName.replace(/^v/, "");
-    const downloadUrl = (data.html_url as string) ?? `https://github.com/The-Ant-Forge/Parrot/releases/tag/${tagName}`;
-    await saveUpdateCheck({ latestVersion, downloadUrl, checkedAt: Date.now() });
-    debugLog("BG", `update check complete — latest: ${latestVersion}`);
-  } catch (err) {
-    errorLog("BG", "update check failed", err);
-  }
-}
-
-async function maybeCheckForUpdate(): Promise<void> {
-  const cached = await getUpdateCheck();
-  if (cached && Date.now() - cached.checkedAt < UPDATE_CHECK_INTERVAL_MS) return;
-  checkForUpdate(); // fire-and-forget
-}
-
-function buildPlexUrl(machineIdentifier: string, plexKey: string): string {
-  return `https://app.plex.tv/desktop/#!/server/${machineIdentifier}/details?key=%2Flibrary%2Fmetadata%2F${plexKey}`;
-}
-
-/**
- * Resolve the best Plex URL for an owned item, using server priority order.
- * Returns the URL and server name for the highest-priority server that owns the item.
- */
-function resolveItemPlex(item: OwnedItem, servers: PlexServerConfig[]): { url: string; serverName: string } | undefined {
-  for (const server of servers) {
-    const plexKey = item.plexKeys[server.id];
-    if (plexKey) return { url: buildPlexUrl(server.id, plexKey), serverName: server.name };
-  }
-  return undefined;
-}
-
 /** Build lazy reverse lookups for PLEX_LOOKUP (plexKey→index, movie index set). */
 function ensurePlexKeyMap(index: LibraryIndex) {
   if (plexKeyMap) return;
@@ -230,33 +183,6 @@ function ensurePlexKeyMap(index: LibraryIndex) {
   ]);
 }
 
-/**
- * Two-step lookup: map[id] → index number → items[index] → OwnedItem
- */
-function lookupItem(index: LibraryIndex, mediaType: "movie" | "show", source: string, id: string): OwnedItem | undefined {
-  let idx: number | undefined;
-
-  if (source === "title") {
-    const map = mediaType === "movie" ? index.movies.byTitle : index.shows.byTitle;
-    idx = map[id];
-    // Year-qualified key missed → widen to yearless key
-    if (idx === undefined && id.includes("|")) {
-      idx = map[id.split("|")[0]];
-    }
-  } else if (mediaType === "movie") {
-    const map = source === "tmdb" ? index.movies.byTmdbId : index.movies.byImdbId;
-    idx = map[id];
-  } else {
-    const map = source === "tvdb"
-      ? index.shows.byTvdbId
-      : source === "tmdb"
-        ? index.shows.byTmdbId
-        : index.shows.byImdbId;
-    idx = map[id];
-  }
-
-  return idx !== undefined ? index.items[idx] : undefined;
-}
 
 async function handleCheck(
   message: Extract<Message, { type: "CHECK" }>,
@@ -281,7 +207,7 @@ async function handleCheck(
       // TMDB cross-reference fallback
       if (!item && ext.imdbId) {
         try {
-          const options = await getOptions();
+          const options = await loadOptions();
           if (options.tmdbApiKey) {
             debugLog("BG", `CHECK: calling TMDB findByImdbId for ${ext.imdbId}`);
             const tmdbId = await findByImdbId(options.tmdbApiKey, ext.imdbId);
@@ -331,7 +257,7 @@ async function handleCheck(
       // Radarr proxy cross-reference for movies (free, no key)
       if (!item && message.mediaType === "movie" && message.source === "imdb") {
         try {
-          const options = await getOptions();
+          const options = await loadOptions();
           if (options.useCommunityProxies) {
             debugLog("BG", `CHECK: calling Radarr proxy for imdb:${message.id}`);
             const radarrMovie = await getRadarrMovieByImdb(message.id);
@@ -348,7 +274,7 @@ async function handleCheck(
       // TMDB API fallback (requires user API key)
       if (!item) {
         try {
-          const options = await getOptions();
+          const options = await loadOptions();
           if (options.tmdbApiKey) {
             const resolverName = message.source === "imdb" ? "findByImdbId" : "findByTvdbId";
             debugLog("BG", `CHECK: calling TMDB ${resolverName} for ${message.id}`);
@@ -382,71 +308,17 @@ async function handleCheck(
 
 type IconState = "owned" | "not-owned" | "inactive";
 
-const ICON_COLORS: Record<IconState, { bg: string; border: string; letter: string }> = {
-  owned: { bg: "#1a1a1a", border: "#ebaf00", letter: "#ffffff" },
-  "not-owned": { bg: "#3a3a3a", border: "#888888", letter: "#888888" },
-  inactive: { bg: "#cccccc", border: "#999999", letter: "#666666" },
-};
-
-function roundedRect(
-  ctx: OffscreenCanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
-}
-
-function drawIcon(size: number, state: IconState): ImageData {
-  const canvas = new OffscreenCanvas(size, size);
-  const ctx = canvas.getContext("2d")!;
-  const c = ICON_COLORS[state];
-
-  // Rounded rectangle background
-  const borderWidth = Math.max(1, Math.round(size * 0.08));
-  const radius = Math.round(size * 0.18);
-  const inset = borderWidth / 2;
-
-  roundedRect(ctx, inset, inset, size - borderWidth, size - borderWidth, radius);
-  ctx.fillStyle = c.bg;
-  ctx.fill();
-  ctx.strokeStyle = c.border;
-  ctx.lineWidth = borderWidth;
-  ctx.stroke();
-
-  // "P" letter centered
-  const fontSize = Math.round(size * 0.6);
-  ctx.font = `bold ${fontSize}px sans-serif`;
-  ctx.fillStyle = c.letter;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("P", size / 2, size / 2 + size * 0.04);
-
-  return ctx.getImageData(0, 0, size, size);
-}
-
-function getIconImageData(state: IconState): Record<string, ImageData> {
+function getIconPaths(state: IconState): Record<string, string> {
   return {
-    "16": drawIcon(16, state),
-    "32": drawIcon(32, state),
-    "48": drawIcon(48, state),
-    "128": drawIcon(128, state),
+    "16": `/icons/${state}-16.png`,
+    "32": `/icons/${state}-32.png`,
+    "48": `/icons/${state}-48.png`,
+    "128": `/icons/${state}-128.png`,
   };
 }
 
 function sendRatingsToTab(tabId: number, info: TabMediaInfo) {
-  const hasRatings = info.tmdbRating !== undefined || info.imdbRating !== undefined
-    || info.rtRating !== undefined || info.metacriticRating !== undefined
-    || info.traktRating !== undefined || info.tvdbRating !== undefined;
-  if (hasRatings) {
+  if (hasAnyRatings(info)) {
     browser.tabs.sendMessage(tabId, {
       type: "RATINGS_READY",
       tmdbRating: info.tmdbRating,
@@ -456,47 +328,6 @@ function sendRatingsToTab(tabId: number, info: TabMediaInfo) {
       traktRating: info.traktRating,
       tvdbRating: info.tvdbRating,
     }).catch(() => debugLog("BG", "RATINGS: content script not listening"));
-  }
-}
-
-/** Extract ratings from a Radarr movie response into TabMediaInfo fields. */
-function applyRadarrRatings(info: TabMediaInfo, ratings: RadarrMovieRatings) {
-  if (ratings.Tmdb?.Value) info.tmdbRating = ratings.Tmdb.Value;
-  if (ratings.Imdb?.Value) info.imdbRating = ratings.Imdb.Value;
-  if (ratings.RottenTomatoes?.Value) info.rtRating = ratings.RottenTomatoes.Value;
-  if (ratings.Metacritic?.Value) info.metacriticRating = ratings.Metacritic.Value;
-  if (ratings.Trakt?.Value) info.traktRating = ratings.Trakt.Value;
-}
-
-/** Apply metadata from a Radarr movie response to TabMediaInfo. */
-function applyRadarrMetadata(info: TabMediaInfo, movie: RadarrMovie) {
-  info.title = movie.Title;
-  info.year = movie.Year;
-  if (!info.tmdbId) info.tmdbId = movie.TmdbId;
-  if (!info.imdbId && movie.ImdbId) info.imdbId = movie.ImdbId;
-  // Extract poster from images array
-  const poster = movie.Images?.find(i => i.CoverType.toLowerCase() === "poster");
-  if (poster?.Url) info.posterUrl = poster.Url;
-  if (movie.MovieRatings) applyRadarrRatings(info, movie.MovieRatings);
-}
-
-/** Apply metadata from a Sonarr show response to TabMediaInfo. */
-function applySonarrMetadata(info: TabMediaInfo, show: SonarrShow) {
-  info.title = show.title;
-  if (show.firstAired) info.year = parseInt(show.firstAired.slice(0, 4), 10);
-  if (!info.tmdbId && show.tmdbId) info.tmdbId = show.tmdbId;
-  if (!info.imdbId && show.imdbId) info.imdbId = show.imdbId;
-  if (!info.tvdbId) info.tvdbId = show.tvdbId;
-  info.showStatus = show.status;
-  info.seasonCount = show.seasons?.filter(s => s.seasonNumber > 0).length;
-  info.episodeCount = show.episodes?.length;
-  // Extract poster from images array
-  const poster = show.images?.find(i => i.coverType.toLowerCase() === "poster");
-  if (poster?.url) info.posterUrl = poster.url;
-  // TVDB rating (value is a string)
-  if (show.rating?.value) {
-    const parsed = parseFloat(show.rating.value);
-    if (!isNaN(parsed)) info.tvdbRating = parsed;
   }
 }
 
@@ -577,7 +408,7 @@ async function trySonarrShowMetadata(info: TabMediaInfo): Promise<boolean> {
 
 async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
   try {
-    const options = await getOptions();
+    const options = await loadOptions();
     debugLog("BG", `META: enriching ${info.mediaType} ${info.source}:${info.id} (owned:${info.owned})`);
 
     let proxyHandled = false;
@@ -748,7 +579,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
 
 async function setTabIcon(tabId: number, state: IconState) {
   try {
-    await browser.action.setIcon({ imageData: getIconImageData(state), tabId });
+    await browser.action.setIcon({ path: getIconPaths(state), tabId });
   } catch (err) {
     errorLog("BG", "failed to set tab icon", err);
   }
@@ -759,7 +590,7 @@ export default defineBackground(() => {
   const manifest = browser.runtime.getManifest();
   debugLog("BG", `v${manifest.version} service worker starting`);
   try {
-    browser.action.setIcon({ imageData: getIconImageData("inactive") });
+    browser.action.setIcon({ path: getIconPaths("inactive") });
   } catch (err) {
     errorLog("BG", "failed to set default icon", err);
   }
@@ -842,7 +673,7 @@ export default defineBackground(() => {
           case "GET_STATUS": {
             const servers = await loadServers();
             const index = await loadIndex();
-            const statusOptions = await getOptions();
+            const statusOptions = await loadOptions();
             const updateCheck = await getUpdateCheck();
             const currentVersion = browser.runtime.getManifest().version;
             const updateAvailable = updateCheck ? isNewerVersion(updateCheck.latestVersion, currentVersion) : false;
@@ -923,6 +754,7 @@ export default defineBackground(() => {
 
           case "SAVE_OPTIONS": {
             await saveOptions(message.options);
+            cachedOpts = null; // invalidate cached options
             sendResponse({ success: true } satisfies SaveOptionsResponse);
             break;
           }
@@ -1018,7 +850,7 @@ export default defineBackground(() => {
 
           case "CHECK_EPISODES": {
             try {
-              const options = await getOptions();
+              const options = await loadOptions();
               const useTvdb = message.source === "tvdb" && !!options.tvdbApiKey;
               const useSonarr = options.useCommunityProxies;
 
@@ -1073,20 +905,23 @@ export default defineBackground(() => {
               const ownedSet = new Set<string>();
               let latestResolution: string | undefined;
 
-              for (const server of servers) {
-                const plexKey = ownedShow.plexKeys[server.id];
-                if (!plexKey) continue;
-                try {
-                  const plexResult = await fetchShowEpisodes(server, plexKey);
-                  for (const ep of plexResult.episodes) {
-                    ownedSet.add(`S${ep.seasonNumber}E${ep.episodeNumber}`);
+              const serverFetches = servers
+                .filter(s => ownedShow.plexKeys[s.id])
+                .map(async (server) => {
+                  try {
+                    return { server, result: await fetchShowEpisodes(server, ownedShow.plexKeys[server.id]) };
+                  } catch (err) {
+                    errorLog("BG", `failed to fetch episodes from server ${server.name}`, err);
+                    return null;
                   }
-                  // Take resolution from first server that returns it (primary server)
-                  if (!latestResolution && plexResult.latestResolution) {
-                    latestResolution = plexResult.latestResolution;
-                  }
-                } catch (err) {
-                  errorLog("BG", `failed to fetch episodes from server ${server.name}`, err);
+                });
+              for (const outcome of await Promise.all(serverFetches)) {
+                if (!outcome) continue;
+                for (const ep of outcome.result.episodes) {
+                  ownedSet.add(`S${ep.seasonNumber}E${ep.episodeNumber}`);
+                }
+                if (!latestResolution && outcome.result.latestResolution) {
+                  latestResolution = outcome.result.latestResolution;
                 }
               }
 
@@ -1096,7 +931,7 @@ export default defineBackground(() => {
                 break;
               }
 
-              const today = new Date().toISOString().split("T")[0];
+              const today = new Date().toLocaleDateString("en-CA");
               let seasonGaps: SeasonGapInfo[];
               let showTitle: string;
 
@@ -1328,7 +1163,7 @@ export default defineBackground(() => {
 
           case "FIND_TMDB_ID": {
             try {
-              const options = await getOptions();
+              const options = await loadOptions();
               if (!options.tmdbApiKey) {
                 sendResponse({ tmdbId: null } satisfies FindTmdbIdResponse);
                 break;
@@ -1406,33 +1241,70 @@ export default defineBackground(() => {
 
           case "CHECK_COLLECTION": {
             try {
-              const options = await getOptions();
-              if (!options.tmdbApiKey) {
-                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
-                break;
-              }
-
+              const options = await loadOptions();
               const movieId = parseInt(message.tmdbMovieId, 10);
-              const movieData = await getMovie(options.tmdbApiKey, movieId);
-              if (!movieData.belongs_to_collection) {
-                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
-                break;
+
+              // Resolve collection ID + parts list (Radarr proxy first, TMDB fallback)
+              let collectionName: string | undefined;
+              let collParts: { tmdbId: number; title: string; year?: number; releaseDate?: string }[] | null = null;
+
+              // --- Radarr proxy path (free, no key) ---
+              if (options.useCommunityProxies) {
+                const radarrMovie = await getRadarrMovie(movieId);
+                if (radarrMovie?.Collection?.TmdbId) {
+                  const radarrColl = await getRadarrCollection(radarrMovie.Collection.TmdbId);
+                  if (radarrColl && radarrColl.Movies.length > 0) {
+                    collectionName = radarrColl.Title;
+                    collParts = radarrColl.Movies.map(m => ({
+                      tmdbId: m.TmdbId,
+                      title: m.Title,
+                      year: m.Year,
+                      releaseDate: undefined, // Radarr doesn't provide exact release dates
+                    }));
+                    debugLog("BG", `COLLECTION: resolved via Radarr — ${collectionName} (${collParts.length} movies)`);
+                  }
+                }
               }
 
-              const collectionId = movieData.belongs_to_collection.id;
+              // --- TMDB fallback (requires API key) ---
+              if (!collParts && options.tmdbApiKey) {
+                const movieData = await getMovie(options.tmdbApiKey, movieId);
+                if (!movieData.belongs_to_collection) {
+                  sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+                  break;
+                }
 
-              // Check cache first
-              let collection = await getCachedCollection(collectionId);
-              if (!collection) {
-                collection = await getCollection(options.tmdbApiKey, collectionId);
-                await saveCachedCollection(collection);
+                const collectionId = movieData.belongs_to_collection.id;
+                let collection = await getCachedCollection(collectionId);
+                if (!collection) {
+                  collection = await getCollection(options.tmdbApiKey, collectionId);
+                  await saveCachedCollection(collection);
+                }
+
+                collectionName = collection.name;
+                collParts = collection.parts.map(p => ({
+                  tmdbId: p.id,
+                  title: p.title,
+                  year: p.release_date ? parseInt(p.release_date.slice(0, 4), 10) : undefined,
+                  releaseDate: p.release_date || undefined,
+                }));
+              }
+
+              if (!collParts || !collectionName) {
+                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
+                break;
               }
 
               // Filter parts based on options
-              const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-              let parts = collection.parts;
+              const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+              const todayYear = parseInt(today.slice(0, 4), 10);
+              let parts = collParts;
               if (options.excludeFuture) {
-                parts = parts.filter((m) => m.release_date && m.release_date < today);
+                parts = parts.filter((m) => {
+                  if (m.releaseDate) return m.releaseDate <= today;
+                  if (m.year) return m.year <= todayYear;
+                  return true; // include if no date info
+                });
               }
 
               // Check size filters
@@ -1448,7 +1320,7 @@ export default defineBackground(() => {
               const missingMovies: { title: string; releaseDate?: string; tmdbId: number }[] = [];
 
               for (const part of parts) {
-                const tmdbId = String(part.id);
+                const tmdbId = String(part.tmdbId);
                 const itemIdx = index?.movies.byTmdbId[tmdbId];
 
                 if (itemIdx !== undefined && index) {
@@ -1456,14 +1328,14 @@ export default defineBackground(() => {
                   const plexResult = resolveItemPlex(ownedItem, servers);
                   ownedMovies.push({
                     title: part.title,
-                    year: part.release_date ? parseInt(part.release_date.slice(0, 4), 10) : undefined,
+                    year: part.year,
                     plexUrl: plexResult?.url,
                   });
                 } else {
                   missingMovies.push({
                     title: part.title,
-                    releaseDate: part.release_date || undefined,
-                    tmdbId: part.id,
+                    releaseDate: part.releaseDate,
+                    tmdbId: part.tmdbId,
                   });
                 }
               }
@@ -1475,13 +1347,13 @@ export default defineBackground(() => {
               }
 
               debugLog("BG",
-                `COLLECTION: ${collection.name} — ${ownedMovies.length}/${parts.length} owned, ${missingMovies.length} missing`,
+                `COLLECTION: ${collectionName} — ${ownedMovies.length}/${parts.length} owned, ${missingMovies.length} missing`,
               );
 
               sendResponse({
                 hasCollection: true,
                 collection: {
-                  name: collection.name,
+                  name: collectionName,
                   totalMovies: parts.length,
                   ownedMovies,
                   missingMovies,

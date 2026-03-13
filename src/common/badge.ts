@@ -367,7 +367,10 @@ export function setBadgeGapData(data: GapPanelData) {
   // Right zone: completeness toggle
   const toggle = document.createElement("span");
   toggle.className = GAP_TOGGLE_CLASS;
+  toggle.setAttribute("role", "button");
+  toggle.setAttribute("tabindex", "0");
   toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-label", "Toggle gap details panel");
   Object.assign(toggle.style, {
     cursor: "pointer",
     marginTop: "1px",
@@ -378,6 +381,12 @@ export function setBadgeGapData(data: GapPanelData) {
     e.preventDefault();
     e.stopPropagation();
     togglePanel();
+  });
+  toggle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      togglePanel();
+    }
   });
   pill.appendChild(toggle);
 }

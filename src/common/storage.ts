@@ -107,35 +107,33 @@ export async function saveUpdateCheck(check: UpdateCheckResult): Promise<void> {
   await browser.storage.local.set({ [UPDATE_CHECK_KEY]: check });
 }
 
-// --- Proxy response cache (Radarr/Sonarr) ---
+// --- Proxy response cache (Radarr/Sonarr) — per-key storage ---
 
-const PROXY_CACHE_KEY = "proxyCache";
+const PROXY_PREFIX = "pc:";
 
 interface ProxyCacheEntry {
   data: unknown;
   fetchedAt: number;
 }
 
-type ProxyCache = Record<string, ProxyCacheEntry>;
-
 export async function getProxyCache<T>(key: string, ttlMs: number): Promise<T | null> {
-  const result = await browser.storage.local.get(PROXY_CACHE_KEY);
-  const cache = (result[PROXY_CACHE_KEY] as ProxyCache) ?? {};
-  const entry = cache[key];
+  const storageKey = PROXY_PREFIX + key;
+  const result = await browser.storage.local.get(storageKey);
+  const entry = result[storageKey] as ProxyCacheEntry | undefined;
   if (!entry) return null;
   if (Date.now() - entry.fetchedAt > ttlMs) return null;
   return entry.data as T;
 }
 
 export async function setProxyCache(key: string, data: unknown): Promise<void> {
-  const result = await browser.storage.local.get(PROXY_CACHE_KEY);
-  const cache = (result[PROXY_CACHE_KEY] as ProxyCache) ?? {};
-  cache[key] = { data, fetchedAt: Date.now() };
-  await browser.storage.local.set({ [PROXY_CACHE_KEY]: cache });
+  const storageKey = PROXY_PREFIX + key;
+  await browser.storage.local.set({ [storageKey]: { data, fetchedAt: Date.now() } });
 }
 
 export async function clearProxyCache(): Promise<void> {
-  await browser.storage.local.remove(PROXY_CACHE_KEY);
+  const all = await browser.storage.local.get(null);
+  const keysToRemove = Object.keys(all).filter(k => k.startsWith(PROXY_PREFIX));
+  if (keysToRemove.length > 0) await browser.storage.local.remove(keysToRemove);
 }
 
 // --- Custom sites ---
