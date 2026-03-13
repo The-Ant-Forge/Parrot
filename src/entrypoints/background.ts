@@ -4,6 +4,10 @@ import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByIm
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
 import { getImdbRating, validateOmdbKey } from "../api/omdb";
+import { getRadarrMovie, getRadarrMovieByImdb, getRadarrCollection, searchRadarrMovie } from "../api/radarr";
+import type { RadarrMovie, RadarrMovieRatings } from "../api/radarr";
+import { getSonarrShow, searchSonarrShow } from "../api/sonarr";
+import type { SonarrShow } from "../api/sonarr";
 import { debugLog, errorLog } from "../common/logger";
 import type {
   Message,
@@ -235,6 +239,10 @@ function lookupItem(index: LibraryIndex, mediaType: "movie" | "show", source: st
   if (source === "title") {
     const map = mediaType === "movie" ? index.movies.byTitle : index.shows.byTitle;
     idx = map[id];
+    // Year-qualified key missed → widen to yearless key
+    if (idx === undefined && id.includes("|")) {
+      idx = map[id.split("|")[0]];
+    }
   } else if (mediaType === "movie") {
     const map = source === "tmdb" ? index.movies.byTmdbId : index.movies.byImdbId;
     idx = map[id];
@@ -317,6 +325,23 @@ async function handleCheck(
           }
         } catch (err) {
           debugLog("BG", "CHECK: TVMaze cross-reference failed", err);
+        }
+      }
+
+      // Radarr proxy cross-reference for movies (free, no key)
+      if (!item && message.mediaType === "movie" && message.source === "imdb") {
+        try {
+          const options = await getOptions();
+          if (options.useCommunityProxies) {
+            debugLog("BG", `CHECK: calling Radarr proxy for imdb:${message.id}`);
+            const radarrMovie = await getRadarrMovieByImdb(message.id);
+            if (radarrMovie?.TmdbId) {
+              item = lookupItem(index, "movie", "tmdb", String(radarrMovie.TmdbId));
+              if (item) debugLog("BG", `CHECK: found via Radarr cross-ref → TMDB:${radarrMovie.TmdbId}`);
+            }
+          }
+        } catch (err) {
+          debugLog("BG", "CHECK: Radarr cross-reference failed", err);
         }
       }
 
@@ -418,22 +443,159 @@ function getIconImageData(state: IconState): Record<string, ImageData> {
 }
 
 function sendRatingsToTab(tabId: number, info: TabMediaInfo) {
-  if (info.tmdbRating !== undefined || info.imdbRating !== undefined) {
+  const hasRatings = info.tmdbRating !== undefined || info.imdbRating !== undefined
+    || info.rtRating !== undefined || info.metacriticRating !== undefined
+    || info.traktRating !== undefined || info.tvdbRating !== undefined;
+  if (hasRatings) {
     browser.tabs.sendMessage(tabId, {
       type: "RATINGS_READY",
       tmdbRating: info.tmdbRating,
       imdbRating: info.imdbRating,
+      rtRating: info.rtRating,
+      metacriticRating: info.metacriticRating,
+      traktRating: info.traktRating,
+      tvdbRating: info.tvdbRating,
     }).catch(() => debugLog("BG", "RATINGS: content script not listening"));
   }
+}
+
+/** Extract ratings from a Radarr movie response into TabMediaInfo fields. */
+function applyRadarrRatings(info: TabMediaInfo, ratings: RadarrMovieRatings) {
+  if (ratings.Tmdb?.Value) info.tmdbRating = ratings.Tmdb.Value;
+  if (ratings.Imdb?.Value) info.imdbRating = ratings.Imdb.Value;
+  if (ratings.RottenTomatoes?.Value) info.rtRating = ratings.RottenTomatoes.Value;
+  if (ratings.Metacritic?.Value) info.metacriticRating = ratings.Metacritic.Value;
+  if (ratings.Trakt?.Value) info.traktRating = ratings.Trakt.Value;
+}
+
+/** Apply metadata from a Radarr movie response to TabMediaInfo. */
+function applyRadarrMetadata(info: TabMediaInfo, movie: RadarrMovie) {
+  info.title = movie.Title;
+  info.year = movie.Year;
+  if (!info.tmdbId) info.tmdbId = movie.TmdbId;
+  if (!info.imdbId && movie.ImdbId) info.imdbId = movie.ImdbId;
+  // Extract poster from images array
+  const poster = movie.Images?.find(i => i.CoverType.toLowerCase() === "poster");
+  if (poster?.Url) info.posterUrl = poster.Url;
+  if (movie.MovieRatings) applyRadarrRatings(info, movie.MovieRatings);
+}
+
+/** Apply metadata from a Sonarr show response to TabMediaInfo. */
+function applySonarrMetadata(info: TabMediaInfo, show: SonarrShow) {
+  info.title = show.title;
+  if (show.firstAired) info.year = parseInt(show.firstAired.slice(0, 4), 10);
+  if (!info.tmdbId && show.tmdbId) info.tmdbId = show.tmdbId;
+  if (!info.imdbId && show.imdbId) info.imdbId = show.imdbId;
+  if (!info.tvdbId) info.tvdbId = show.tvdbId;
+  info.showStatus = show.status;
+  info.seasonCount = show.seasons?.filter(s => s.seasonNumber > 0).length;
+  info.episodeCount = show.episodes?.length;
+  // Extract poster from images array
+  const poster = show.images?.find(i => i.coverType.toLowerCase() === "poster");
+  if (poster?.url) info.posterUrl = poster.url;
+  // TVDB rating (value is a string)
+  if (show.rating?.value) {
+    const parsed = parseFloat(show.rating.value);
+    if (!isNaN(parsed)) info.tvdbRating = parsed;
+  }
+}
+
+/** Try Radarr proxy for movie metadata. Returns true if successful. */
+async function tryRadarrMovieMetadata(info: TabMediaInfo): Promise<boolean> {
+  let movie: RadarrMovie | null = null;
+
+  if (info.tmdbId) {
+    debugLog("BG", `META: trying Radarr for tmdb:${info.tmdbId}`);
+    movie = await getRadarrMovie(info.tmdbId);
+  } else if (info.source === "imdb") {
+    debugLog("BG", `META: trying Radarr for imdb:${info.id}`);
+    movie = await getRadarrMovieByImdb(info.id);
+  } else if (info.source === "title") {
+    const parts = info.id.split("|");
+    const query = parts[0];
+    const year = parts[1] ? parseInt(parts[1], 10) : undefined;
+    debugLog("BG", `META: trying Radarr search for "${query}" year:${year ?? "none"}`);
+    movie = await searchRadarrMovie(query, year);
+    if (!movie && year) movie = await searchRadarrMovie(query);
+  }
+
+  if (!movie) return false;
+
+  applyRadarrMetadata(info, movie);
+
+  // Collection summary via Radarr
+  if (movie.Collection?.TmdbId && movie.Collection.TmdbId > 0) {
+    try {
+      const radarrColl = await getRadarrCollection(movie.Collection.TmdbId);
+      if (radarrColl && radarrColl.Movies) {
+        const index = await loadIndex();
+        let ownedCount = 0;
+        for (const part of radarrColl.Movies) {
+          if (index && index.movies.byTmdbId[String(part.TmdbId)] !== undefined) ownedCount++;
+        }
+        info.collectionName = radarrColl.Title;
+        info.collectionOwned = ownedCount;
+        info.collectionTotal = radarrColl.Movies.length;
+      }
+    } catch (err) {
+      errorLog("BG", "Radarr collection fetch failed", err);
+    }
+  }
+
+  return true;
+}
+
+/** Try Sonarr proxy for TV show metadata. Returns true if successful. */
+async function trySonarrShowMetadata(info: TabMediaInfo): Promise<boolean> {
+  let show: SonarrShow | null = null;
+
+  if (info.tvdbId) {
+    debugLog("BG", `META: trying Sonarr for tvdb:${info.tvdbId}`);
+    show = await getSonarrShow(info.tvdbId);
+  } else if (info.source === "title") {
+    const parts = info.id.split("|");
+    const query = parts[0];
+    debugLog("BG", `META: trying Sonarr search for "${query}"`);
+    const results = await searchSonarrShow(query);
+    if (results && results.length > 0) show = results[0];
+  } else if (info.imdbId) {
+    // Use TVMaze to bridge IMDb → TVDB, then call Sonarr
+    try {
+      const ext = await lookupByImdb(info.imdbId);
+      if (ext?.tvdbId) {
+        debugLog("BG", `META: trying Sonarr via TVMaze bridge tvdb:${ext.tvdbId}`);
+        show = await getSonarrShow(ext.tvdbId);
+      }
+    } catch { /* TVMaze bridge non-critical */ }
+  }
+
+  if (!show) return false;
+
+  applySonarrMetadata(info, show);
+  return true;
 }
 
 async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
   try {
     const options = await getOptions();
     debugLog("BG", `META: enriching ${info.mediaType} ${info.source}:${info.id} (owned:${info.owned})`);
-    // Resolve TMDB ID if not already known
+
+    let proxyHandled = false;
+
+    // --- Community proxy path (tried first if enabled) ---
+    if (options.useCommunityProxies) {
+      if (info.mediaType === "movie") {
+        proxyHandled = await tryRadarrMovieMetadata(info);
+        if (proxyHandled) debugLog("BG", "META: Radarr proxy provided movie metadata");
+      } else {
+        proxyHandled = await trySonarrShowMetadata(info);
+        if (proxyHandled) debugLog("BG", "META: Sonarr proxy provided show metadata");
+      }
+    }
+
+    // --- Fallback: resolve TMDB ID via user keys ---
     let tmdbId = info.tmdbId;
-    if (options.tmdbApiKey) {
+    if (!proxyHandled && options.tmdbApiKey) {
       if (!tmdbId && info.source === "imdb") {
         debugLog("BG", `META: calling TMDB findByImdbId for ${info.id}`);
         tmdbId = (await findByImdbId(options.tmdbApiKey, info.id, info.mediaType)) ?? undefined;
@@ -479,7 +641,6 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
           if (item.year) info.year = item.year;
           if (item.resolution) info.resolution = formatResolution(item.resolution);
           await setTabIcon(tabId, "owned");
-          // Notify content script so the in-page pill updates
           debugLog("BG", `META: ownership flipped via TMDB re-check, notifying tab ${tabId}`);
           browser.tabs.sendMessage(tabId, {
             type: "OWNERSHIP_UPDATED",
@@ -494,64 +655,67 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       }
     }
 
-    if (!tmdbId) {
-      // TVDB fallback: fetch metadata directly from TVDB API
-      if (info.source === "tvdb" && info.tvdbId && options.tvdbApiKey) {
-        debugLog("BG", `META: no TMDB ID, calling TVDB getSeriesDetails for ${info.tvdbId}`);
-        const tvdbDetails = await getSeriesDetails(options.tvdbApiKey, String(info.tvdbId));
-        info.title = tvdbDetails.name;
-        info.posterUrl = tvdbDetails.image ?? undefined;
-        info.year = tvdbDetails.year ? parseInt(tvdbDetails.year, 10) : undefined;
-        info.showStatus = tvdbDetails.status?.name;
-        persistTabMedia(tabId, info);
-      }
-      return;
-    }
-
-    if (info.mediaType === "movie") {
-      debugLog("BG", `META: calling TMDB getMovie for ${tmdbId}`);
-      const details = await getMovie(options.tmdbApiKey, tmdbId);
-      info.title = details.title;
-      info.year = details.release_date ? parseInt(details.release_date.slice(0, 4), 10) : undefined;
-      info.posterPath = details.poster_path;
-      if (details.vote_average) info.tmdbRating = details.vote_average;
-      if (details.imdb_id && !info.imdbId) info.imdbId = details.imdb_id;
-
-      // Collection summary
-      if (details.belongs_to_collection) {
-        try {
-          const collId = details.belongs_to_collection.id;
-          let collection = await getCachedCollection(collId);
-          if (!collection) {
-            collection = await getCollection(options.tmdbApiKey, collId);
-            await saveCachedCollection(collection);
-          }
-          const index = await loadIndex();
-          let ownedCount = 0;
-          for (const part of collection.parts) {
-            if (index && index.movies.byTmdbId[String(part.id)] !== undefined) ownedCount++;
-          }
-          info.collectionName = collection.name;
-          info.collectionOwned = ownedCount;
-          info.collectionTotal = collection.parts.length;
-        } catch (err) {
-          errorLog("BG", "collection summary fetch failed", err);
+    // --- Fallback: TMDB/TVDB key-based metadata (if proxy didn't handle it) ---
+    if (!proxyHandled) {
+      if (!tmdbId) {
+        // TVDB fallback: fetch metadata directly from TVDB API
+        if (info.source === "tvdb" && info.tvdbId && options.tvdbApiKey) {
+          debugLog("BG", `META: no TMDB ID, calling TVDB getSeriesDetails for ${info.tvdbId}`);
+          const tvdbDetails = await getSeriesDetails(options.tvdbApiKey, String(info.tvdbId));
+          info.title = tvdbDetails.name;
+          info.posterUrl = tvdbDetails.image ?? undefined;
+          info.year = tvdbDetails.year ? parseInt(tvdbDetails.year, 10) : undefined;
+          info.showStatus = tvdbDetails.status?.name;
+          persistTabMedia(tabId, info);
         }
+        return;
       }
-    } else {
-      debugLog("BG", `META: calling TMDB getTvShow for ${tmdbId}`);
-      const details = await getTvShow(options.tmdbApiKey, tmdbId);
-      info.title = details.name;
-      info.posterPath = details.poster_path ?? null;
-      info.seasonCount = details.number_of_seasons;
-      info.episodeCount = details.number_of_episodes;
-      info.showStatus = details.status;
-      if (details.vote_average) info.tmdbRating = details.vote_average;
-      if (details.external_ids?.imdb_id && !info.imdbId) info.imdbId = details.external_ids.imdb_id;
+
+      if (info.mediaType === "movie") {
+        debugLog("BG", `META: calling TMDB getMovie for ${tmdbId}`);
+        const details = await getMovie(options.tmdbApiKey, tmdbId);
+        info.title = details.title;
+        info.year = details.release_date ? parseInt(details.release_date.slice(0, 4), 10) : undefined;
+        info.posterPath = details.poster_path;
+        if (details.vote_average) info.tmdbRating = details.vote_average;
+        if (details.imdb_id && !info.imdbId) info.imdbId = details.imdb_id;
+
+        // Collection summary
+        if (details.belongs_to_collection) {
+          try {
+            const collId = details.belongs_to_collection.id;
+            let collection = await getCachedCollection(collId);
+            if (!collection) {
+              collection = await getCollection(options.tmdbApiKey, collId);
+              await saveCachedCollection(collection);
+            }
+            const index = await loadIndex();
+            let ownedCount = 0;
+            for (const part of collection.parts) {
+              if (index && index.movies.byTmdbId[String(part.id)] !== undefined) ownedCount++;
+            }
+            info.collectionName = collection.name;
+            info.collectionOwned = ownedCount;
+            info.collectionTotal = collection.parts.length;
+          } catch (err) {
+            errorLog("BG", "collection summary fetch failed", err);
+          }
+        }
+      } else {
+        debugLog("BG", `META: calling TMDB getTvShow for ${tmdbId}`);
+        const details = await getTvShow(options.tmdbApiKey, tmdbId);
+        info.title = details.name;
+        info.posterPath = details.poster_path ?? null;
+        info.seasonCount = details.number_of_seasons;
+        info.episodeCount = details.number_of_episodes;
+        info.showStatus = details.status;
+        if (details.vote_average) info.tmdbRating = details.vote_average;
+        if (details.external_ids?.imdb_id && !info.imdbId) info.imdbId = details.external_ids.imdb_id;
+      }
     }
 
-    // OMDb: fetch IMDb rating if we have an IMDb ID and OMDb key
-    if (options.omdbApiKey && info.imdbId) {
+    // OMDb: fetch IMDb rating if we have an IMDb ID and OMDb key (and Radarr didn't already provide it)
+    if (options.omdbApiKey && info.imdbId && !info.imdbRating) {
       try {
         debugLog("BG", `META: calling OMDb getImdbRating for ${info.imdbId}`);
         const imdbRating = await getImdbRating(options.omdbApiKey, info.imdbId);
@@ -559,6 +723,14 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       } catch {
         // OMDb fetch is non-critical
       }
+    }
+
+    // For TV shows enriched via Sonarr: supplement with TMDB rating if user has key
+    if (proxyHandled && info.mediaType === "show" && !info.tmdbRating && options.tmdbApiKey && tmdbId) {
+      try {
+        const details = await getTvShow(options.tmdbApiKey, tmdbId);
+        if (details.vote_average) info.tmdbRating = details.vote_average;
+      } catch { /* TMDB supplement non-critical */ }
     }
 
     persistTabMedia(tabId, info);
@@ -848,9 +1020,10 @@ export default defineBackground(() => {
             try {
               const options = await getOptions();
               const useTvdb = message.source === "tvdb" && !!options.tvdbApiKey;
+              const useSonarr = options.useCommunityProxies;
 
-              // Need at least one API key
-              if (!useTvdb && !options.tmdbApiKey) {
+              // Need at least one data source
+              if (!useTvdb && !options.tmdbApiKey && !useSonarr) {
                 sendResponse({ hasGaps: false } satisfies EpisodeGapResponse);
                 break;
               }
@@ -927,7 +1100,67 @@ export default defineBackground(() => {
               let seasonGaps: SeasonGapInfo[];
               let showTitle: string;
 
-              if (useTvdb) {
+              // --- Sonarr path: free episode data via community proxy ---
+              let sonarrHandled = false;
+              if (useSonarr) {
+                // Determine TVDB ID for Sonarr lookup
+                const tvdbIdForSonarr = message.source === "tvdb"
+                  ? parseInt(message.id, 10)
+                  : ownedShow.tvdbId;
+
+                if (tvdbIdForSonarr) {
+                  debugLog("BG", `EPISODES: trying Sonarr for tvdb:${tvdbIdForSonarr}`);
+                  const sonarrShow = await getSonarrShow(tvdbIdForSonarr);
+                  if (sonarrShow?.episodes?.length) {
+                    showTitle = sonarrShow.title;
+
+                    // Group episodes by season
+                    const bySeason = new Map<number, typeof sonarrShow.episodes>();
+                    for (const ep of sonarrShow.episodes) {
+                      if (options.excludeSpecials && ep.seasonNumber === 0) continue;
+                      const key = `S${ep.seasonNumber}E${ep.episodeNumber}`;
+                      if (options.excludeFuture && !ownedSet.has(key) && (!ep.airDate || ep.airDate >= today)) continue;
+                      const list = bySeason.get(ep.seasonNumber) ?? [];
+                      list.push(ep);
+                      bySeason.set(ep.seasonNumber, list);
+                    }
+
+                    seasonGaps = [];
+                    const sortedSeasons = [...bySeason.keys()].sort((a, b) => a - b);
+
+                    for (const seasonNum of sortedSeasons) {
+                      const episodes = bySeason.get(seasonNum)!;
+                      const missing: SeasonGapInfo["missing"] = [];
+                      let ownedCount = 0;
+
+                      for (const ep of episodes) {
+                        const key = `S${ep.seasonNumber}E${ep.episodeNumber}`;
+                        if (ownedSet.has(key)) {
+                          ownedCount++;
+                        } else {
+                          missing.push({
+                            number: ep.episodeNumber,
+                            name: ep.title ?? `Episode ${ep.episodeNumber}`,
+                            airDate: ep.airDate ?? undefined,
+                          });
+                        }
+                      }
+
+                      seasonGaps.push({
+                        seasonNumber: seasonNum,
+                        ownedCount,
+                        totalCount: episodes.length,
+                        missing,
+                      });
+                    }
+
+                    sonarrHandled = true;
+                    debugLog("BG", `EPISODES: using Sonarr for tvdb:${tvdbIdForSonarr}`);
+                  }
+                }
+              }
+
+              if (!sonarrHandled && useTvdb) {
                 // --- TVDB path: one paginated call for all episodes ---
                 const allEpisodes = await getSeriesEpisodes(options.tvdbApiKey, message.id);
                 showTitle = ownedShow.title;
@@ -973,7 +1206,7 @@ export default defineBackground(() => {
                 }
 
                 debugLog("BG", `EPISODES: using TVDB for ${message.id}`);
-              } else {
+              } else if (!sonarrHandled) {
                 // --- TMDB path: per-season fetching ---
                 let tmdbId: number;
                 if (message.source === "tmdb") {
