@@ -5,7 +5,7 @@ import type {
   ExternalIds,
   LibraryIndex,
 } from "../common/types";
-import { buildTitleKey } from "../common/normalize";
+import { buildTitleKey, parseTitleFromH1 } from "../common/normalize";
 
 async function plexFetch(config: { serverUrl: string; token: string }, path: string): Promise<Response> {
   const url = `${config.serverUrl.replace(/\/+$/, "")}${path}`;
@@ -283,17 +283,21 @@ export async function buildLibraryIndex(
           const idx = index.items.length;
           index.items.push(owned);
 
+          // Strip trailing "(YYYY)" from Plex titles so keys match content-script parsing
+          const parsed = parseTitleFromH1(item.title);
+          const cleanTitle = parsed.title;
+
           if (section.type === "movie") {
             if (ids.tmdbId) index.movies.byTmdbId[String(ids.tmdbId)] = idx;
             if (ids.imdbId) index.movies.byImdbId[ids.imdbId] = idx;
-            if (item.year) index.movies.byTitle[buildTitleKey(item.title, item.year)] = idx;
-            index.movies.byTitle[buildTitleKey(item.title)] = idx;
+            if (item.year) index.movies.byTitle[buildTitleKey(cleanTitle, item.year)] = idx;
+            index.movies.byTitle[buildTitleKey(cleanTitle)] = idx;
           } else if (section.type === "show") {
             if (ids.tvdbId) index.shows.byTvdbId[String(ids.tvdbId)] = idx;
             if (ids.tmdbId) index.shows.byTmdbId[String(ids.tmdbId)] = idx;
             if (ids.imdbId) index.shows.byImdbId[ids.imdbId] = idx;
-            if (item.year) index.shows.byTitle[buildTitleKey(item.title, item.year)] = idx;
-            index.shows.byTitle[buildTitleKey(item.title)] = idx;
+            if (item.year) index.shows.byTitle[buildTitleKey(cleanTitle, item.year)] = idx;
+            index.shows.byTitle[buildTitleKey(cleanTitle)] = idx;
           }
         }
       }
