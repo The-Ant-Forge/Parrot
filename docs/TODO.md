@@ -64,6 +64,18 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 
 ---
 
+## Plex API Modernisation
+
+Plex officially published OpenAPI docs (Sep 2025) and introduced a new auth flow:
+
+- [ ] **New auth flow** — device key registration → JWT → `X-Plex-Token` exchange with 7-day refresh. Current direct-token approach still works but doesn't handle token expiry gracefully.
+- [ ] **Pagination for large libraries** — `X-Plex-Container-Start` / `X-Plex-Container-Size` headers. Current index builder fetches everything in one shot which may timeout on very large libraries (10k+ items).
+- [ ] **Review official API docs** ([developer.plex.tv](https://developer.plex.tv)) for any new endpoints or fields we could leverage (e.g. better resolution/codec metadata).
+
+Reference: [Plex Pro Week '25 blog post](https://www.plex.tv/blog/plex-pro-week-25-api-unlocked/)
+
+---
+
 ## Ideas
 
 - Episode-level matching on episode-specific pages (e.g. TMDB `/tv/{id}/season/{n}/episode/{n}`)

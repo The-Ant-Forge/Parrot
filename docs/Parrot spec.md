@@ -166,7 +166,7 @@ parrot/
 - Manages the Plex library index cache (in-memory + `storage.local`)
 - Proxies Plex API requests (avoids CORS issues from content scripts)
 - Handles all message types: `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `VALIDATE_OMDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
-- Renders dynamic per-tab toolbar icons via `OffscreenCanvas`
+- Sets per-tab toolbar icons from pre-generated static PNGs (owned/not-owned/inactive × 4 sizes)
 - Auto-refreshes stale library index on demand (configurable interval, default 7 days)
 
 **Content Scripts (16 scripts)**
@@ -634,7 +634,7 @@ Shown when viewing a TV show in your library with missing episodes:
 
 ### Toolbar Icon
 
-The extension toolbar icon is a rounded "P" drawn dynamically via `OffscreenCanvas` at multiple resolutions (16, 32, 48, 128px):
+The extension toolbar icon uses pre-generated static PNGs at multiple resolutions (16, 32, 48, 128px) in three states:
 
 - **In library:** Black background, gold border, white P
 - **Not in library:** Dark gray background, gray border, gray P

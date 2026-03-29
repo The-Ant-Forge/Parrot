@@ -866,3 +866,63 @@ Zero-config metadata and ratings via free community API proxies, with circuit br
 - **New test files:** `tests/api-radarr.test.ts`, `tests/api-sonarr.test.ts`, `tests/circuit-breaker.test.ts`
 - 26 new tests covering proxy clients and circuit breaker behaviour
 - Total: 253 tests across 15 test files (up from 227)
+
+---
+
+## v1.16 — Code Review Fixes & Dependency Updates
+
+Dual code review (Claude + OpenAI Codex) identified 11 findings. All implemented. Review document: [`Code-Review-260313.md`](Code-Review-260313.md).
+
+### Critical: Proxy Host Permissions
+- Added `https://api.radarr.video/*` and `https://skyhook.sonarr.tv/*` to `host_permissions` in `wxt.config.ts`
+- Without these, Chrome silently blocked community proxy requests from the service worker
+
+### Firefox Compatibility: Static Icons
+- Replaced `OffscreenCanvas`-based toolbar icon rendering with pre-generated static PNGs
+- Three states (owned/not-owned/inactive) × four sizes (16/32/48/128) = 12 icon files in `public/icons/`
+- `OffscreenCanvas` is not available in Firefox service workers; static PNGs work in both browsers
+
+### Radarr Collection in CHECK_COLLECTION
+- `CHECK_COLLECTION` handler now tries Radarr proxy first for collection data, falling back to TMDB API
+- Previously required a TMDB API key even when community proxies were enabled
+
+### Bug Fix: Zero-Value Ratings
+- Changed truthy checks (`if (ratings.Tmdb?.Value)`) to null checks (`if (ratings.Tmdb?.Value != null)`)
+- A rating of `0.0` is a valid score and should be included in averaging
+
+### Per-Key Proxy Cache
+- Proxy response cache switched from single-blob storage to per-key entries
+- Eliminates read-modify-write race conditions when multiple tabs fetch concurrently
+- Cache keys prefixed: `pc:radarr:tmdb:550`, `pc:sonarr:tvdb:12345`
+
+### Options Caching
+- `getOptions()` result cached in memory with invalidation on `SAVE_OPTIONS`
+- Eliminates redundant `storage.sync.get()` call on every CHECK message
+
+### Parallel Server Episode Fetches
+- Multi-server episode gap detection now uses `Promise.all()` for concurrent fetches
+- Previously fetched sequentially — N servers took N× as long
+
+### Local Date Filtering
+- Episode/movie future filtering now uses local date (`new Date().toISOString().slice(0, 10)`) instead of UTC
+- Prevents near-midnight mismatches where items due today were filtered as "future"
+
+### ARIA Accessibility
+- Gap panel toggle button now has `role="button"`, `aria-expanded`, and keyboard Enter/Space handler
+- Gap panel headers have `role="heading"` and `aria-level`
+
+### Background Decomposition
+- Extracted `src/entrypoints/bg/version.ts` (version check handler)
+- Extracted `src/entrypoints/bg/library.ts` (library index management, PLEX_LOOKUP)
+- Extracted `src/entrypoints/bg/metadata.ts` (fetchTabMetadata orchestration)
+- `background.ts` reduced by ~250 lines
+
+### Dependency Updates
+- Vitest 4.0.18 → 4.1.2, WXT 0.20.17 → 0.20.20, happy-dom 20.6.3 → 20.8.9
+- typescript-eslint 8.56.0 → 8.57.2, ESLint 9.39.2 → 9.39.4
+- ESLint 10 and TypeScript 6 held back (major version bumps, separate effort)
+
+### Test Suite
+- **New test files:** `tests/bg-library.test.ts`, `tests/bg-metadata.test.ts`, `tests/bg-version.test.ts`
+- 27 new tests for extracted background modules
+- Total: 280 tests across 18 test files (up from 253)
