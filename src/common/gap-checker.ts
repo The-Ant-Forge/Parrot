@@ -2,6 +2,7 @@ import { setBadgeGapData } from "./badge";
 import { createCollectionPanel } from "./collection-panel";
 import { createEpisodePanel } from "./episode-panel";
 import { debugLog, errorLog } from "./logger";
+import { createPanelContainer, createPanelRow } from "./panel-utils";
 import { getOptions } from "./storage";
 import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse, FindTmdbIdResponse } from "./types";
 
@@ -159,11 +160,22 @@ async function checkShowGaps(
     } else {
       setBadgeGapData({
         state: "complete",
-        panelElement: document.createElement("div"), // empty placeholder
+        panelElement: createNoDataPanel(),
         resolution: result.resolution,
       });
     }
   } catch (err) {
     errorLog("GapChecker", "episode gap check failed", err);
   }
+}
+
+function createNoDataPanel(): HTMLDivElement {
+  const panel = createPanelContainer("data-parrot-nodata");
+  const row = createPanelRow();
+  const msg = document.createElement("span");
+  msg.textContent = "Episode data unavailable";
+  msg.style.color = "#888";
+  row.appendChild(msg);
+  panel.appendChild(row);
+  return panel;
 }
