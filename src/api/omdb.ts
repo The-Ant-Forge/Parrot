@@ -1,4 +1,5 @@
 const BASE_URL = "https://www.omdbapi.com";
+const TIMEOUT_MS = 4000;
 
 interface OMDbResponse {
   Response: string;
@@ -15,9 +16,13 @@ export async function getImdbRating(
   imdbId: string,
 ): Promise<number | null> {
   const url = `${BASE_URL}/?i=${encodeURIComponent(imdbId)}&apikey=${encodeURIComponent(apiKey)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
+    signal: controller.signal,
   });
+  clearTimeout(timer);
   if (!res.ok) return null;
 
   const data: OMDbResponse = await res.json();

@@ -550,9 +550,10 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       try {
         debugLog("BG", `META: calling OMDb getImdbRating for ${info.imdbId}`);
         const imdbRating = await getImdbRating(options.omdbApiKey, info.imdbId);
+        debugLog("BG", `META: OMDb returned ${imdbRating} for ${info.imdbId}`);
         if (imdbRating !== null) info.imdbRating = imdbRating;
-      } catch {
-        // OMDb fetch is non-critical
+      } catch (err) {
+        debugLog("BG", `META: OMDb fetch failed for ${info.imdbId}`, err);
       }
     }
 

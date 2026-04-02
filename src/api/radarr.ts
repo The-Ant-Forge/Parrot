@@ -131,7 +131,9 @@ export async function getRadarrMovie(tmdbId: number): Promise<RadarrMovie | null
 
 /** Get movie by IMDb ID — useful for IMDb→TMDB cross-reference. */
 export async function getRadarrMovieByImdb(imdbId: string): Promise<RadarrMovie | null> {
-  return cachedRadarrFetch<RadarrMovie>(`radarr:imdb:${imdbId}`, LOOKUP_TTL, `/movie/imdb/${encodeURIComponent(imdbId)}`);
+  // IMDb endpoint returns an array; unwrap the first match
+  const results = await cachedRadarrFetch<RadarrMovie[]>(`radarr:imdb:${imdbId}`, LOOKUP_TTL, `/movie/imdb/${encodeURIComponent(imdbId)}`);
+  return results && results.length > 0 ? results[0] : null;
 }
 
 /** Get collection by TMDB collection ID. */

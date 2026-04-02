@@ -60,7 +60,7 @@ describe("getRadarrMovie", () => {
 describe("getRadarrMovieByImdb", () => {
   it("returns movie data for IMDb ID", async () => {
     const movie = { TmdbId: 550, ImdbId: "tt0137523", Title: "Test", Year: 1999 };
-    mockFetch(movie);
+    mockFetch([movie]); // IMDb endpoint returns an array
     const result = await radarrModule.getRadarrMovieByImdb("tt0137523");
     expect(result).toEqual(movie);
     expect(fetch).toHaveBeenCalledWith(
