@@ -545,6 +545,21 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       }
     }
 
+    // Resolve IMDb ID if still missing (needed for OMDb fallback)
+    // Proxy may return metadata without an ImdbId (e.g. duplicate TMDB entries)
+    if (!info.imdbId && options.tmdbApiKey && info.tmdbId && info.mediaType === "movie") {
+      try {
+        debugLog("BG", `META: resolving IMDb ID via TMDB getMovie for ${info.tmdbId}`);
+        const details = await getMovie(options.tmdbApiKey, info.tmdbId);
+        if (details.imdb_id) {
+          info.imdbId = details.imdb_id;
+          debugLog("BG", `META: resolved IMDb ID → ${info.imdbId}`);
+        }
+      } catch {
+        debugLog("BG", `META: TMDB getMovie failed for IMDb resolution`);
+      }
+    }
+
     // OMDb: fetch IMDb rating if we have an IMDb ID and OMDb key (and Radarr didn't already provide it)
     if (options.omdbApiKey && info.imdbId && !info.imdbRating) {
       try {
