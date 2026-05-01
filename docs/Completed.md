@@ -926,3 +926,53 @@ Dual code review (Claude + OpenAI Codex) identified 11 findings. All implemented
 - **New test files:** `tests/bg-library.test.ts`, `tests/bg-metadata.test.ts`, `tests/bg-version.test.ts`
 - 27 new tests for extracted background modules
 - Total: 280 tests across 18 test files (up from 253)
+
+---
+
+## v1.17 — Code Review Fixes Release
+
+Shipped the v1.16 code review fixes as a numbered release. No new functional changes from v1.16 — this consolidated the dual-review (Claude + Codex) work into a tagged release.
+
+---
+
+## v1.18 — Radarr IMDb Ratings Fix & Reliability Improvements
+
+A critical bug fix release for IMDb-sourced movie ratings, plus reliability improvements for the OMDb fallback path.
+
+### Critical Fix: Radarr IMDb Ratings
+- The Radarr `/movie/imdb/{id}` endpoint returns an **array**, but the client treated it as a single object — `MovieRatings` was always `undefined` for IMDb-sourced lookups
+- All ratings (TMDB, IMDb, RT, Metacritic, Trakt) were silently dropped for any site that identifies media via IMDb (NZBGeek, NZBForYou, RARGB, Letterboxd, Metacritic, Rotten Tomatoes, etc.)
+- Fixed by unwrapping the first array element in `getRadarrMovieByImdb`
+
+### IMDb ID Resolution Fallback
+- When the Radarr proxy returns movie metadata without an IMDb ID (e.g. duplicate/stub TMDB entries), Parrot now resolves the IMDb ID via the TMDB API so the OMDb rating fallback can still fire
+- Closes a gap where stub TMDB entries with no `imdb_id` would silently lose their IMDb rating path
+
+### OMDb Hardening
+- Added 4-second `AbortController` timeout to OMDb client (was the only API client without one)
+- A slow/unresponsive OMDb server could block `sendRatingsToTab` indefinitely, preventing already-fetched Radarr ratings from reaching the badge
+- OMDb success/failure now logged in service worker console (was previously silently swallowed)
+
+### Episode Gap "No Data" Panel
+- When episode gap data cannot be fetched (e.g. Plex server offline), the "Complete" toggle now opens a panel with "Episode data unavailable" instead of an empty `<div>` placeholder that looked like a broken click handler
+
+### Toolbar Icon Polish
+- Replaced the placeholder static PNGs from v1.17 with proper designed icons across all 12 files (3 states × 4 sizes)
+
+---
+
+## v1.19 — Maintenance Release
+
+Routine maintenance — no functional changes.
+
+### Dependency Updates
+- typescript-eslint 8.57.2 → 8.59.0
+- vitest 4.1.2 → 4.1.5
+- wxt 0.20.20 → 0.20.25
+- happy-dom 20.8.9 → 20.9.0
+- prettier 3.8.1 → 3.8.3
+- ESLint 10 and TypeScript 6 still held back (major version bumps, separate effort)
+
+### Cleanup
+- Removed extraneous `@emnapi/wasi-threads` orphan package
+- Patched `defu` prototype pollution vulnerability via `npm audit fix` (high severity, transitive)
