@@ -11,7 +11,12 @@ import { debugLog } from "../common/logger";
 /** Connection config — either a full PlexServerConfig or an ad-hoc test pair. */
 type PlexConnConfig = { serverUrl: string; remoteUrl?: string; token: string; id?: string };
 
-const PER_ATTEMPT_TIMEOUT_MS = 3000;
+// 30s is enough for /library/sections/{id}/all?includeGuids=1 on a large
+// library (10k+ items can take 15-25s even over LAN). Short enough that
+// the worst-case fallback (serverUrl hangs, remoteUrl also hangs) is still
+// bearable — and the session-memo means the user only pays it once per
+// service worker lifetime.
+const PER_ATTEMPT_TIMEOUT_MS = 30000;
 
 /**
  * Session-sticky memo of the working URL per server. Cleared when service worker
