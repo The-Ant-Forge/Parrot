@@ -90,6 +90,16 @@ describe("getRadarrCollection", () => {
       expect.anything(),
     );
   });
+
+  it("tolerates collection responses without a Movies array", async () => {
+    // Some Radarr collections come back without Movies populated (seen in the wild for tmdb:131292).
+    // The type is optional; consumers should default to an empty list.
+    const coll = { TmdbId: 10, Title: "Sparse Collection" };
+    mockFetch(coll);
+    const result = await radarrModule.getRadarrCollection(10);
+    expect(result?.Movies).toBeUndefined();
+    expect((result?.Movies ?? []).length).toBe(0);
+  });
 });
 
 describe("searchRadarrMovie", () => {

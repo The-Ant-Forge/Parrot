@@ -1325,15 +1325,18 @@ export default defineBackground(() => {
                 const radarrMovie = await getRadarrMovie(movieId);
                 if (radarrMovie?.Collection?.TmdbId) {
                   const radarrColl = await getRadarrCollection(radarrMovie.Collection.TmdbId);
-                  if (radarrColl && radarrColl.Movies.length > 0) {
+                  const radarrMovies = radarrColl?.Movies ?? [];
+                  if (radarrColl && radarrMovies.length > 0) {
                     collectionName = radarrColl.Title;
-                    collParts = radarrColl.Movies.map(m => ({
+                    collParts = radarrMovies.map(m => ({
                       tmdbId: m.TmdbId,
                       title: m.Title,
                       year: m.Year,
                       releaseDate: undefined, // Radarr doesn't provide exact release dates
                     }));
                     debugLog("BG", `COLLECTION: resolved via Radarr — ${collectionName} (${collParts.length} movies)`);
+                  } else if (radarrColl) {
+                    debugLog("BG", `COLLECTION: Radarr returned collection ${radarrColl.TmdbId} with no Movies — falling through to TMDB if available`);
                   }
                 }
               }

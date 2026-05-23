@@ -67,7 +67,8 @@ export interface RadarrCollectionMovie {
 export interface RadarrCollection {
   TmdbId: number;
   Title: string;
-  Movies: RadarrCollectionMovie[];
+  // Movies is missing from some collection responses; treat as optional
+  Movies?: RadarrCollectionMovie[];
 }
 
 // --- Fetch helper with timeout + circuit breaker ---
