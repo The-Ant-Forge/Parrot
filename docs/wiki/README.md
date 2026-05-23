@@ -8,26 +8,37 @@ contributor with a working tree can edit them.
 ## Publishing to the wiki
 
 GitHub serves the wiki from a separate git repository:
-`https://github.com/The-Ant-Forge/Parrot.wiki.git`. To publish updates:
+`https://github.com/The-Ant-Forge/Parrot.wiki.git`.
+
+### One-time setup
+
+Clone the wiki repo next to the main repo:
 
 ```bash
-# One-time setup — clone the wiki repo next to the main repo
 cd ..
 git clone https://github.com/The-Ant-Forge/Parrot.wiki.git
 cd Parrot
-
-# Each update — sync the markdown into the wiki clone, commit, push
-cp docs/wiki/*.md docs/wiki/_Sidebar.md ../Parrot.wiki/
-cd ../Parrot.wiki
-git add .
-git commit -m "Update wiki content"
-git push
-cd ../Parrot
 ```
 
-(The GitHub wiki only shows pages from the root of the wiki repo, so the
-files have to live at the top level there. We keep the canonical copies
-under `docs/wiki/` in this repo for versioning + PR review.)
+If the clone fails with "Repository not found", the wiki repo hasn't been
+bootstrapped yet. Open <https://github.com/The-Ant-Forge/Parrot/wiki>
+and create any page via the web UI (title `Home`, body anything) —
+that provisions the underlying `.wiki.git` repo. Then retry the clone.
+
+### Syncing
+
+```bash
+npm run wiki:sync                    # default commit message
+npm run wiki:sync -- "your message"  # custom commit message
+```
+
+The script copies every `*.md` file from `docs/wiki/` (except this
+README) into the wiki clone, then commits and pushes. If there are no
+changes, it exits cleanly without making an empty commit.
+
+(GitHub renders pages from the root of the wiki repo, so files have to
+live at the top level there. We keep the canonical copies under
+`docs/wiki/` in this repo for versioning + PR review.)
 
 ## Image links
 
