@@ -1044,3 +1044,30 @@ Built on the existing GitHub release-poller to give the user a clearer, more act
 ### Test Suite
 - 5 new tests for `pickZipAssetUrl` covering missing assets, empty list, Chrome preference, fallback to any zip, no-zip case
 - Total: 301 tests across 20 test files (up from 296)
+
+---
+
+## v1.21 — Collection Bug Fix, Docs Overhaul & Wiki
+
+A maintenance release covering one real bug fix, a UX polish to remove the word "owned" from user-facing surfaces, a full documentation rewrite with screenshots, and the launch of a public GitHub Wiki.
+
+### Bug Fixes
+- **CHECK_COLLECTION crash** — the handler accessed `radarrColl.Movies.length` without first checking that `Movies` was defined. Some Radarr collection responses (e.g. Iron Man Collection `tmdb:131292`) come back without a `Movies` array, causing `TypeError: Cannot read properties of undefined (reading 'length')` to be silently swallowed by the outer try/catch. The badge would show gold but with no completeness toggle. Fix: marked `Movies` optional on the `RadarrCollection` type so the compiler enforces the check, added a defensive `?? []` in the handler, added a debug log when Radarr returns a Movies-less collection (so the TMDB fallback path is visible), and added a regression test.
+
+### UX
+- **"Owned" wording dropped** from user-visible collection surfaces. Panel header now reads `Iron Man Collection — 1 of 3` instead of `1 of 3 owned`. Options label now reads `Minimum in library to show gaps` instead of `Minimum owned to show gaps`.
+
+### Documentation
+- **README rewrite** — hero screenshots, expanded badge state table, Remote Access section, comprehensive setup + dev sections
+- **13 screenshots** added under `docs/screenshots/` (popup states, badge states, collection/episode gap panels, every options card, update flow)
+- **GitHub Wiki seeded** with 8 pages (`Home`, `Installation`, `Configuration`, `Remote-Access`, `Badges-and-Panels`, `Supported-Sites`, `Updating`, `Troubleshooting`) + sidebar nav. Wiki source lives in `docs/wiki/` versioned alongside the code; published copy in the separate `Parrot.wiki.git` repo
+- **`npm run wiki:sync`** automates the publish flow — copies `docs/wiki/*.md` into the sibling wiki clone, commits, and pushes. No-op when nothing changed
+- **CLAUDE.md** updated with the wiki workflow so future sessions know to edit `docs/wiki/` and run the sync command rather than poking at the wiki repo directly
+- **Repo cleanup** — removed stale `parrot-v1.14.1-chrome-mv3.zip` artifact from the repo root
+
+### Code Improvements
+- **`npm audit fix`** patched the moderate `brace-expansion` and `ws` advisories (transitive patches, no API changes). Four remaining `uuid` advisories require `--force` which would downgrade wxt by ~17 majors — left as-is (dev-only, doesn't affect runtime).
+
+### Test Suite
+- 1 new regression test for `getRadarrCollection` tolerating responses without a `Movies` array
+- Total: 302 tests across 20 test files (up from 301)
