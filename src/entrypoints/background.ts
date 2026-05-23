@@ -10,7 +10,7 @@ import type { RadarrMovie } from "../api/radarr";
 import { getSonarrShow, searchSonarrShow } from "../api/sonarr";
 import type { SonarrShow } from "../api/sonarr";
 import { debugLog, errorLog } from "../common/logger";
-import { isNewerVersion, maybeCheckForUpdate } from "./bg/version";
+import { isNewerVersion, maybeCheckForUpdate, checkForUpdate } from "./bg/version";
 import { resolveItemPlex, lookupItem } from "./bg/library";
 import { applyRadarrMetadata, applySonarrMetadata, hasAnyRatings } from "./bg/metadata";
 import type {
@@ -33,6 +33,7 @@ import type {
   ClearCacheResponse,
   FindTmdbIdResponse,
   FetchRemoteUrlResponse,
+  CheckForUpdateResponse,
   StorageUsageResponse,
   TabMediaInfo,
   TabMediaResponse,
@@ -603,6 +604,23 @@ async function setTabIcon(tabId: number, state: IconState) {
   }
 }
 
+/** Set or clear the global "!" badge based on update availability. */
+async function refreshUpdateBadge(): Promise<void> {
+  try {
+    const updateCheck = await getUpdateCheck();
+    const currentVersion = browser.runtime.getManifest().version;
+    const available = updateCheck ? isNewerVersion(updateCheck.latestVersion, currentVersion) : false;
+    if (available) {
+      await browser.action.setBadgeText({ text: "!" });
+      await browser.action.setBadgeBackgroundColor({ color: "#ebaf00" });
+    } else {
+      await browser.action.setBadgeText({ text: "" });
+    }
+  } catch (err) {
+    errorLog("BG", "failed to update badge text", err);
+  }
+}
+
 export default defineBackground(() => {
   // Set default inactive icon on startup
   const manifest = browser.runtime.getManifest();
@@ -613,8 +631,10 @@ export default defineBackground(() => {
     errorLog("BG", "failed to set default icon", err);
   }
 
-  // Check for extension updates (fire-and-forget)
-  maybeCheckForUpdate();
+  // Check for extension updates (fire-and-forget), then refresh badge
+  maybeCheckForUpdate().then(() => refreshUpdateBadge()).catch(() => {});
+  // Also reconcile badge against any cached check (covers cold start when no new check was needed)
+  refreshUpdateBadge();
 
   // Clear episode gap cache on extension update (stale entries may use old logic)
   browser.runtime.onInstalled.addListener((details) => {
@@ -622,6 +642,8 @@ export default defineBackground(() => {
       clearEpisodeGapCache().then(() => {
         debugLog("BG", "episode gap cache cleared after extension update");
       }).catch(() => {});
+      // Clear the "!" badge since we've reached or passed the previously-seen latest version
+      refreshUpdateBadge();
     }
   });
 
@@ -721,7 +743,26 @@ export default defineBackground(() => {
               updateAvailable,
               latestVersion: updateCheck?.latestVersion,
               updateUrl: updateCheck?.downloadUrl,
+              updateAssetUrl: updateCheck?.assetUrl,
             } satisfies StatusResponse);
+            break;
+          }
+
+          case "CHECK_FOR_UPDATE": {
+            await checkForUpdate();
+            const refreshed = await getUpdateCheck();
+            const currentVersion = browser.runtime.getManifest().version;
+            const updateAvailable = refreshed
+              ? isNewerVersion(refreshed.latestVersion, currentVersion)
+              : false;
+            await refreshUpdateBadge();
+            sendResponse({
+              updateAvailable,
+              latestVersion: refreshed?.latestVersion,
+              currentVersion,
+              updateUrl: refreshed?.downloadUrl,
+              updateAssetUrl: refreshed?.assetUrl,
+            } satisfies CheckForUpdateResponse);
             break;
           }
 

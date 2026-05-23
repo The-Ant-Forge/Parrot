@@ -246,6 +246,37 @@
           </div>
           <div id="sitesFeedback" class="feedback" hidden></div>
         </section>
+
+        <!-- About / Updates -->
+        <section class="card">
+          <h2>About</h2>
+          <div class="status-block">
+            <div class="status-row">
+              <span>Installed version:</span>
+              <span id="currentVersionLabel">--</span>
+            </div>
+            <div class="status-row">
+              <span>Latest release:</span>
+              <span id="latestVersionLabel">--</span>
+            </div>
+            <div class="status-row">
+              <span>Last checked:</span>
+              <span id="updateLastChecked">--</span>
+            </div>
+          </div>
+          <div class="button-row">
+            <button id="checkUpdateBtn">Check for updates</button>
+            <button id="updateActionBtn" class="primary" hidden>Update Parrot</button>
+          </div>
+          <div id="updateFeedback" class="feedback" hidden></div>
+          <p class="hint">
+            Updates are downloaded from GitHub. After clicking <strong>Update
+            Parrot</strong>, the new build will download to your computer.
+            Open <code>chrome://extensions/</code>, remove the existing Parrot,
+            unzip the new download, and click <strong>Load unpacked</strong>
+            to install it.
+          </p>
+        </section>
       </main>
 
       <footer id="versionFooter" class="version-footer"></footer>

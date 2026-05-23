@@ -94,7 +94,8 @@ const UPDATE_CHECK_KEY = "updateCheck";
 
 export interface UpdateCheckResult {
   latestVersion: string;
-  downloadUrl: string;
+  downloadUrl: string;       // release web page URL (github.com/.../releases/tag/v1.x.y)
+  assetUrl?: string;         // direct ZIP asset URL when available
   checkedAt: number;
 }
 

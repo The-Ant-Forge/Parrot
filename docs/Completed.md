@@ -1010,3 +1010,37 @@ Adds optional remote-URL support so Parrot keeps working when the user is away f
 - **New test files:** `tests/api-plex-tv.test.ts` (9 tests), `tests/plex-fallback.test.ts` (7 tests)
 - Covers discovery success/failure, URL picking, fallback ordering, memo behavior, and timeout handling
 - Total: 296 tests across 20 test files (up from 280)
+
+---
+
+## v1.20 (cont.) — Manual & Auto Update Flow
+
+Built on the existing GitHub release-poller to give the user a clearer, more actionable update experience. No silent auto-install (Chrome blocks side-loaded CRX auto-install as a malware countermeasure); instead the user is alerted via a toolbar badge and clicks through to download.
+
+### 24-Hour Auto-Check
+- Lowered the auto-poll interval from 30 days to 24 hours in `bg/version.ts`
+- Fires on service worker startup, throttled by the existing `getUpdateCheck` timestamp
+
+### Direct ZIP Asset URL
+- `checkForUpdate` now extracts the Chrome ZIP asset URL (`parrot-X.Y.Z-chrome.zip`) from the release's `assets[]` array
+- Fallback to any `.zip` asset, then the release web page URL
+- New `assetUrl` field on `UpdateCheckResult` + `updateAssetUrl` on `StatusResponse`
+
+### Toolbar Badge
+- New `refreshUpdateBadge()` in `background.ts` calls `browser.action.setBadgeText({ text: "!" })` with gold (`#ebaf00`) background when an update is available
+- Cleared when the installed version catches up to the recorded latest (handled by `onInstalled` listener on `reason === "update"`)
+- Decoration is global (across all tabs), distinct from the per-tab owned/not-owned icon swap
+
+### Manual Check + Update Button (Options Page)
+- New "About" card at the bottom of the options page:
+  - Installed version / Latest release / Last checked
+  - **Check for updates** button → force-refresh via new `CHECK_FOR_UPDATE` message
+  - **Update Parrot** button (shown only when update available) → opens the ZIP asset URL in a new tab, triggering download
+- Inline instructions for unzipping and reloading at `chrome://extensions/`
+
+### Popup Banner
+- Existing "v1.X.Y available — click to download" banner now prefers the direct ZIP asset URL (falls back to release web page if asset URL unavailable)
+
+### Test Suite
+- 5 new tests for `pickZipAssetUrl` covering missing assets, empty list, Chrome preference, fallback to any zip, no-zip case
+- Total: 301 tests across 20 test files (up from 296)

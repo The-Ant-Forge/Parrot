@@ -179,10 +179,10 @@ async function initDashboard() {
   // Footer
   updateSyncInfo(status.itemCount, status.lastRefresh);
 
-  // Update banner
-  if (status.updateAvailable && status.latestVersion && status.updateUrl) {
+  // Update banner — prefer the direct ZIP asset URL so the click triggers a download
+  if (status.updateAvailable && status.latestVersion) {
     updateBanner.textContent = `v${status.latestVersion} available — click to download`;
-    updateBanner.href = status.updateUrl;
+    updateBanner.href = status.updateAssetUrl ?? status.updateUrl ?? "";
     updateBanner.hidden = false;
   } else {
     updateBanner.hidden = true;

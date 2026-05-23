@@ -14,6 +14,7 @@ import type {
   OptionsResponse,
   ClearCacheResponse,
   FetchRemoteUrlResponse,
+  CheckForUpdateResponse,
   StorageUsageResponse,
 } from "../../common/types";
 
@@ -80,6 +81,14 @@ const newSiteSelectorInput = $<HTMLInputElement>("newSiteSelector");
 const confirmAddSiteBtn = $<HTMLButtonElement>("confirmAddSiteBtn");
 const cancelAddSiteBtn = $<HTMLButtonElement>("cancelAddSiteBtn");
 const sitesFeedback = $<HTMLDivElement>("sitesFeedback");
+
+// --- About / Update elements ---
+const currentVersionLabel = $<HTMLSpanElement>("currentVersionLabel");
+const latestVersionLabel = $<HTMLSpanElement>("latestVersionLabel");
+const updateLastChecked = $<HTMLSpanElement>("updateLastChecked");
+const checkUpdateBtn = $<HTMLButtonElement>("checkUpdateBtn");
+const updateActionBtn = $<HTMLButtonElement>("updateActionBtn");
+const updateFeedback = $<HTMLDivElement>("updateFeedback");
 
 // --- State ---
 let servers: PlexServerConfig[] = [];
@@ -463,6 +472,57 @@ clearCacheBtn.addEventListener("click", async () => {
   }
 });
 
+// --- Update check handlers ---
+
+function populateUpdateSection(status: StatusResponse, lastCheckedTs?: number): void {
+  const manifest = browser.runtime.getManifest();
+  currentVersionLabel.textContent = `v${manifest.version}`;
+  latestVersionLabel.textContent = status.latestVersion ? `v${status.latestVersion}` : "--";
+  if (lastCheckedTs) {
+    updateLastChecked.textContent = formatTimestamp(lastCheckedTs);
+  }
+  if (status.updateAvailable) {
+    updateActionBtn.hidden = false;
+    showFeedback(updateFeedback, `New version v${status.latestVersion} is available`, "info");
+  } else {
+    updateActionBtn.hidden = true;
+    hideFeedback(updateFeedback);
+  }
+}
+
+checkUpdateBtn.addEventListener("click", async () => {
+  hideFeedback(updateFeedback);
+  setButtonLoading(checkUpdateBtn, true);
+  const result: CheckForUpdateResponse = await browser.runtime.sendMessage({
+    type: "CHECK_FOR_UPDATE",
+  });
+  setButtonLoading(checkUpdateBtn, false);
+
+  latestVersionLabel.textContent = result.latestVersion ? `v${result.latestVersion}` : "--";
+  updateLastChecked.textContent = "just now";
+  if (result.updateAvailable) {
+    updateActionBtn.hidden = false;
+    showFeedback(updateFeedback, `New version v${result.latestVersion} is available`, "info");
+  } else {
+    updateActionBtn.hidden = true;
+    showFeedback(updateFeedback, `You're on the latest version (v${result.currentVersion})`, "success");
+  }
+});
+
+updateActionBtn.addEventListener("click", async () => {
+  // Re-fetch the freshest URL so we use the latest known asset
+  const result: CheckForUpdateResponse = await browser.runtime.sendMessage({
+    type: "CHECK_FOR_UPDATE",
+  });
+  // Prefer the direct ZIP asset; fall back to the release web page
+  const targetUrl = result.updateAssetUrl ?? result.updateUrl;
+  if (targetUrl) {
+    browser.tabs.create({ url: targetUrl });
+  } else {
+    showFeedback(updateFeedback, "Could not find a download — try again later", "error");
+  }
+});
+
 // --- Auto-refresh handlers ---
 
 autoRefreshInput.addEventListener("change", async () => {
@@ -706,6 +766,7 @@ resetSitesBtn.addEventListener("click", async () => {
   });
   showLibraryInfo(status.itemCount, status.lastRefresh);
   updateStorageUsage();
+  populateUpdateSection(status);
 
   // Load custom sites and render sites table
   customSites = await getCustomSites();

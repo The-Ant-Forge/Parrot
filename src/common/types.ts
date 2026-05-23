@@ -112,7 +112,8 @@ export type Message =
   | { type: "GET_STORAGE_USAGE" }
   | { type: "UPDATE_ICON"; state: "owned" | "not-owned" }
   | { type: "PLEX_LOOKUP"; machineIdentifier: string; ratingKey: string }
-  | { type: "FETCH_REMOTE_URL"; token: string; machineIdentifier: string };
+  | { type: "FETCH_REMOTE_URL"; token: string; machineIdentifier: string }
+  | { type: "CHECK_FOR_UPDATE" };
 
 // --- Responses ---
 
@@ -128,7 +129,8 @@ export interface StatusResponse {
   omdbConfigured: boolean;
   updateAvailable?: boolean;
   latestVersion?: string;
-  updateUrl?: string;
+  updateUrl?: string;        // release web page URL
+  updateAssetUrl?: string;   // direct ZIP asset URL (when available)
 }
 
 export interface CheckResponse {
@@ -243,6 +245,14 @@ export interface StorageUsageResponse {
 export interface FetchRemoteUrlResponse {
   remoteUrl: string | null;
   error?: string;
+}
+
+export interface CheckForUpdateResponse {
+  updateAvailable: boolean;
+  latestVersion?: string;
+  currentVersion: string;
+  updateUrl?: string;
+  updateAssetUrl?: string;
 }
 
 // --- Site definitions ---
