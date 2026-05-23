@@ -8,7 +8,7 @@ type CollectionData = NonNullable<CollectionCheckResponse["collection"]>;
 export function createCollectionPanel(collection: CollectionData, expanded = false): HTMLDivElement {
   const panel = createPanelContainer(PANEL_ATTR);
 
-  const headerText = `${collection.name} \u2014 ${collection.ownedMovies.length} of ${collection.totalMovies} owned`;
+  const headerText = `${collection.name} \u2014 ${collection.ownedMovies.length} of ${collection.totalMovies}`;
   const { header, body } = createPanelHeader(headerText, expanded);
 
   // Build sorted movie list: all entries sorted by year
