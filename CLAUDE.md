@@ -137,6 +137,23 @@ All releases should have a thorough description in markdown format. Descriptions
 3. Bug fixes: What bugs were fixed and how
 4. Anything else we want to say about this release
 
+### Wiki
+
+The GitHub wiki at <https://github.com/The-Ant-Forge/Parrot/wiki> is sourced from `docs/wiki/` in this repo. GitHub serves it from a separate git repo (`Parrot.wiki.git`), which lives at `../Parrot.wiki/` next to the main checkout.
+
+**To publish wiki updates:** edit the markdown under `docs/wiki/`, then:
+
+```bash
+npm run wiki:sync                    # default commit message
+npm run wiki:sync -- "your message"  # custom commit message
+```
+
+The script (`scripts/sync-wiki.js`) copies every `*.md` from `docs/wiki/` (except its own `README.md`) into the wiki clone, commits, and pushes. No-op when nothing changed.
+
+If the wiki clone doesn't exist yet, the script prints the exact `git clone` command. If the clone fails with "Repository not found", the wiki repo isn't bootstrapped — create any page via <https://github.com/The-Ant-Forge/Parrot/wiki> first, then retry.
+
+Wiki images use absolute `raw.githubusercontent.com` URLs so screenshots only live in `docs/screenshots/` (versioned once with the code), not duplicated into the wiki repo.
+
 ---
 
 ## Working style
