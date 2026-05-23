@@ -13,6 +13,7 @@ export default defineConfig({
     host_permissions: [
       "http://*/library/*",
       "https://*/library/*",
+      "https://plex.tv/*",
       "https://api.themoviedb.org/*",
       "https://api4.thetvdb.com/*",
       "https://api.tvmaze.com/*",

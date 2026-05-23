@@ -165,9 +165,10 @@ parrot/
 **Service Worker (`background.ts`)**
 - Manages the Plex library index cache (in-memory + `storage.local`)
 - Proxies Plex API requests (avoids CORS issues from content scripts)
-- Handles all message types: `CHECK`, `TEST_CONNECTION`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `VALIDATE_OMDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
+- Handles all message types: `CHECK`, `TEST_CONNECTION`, `FETCH_REMOTE_URL`, `BUILD_INDEX`, `GET_STATUS`, `GET_OPTIONS`, `SAVE_OPTIONS`, `VALIDATE_TMDB_KEY`, `VALIDATE_TVDB_KEY`, `VALIDATE_OMDB_KEY`, `CLEAR_CACHE`, `CHECK_COLLECTION`, `CHECK_EPISODES`
 - Sets per-tab toolbar icons from pre-generated static PNGs (owned/not-owned/inactive × 4 sizes)
 - Auto-refreshes stale library index on demand (configurable interval, default 7 days)
+- Resolves the right Plex server URL per request: tries the configured local URL first, falls back to the optional auto-detected `remoteUrl`, and memoizes the working URL per server for the session
 
 **Content Scripts (16 scripts)**
 - One per supported site
@@ -272,6 +273,18 @@ Base URL: http://{server}:{port}  (default port 32400)
 
 Users find their token in Plex Settings > Account > Authorized Devices, or from browser dev tools while logged into Plex Web.
 
+### URL Resolution (Local vs Remote)
+
+Each `PlexServerConfig` may store both a local `serverUrl` (e.g. `http://192.168.1.100:32400`) and an optional `remoteUrl` (the auto-detected `.plex.direct` URL for remote access). At runtime, `plexFetch` resolves URLs in this order:
+
+1. **Session memo** — if a URL has worked recently for this server, try it first
+2. **Local `serverUrl`** — the configured primary URL
+3. **`remoteUrl`** — the auto-detected fallback
+
+Each attempt has a 3-second timeout via `AbortController`. The first attempt to return a Response (any status) wins; only network errors / timeouts trigger fallback. The working URL is memoized in a service-worker-scoped `Map<serverId, string>` so subsequent calls in the same session don't repeat the probe. When the service worker unloads, the memo resets — so a laptop sleep/wake or home/away transition re-probes naturally on the next request.
+
+`remoteUrl` is populated automatically when the user saves credentials (via [`plex-tv.ts`](#plex-tv-account-api-srcapiplex-tvts--server-discovery) → `fetchServerConnections`) and can be edited manually in the options UI.
+
 ### Key Endpoints
 
 ```
@@ -336,6 +349,17 @@ The `machineIdentifier` is fetched once during server setup (from `GET /`) and u
 ---
 
 ## External API Clients
+
+### Plex.tv Account API (`src/api/plex-tv.ts`) — Server Discovery
+
+Base URL: `https://plex.tv/api/v2`
+
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
+| `fetchServerConnections` | `GET /resources?includeHttps=1&includeRelay=0` | List user's servers and their connection candidates |
+| `pickRemoteUrl` | — | Select the first non-local non-relay URL from a server's connections |
+
+Used at server save time (and on demand via the **Auto-detect** button) to discover the `.plex.direct` URL Plex assigns when Remote Access is enabled. The discovered URL is stored as `PlexServerConfig.remoteUrl` and used as a fallback when the configured local `serverUrl` is unreachable. 4-second timeout; returns empty array on failure (auto-detection is best-effort, not fatal).
 
 ### Radarr Community Proxy (`src/api/radarr.ts`) — Primary (Free, No Key)
 
@@ -650,7 +674,7 @@ Full-tab settings page with four sections:
 
 ### 1. Plex Servers
 - Server list: each server displayed as a row with status dot (green/red), name, edit (pen) and delete (X) buttons
-- Add/Edit Server form: Server URL input, Token input (password), Save button (validates via TEST_CONNECTION, extracts machineIdentifier + friendlyName)
+- Add/Edit Server form: Server URL input, optional Remote URL input + Auto-detect button, Token input (password), Save button (validates via TEST_CONNECTION, extracts machineIdentifier + friendlyName, auto-fetches remote URL via FETCH_REMOTE_URL when the Remote URL field is left blank)
 - Library info: item count, last synced, storage usage
 - Buttons: Test All (tests all servers in parallel), Refresh Library (rebuilds merged index), Clear Library
 - Auto-refresh toggle with configurable interval (days)

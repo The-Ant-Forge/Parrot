@@ -976,3 +976,37 @@ Routine maintenance — no functional changes.
 ### Cleanup
 - Removed extraneous `@emnapi/wasi-threads` orphan package
 - Patched `defu` prototype pollution vulnerability via `npm audit fix` (high severity, transitive)
+
+---
+
+## v1.20 — Remote Server Access
+
+Adds optional remote-URL support so Parrot keeps working when the user is away from their home network. Purely additive: existing local-only setups are unchanged. Full design in [`docs/Remote Access.md`](Remote%20Access.md).
+
+### Auto-detected Remote URL
+- `PlexServerConfig` gains an optional `remoteUrl` field (the `.plex.direct` URL Plex assigns when Remote Access is enabled)
+- New `src/api/plex-tv.ts` client calls `https://plex.tv/api/v2/resources` to discover the user's servers and their connection candidates
+- `pickRemoteUrl()` selects the first non-local, non-relay URI matching the server's `clientIdentifier` (= machineIdentifier)
+- Auto-fetched at server save time when the Remote URL field is blank, or on demand via the Auto-detect button
+
+### Runtime URL Resolution
+- `plexFetch` rewritten to try URLs in order: session-memoized URL → configured local `serverUrl` → optional `remoteUrl`
+- Each attempt has a 3-second `AbortController` timeout
+- Working URL is memoized in a service-worker-scoped `Map<serverId, string>` to avoid timeout cost on repeat CHECKs
+- Memo clears on service worker unload (laptop sleep/wake, home/away transitions re-probe naturally)
+- Stale memo is dropped on attempt failure so the next configured candidate gets tried fresh
+
+### Options UI
+- New Remote URL input row in the server form (label: "Remote URL — optional, auto-detected")
+- Auto-detect button calls `FETCH_REMOTE_URL` message → background → plex.tv API → populates the field
+- Manual edit supported for cases where auto-detect fails (Remote Access disabled, account scope issues) or when public IP rotates
+
+### Background Handler
+- New `FETCH_REMOTE_URL` message type: `{ token, machineIdentifier } → { remoteUrl: string | null, error?: string }`
+- Auto-fetch is best-effort: failure (network error, 401, no public connection) returns `null` rather than throwing
+- `host_permissions` extended with `https://plex.tv/*` so the service worker can reach the discovery endpoint
+
+### Test Suite
+- **New test files:** `tests/api-plex-tv.test.ts` (9 tests), `tests/plex-fallback.test.ts` (7 tests)
+- Covers discovery success/failure, URL picking, fallback ordering, memo behavior, and timeout handling
+- Total: 296 tests across 20 test files (up from 280)

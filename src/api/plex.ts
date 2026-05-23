@@ -6,15 +6,69 @@ import type {
   LibraryIndex,
 } from "../common/types";
 import { buildTitleKey, parseTitleFromH1 } from "../common/normalize";
+import { debugLog } from "../common/logger";
 
-async function plexFetch(config: { serverUrl: string; token: string }, path: string): Promise<Response> {
-  const url = `${config.serverUrl.replace(/\/+$/, "")}${path}`;
-  return fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "X-Plex-Token": config.token,
-    },
-  });
+/** Connection config — either a full PlexServerConfig or an ad-hoc test pair. */
+type PlexConnConfig = { serverUrl: string; remoteUrl?: string; token: string; id?: string };
+
+const PER_ATTEMPT_TIMEOUT_MS = 3000;
+
+/**
+ * Session-sticky memo of the working URL per server. Cleared when service worker
+ * unloads, so re-probing happens naturally on cold start (e.g. after laptop wake).
+ */
+const lastWorkingUrl = new Map<string, string>();
+
+/** Reset the URL memo — used by tests and when a server config changes. */
+export function _resetUrlMemo(): void {
+  lastWorkingUrl.clear();
+}
+
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+async function fetchAttempt(baseUrl: string, path: string, token: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PER_ATTEMPT_TIMEOUT_MS);
+  try {
+    return await fetch(`${stripTrailingSlash(baseUrl)}${path}`, {
+      headers: { Accept: "application/json", "X-Plex-Token": token },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Fetch a Plex API path, trying the session-memoized URL first, then the
+ * configured serverUrl, then the optional remoteUrl. The first attempt that
+ * returns a Response (even non-2xx) is returned; only network/timeout errors
+ * trigger fallback. On success, the working URL is memoized for the session.
+ */
+async function plexFetch(config: PlexConnConfig, path: string): Promise<Response> {
+  const candidates: string[] = [];
+  const memoKey = config.id;
+  const memoUrl = memoKey ? lastWorkingUrl.get(memoKey) : undefined;
+  if (memoUrl) candidates.push(memoUrl);
+  if (config.serverUrl && !candidates.includes(config.serverUrl)) candidates.push(config.serverUrl);
+  if (config.remoteUrl && !candidates.includes(config.remoteUrl)) candidates.push(config.remoteUrl);
+
+  let lastError: unknown;
+  for (const url of candidates) {
+    try {
+      const res = await fetchAttempt(url, path, config.token);
+      if (memoKey) lastWorkingUrl.set(memoKey, url);
+      return res;
+    } catch (err) {
+      lastError = err;
+      debugLog("Plex", `attempt failed for ${url}${path}:`, err);
+      // Drop a stale memo so the next candidate gets tried fresh
+      if (memoKey && lastWorkingUrl.get(memoKey) === url) lastWorkingUrl.delete(memoKey);
+    }
+  }
+  throw lastError ?? new Error("No Plex URL configured");
 }
 
 // --- Resolution helpers ---
@@ -50,7 +104,7 @@ function pickHighestResolution(
 }
 
 export async function testConnection(
-  config: { serverUrl: string; token: string },
+  config: PlexConnConfig,
 ): Promise<{ success: boolean; error?: string; libraryCount?: number; machineIdentifier?: string; friendlyName?: string }> {
   try {
     const res = await plexFetch(config, "/library/sections");
@@ -84,7 +138,7 @@ export async function testConnection(
 }
 
 export async function fetchLibrarySections(
-  config: { serverUrl: string; token: string },
+  config: PlexConnConfig,
 ): Promise<PlexSection[]> {
   const res = await plexFetch(config, "/library/sections");
   if (!res.ok) throw new Error(`Plex API error: ${res.status}`);
@@ -97,7 +151,7 @@ export async function fetchLibrarySections(
 }
 
 export async function fetchSectionItems(
-  config: { serverUrl: string; token: string },
+  config: PlexConnConfig,
   sectionKey: string,
 ): Promise<Array<{ title: string; year?: number; ratingKey: string; guids: Array<{ id: string }>; resolution?: string }>> {
   const res = await plexFetch(
@@ -119,7 +173,7 @@ export async function fetchSectionItems(
 }
 
 export async function fetchShowEpisodes(
-  config: { serverUrl: string; token: string },
+  config: PlexConnConfig,
   ratingKey: string,
 ): Promise<{
   episodes: Array<{ seasonNumber: number; episodeNumber: number }>;

@@ -13,6 +13,7 @@ import type {
   ValidateOmdbKeyResponse,
   OptionsResponse,
   ClearCacheResponse,
+  FetchRemoteUrlResponse,
   StorageUsageResponse,
 } from "../../common/types";
 
@@ -23,6 +24,8 @@ const $ = <T extends HTMLElement>(id: string) =>
 const serverListEl = $<HTMLDivElement>("serverList");
 const addServerLabel = $<HTMLDivElement>("addServerLabel");
 const serverUrlInput = $<HTMLInputElement>("serverUrl");
+const remoteUrlInput = $<HTMLInputElement>("remoteUrl");
+const autoDetectRemoteBtn = $<HTMLButtonElement>("autoDetectRemoteBtn");
 const tokenInput = $<HTMLInputElement>("token");
 const saveServerBtn = $<HTMLButtonElement>("saveServerBtn");
 const cancelEditBtn = $<HTMLButtonElement>("cancelEditBtn");
@@ -195,6 +198,7 @@ function startEditServer(server: PlexServerConfig) {
   editingServerId = server.id;
   addServerLabel.textContent = `Edit Server: ${server.name}`;
   serverUrlInput.value = server.serverUrl;
+  remoteUrlInput.value = server.remoteUrl ?? "";
   tokenInput.value = server.token;
   cancelEditBtn.hidden = false;
   hideFeedback(plexFeedback);
@@ -205,6 +209,7 @@ function resetServerForm() {
   editingServerId = null;
   addServerLabel.textContent = "Add Server";
   serverUrlInput.value = "";
+  remoteUrlInput.value = "";
   tokenInput.value = "";
   cancelEditBtn.hidden = true;
   hideFeedback(plexFeedback);
@@ -244,6 +249,7 @@ async function deleteServer(serverId: string) {
 saveServerBtn.addEventListener("click", async () => {
   const serverUrl = serverUrlInput.value.trim();
   const token = tokenInput.value.trim();
+  const enteredRemoteUrl = remoteUrlInput.value.trim();
 
   if (!serverUrl || !token) {
     showFeedback(plexFeedback, "Enter both server URL and token", "error");
@@ -268,10 +274,22 @@ saveServerBtn.addEventListener("click", async () => {
   const serverId = testResult.machineIdentifier ?? `server-${Date.now()}`;
   const serverName = testResult.friendlyName ?? new URL(serverUrl).hostname;
 
+  // Auto-fetch remote URL if the user didn't supply one and we have a machineIdentifier
+  let remoteUrl = enteredRemoteUrl;
+  if (!remoteUrl && testResult.machineIdentifier) {
+    const fr: FetchRemoteUrlResponse = await browser.runtime.sendMessage({
+      type: "FETCH_REMOTE_URL",
+      token,
+      machineIdentifier: testResult.machineIdentifier,
+    });
+    if (fr.remoteUrl) remoteUrl = fr.remoteUrl;
+  }
+
   const newServer: PlexServerConfig = {
     id: serverId,
     name: serverName,
     serverUrl,
+    remoteUrl: remoteUrl || undefined,
     token,
     libraryCount: testResult.libraryCount,
   };
@@ -321,6 +339,48 @@ saveServerBtn.addEventListener("click", async () => {
 
 cancelEditBtn.addEventListener("click", () => {
   resetServerForm();
+});
+
+// --- Auto-detect remote URL handler ---
+
+autoDetectRemoteBtn.addEventListener("click", async () => {
+  const serverUrl = serverUrlInput.value.trim();
+  const token = tokenInput.value.trim();
+
+  if (!serverUrl || !token) {
+    showFeedback(plexFeedback, "Enter server URL and token first, then auto-detect", "error");
+    return;
+  }
+
+  hideFeedback(plexFeedback);
+  setButtonLoading(autoDetectRemoteBtn, true);
+
+  // Need machineIdentifier — get it via a quick test connection
+  const testResult: TestConnectionResponse = await browser.runtime.sendMessage({
+    type: "TEST_CONNECTION",
+    config: { serverUrl, token },
+  });
+
+  if (!testResult.success || !testResult.machineIdentifier) {
+    setButtonLoading(autoDetectRemoteBtn, false);
+    showFeedback(plexFeedback, "Could not reach server — check URL and token first", "error");
+    return;
+  }
+
+  const fr: FetchRemoteUrlResponse = await browser.runtime.sendMessage({
+    type: "FETCH_REMOTE_URL",
+    token,
+    machineIdentifier: testResult.machineIdentifier,
+  });
+
+  setButtonLoading(autoDetectRemoteBtn, false);
+
+  if (fr.remoteUrl) {
+    remoteUrlInput.value = fr.remoteUrl;
+    showFeedback(plexFeedback, "Remote URL detected", "success");
+  } else {
+    showFeedback(plexFeedback, "No remote URL found — is Plex Remote Access enabled?", "error");
+  }
 });
 
 // --- Test All handler ---

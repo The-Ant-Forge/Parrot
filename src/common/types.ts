@@ -2,7 +2,8 @@
 export interface PlexServerConfig {
   id: string;           // machineIdentifier (stable Plex server ID)
   name: string;         // friendlyName from Plex API
-  serverUrl: string;
+  serverUrl: string;    // local/primary URL (e.g. http://192.168.1.100:32400)
+  remoteUrl?: string;   // auto-fetched .plex.direct URL for remote access (optional)
   token: string;
   libraryCount?: number; // cached section count from test connection
   itemCount?: number;    // cached item count from last index build
@@ -110,7 +111,8 @@ export type Message =
   | { type: "GET_TAB_MEDIA"; tabId: number }
   | { type: "GET_STORAGE_USAGE" }
   | { type: "UPDATE_ICON"; state: "owned" | "not-owned" }
-  | { type: "PLEX_LOOKUP"; machineIdentifier: string; ratingKey: string };
+  | { type: "PLEX_LOOKUP"; machineIdentifier: string; ratingKey: string }
+  | { type: "FETCH_REMOTE_URL"; token: string; machineIdentifier: string };
 
 // --- Responses ---
 
@@ -236,6 +238,11 @@ export interface PlexLookupResponse {
 export interface StorageUsageResponse {
   bytesUsed: number;
   quota: number | null;
+}
+
+export interface FetchRemoteUrlResponse {
+  remoteUrl: string | null;
+  error?: string;
 }
 
 // --- Site definitions ---

@@ -4,6 +4,7 @@ import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByIm
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
 import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
 import { getImdbRating, validateOmdbKey } from "../api/omdb";
+import { fetchServerConnections, pickRemoteUrl } from "../api/plex-tv";
 import { getRadarrMovie, getRadarrMovieByImdb, getRadarrCollection, searchRadarrMovie } from "../api/radarr";
 import type { RadarrMovie } from "../api/radarr";
 import { getSonarrShow, searchSonarrShow } from "../api/sonarr";
@@ -31,6 +32,7 @@ import type {
   SaveOptionsResponse,
   ClearCacheResponse,
   FindTmdbIdResponse,
+  FetchRemoteUrlResponse,
   StorageUsageResponse,
   TabMediaInfo,
   TabMediaResponse,
@@ -632,6 +634,19 @@ export default defineBackground(() => {
               message.config,
             );
             sendResponse(result);
+            break;
+          }
+
+          case "FETCH_REMOTE_URL": {
+            try {
+              const resources = await fetchServerConnections(message.token);
+              const remoteUrl = pickRemoteUrl(resources, message.machineIdentifier);
+              debugLog("BG", `FETCH_REMOTE_URL for ${message.machineIdentifier} → ${remoteUrl ?? "none"}`);
+              sendResponse({ remoteUrl } satisfies FetchRemoteUrlResponse);
+            } catch (err) {
+              errorLog("BG", "FETCH_REMOTE_URL failed", err);
+              sendResponse({ remoteUrl: null, error: "Discovery failed" } satisfies FetchRemoteUrlResponse);
+            }
             break;
           }
 

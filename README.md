@@ -16,6 +16,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 - **Collection gap detection** -- see which movies from the same collection are in your library and which are missing
 - **Episode gap detection** -- on TMDB and TVDB TV show pages, see a season-by-season breakdown of missing episodes
 - **Multi-server support** -- configure multiple Plex servers with priority ordering
+- **Remote access** -- auto-detects your server's `.plex.direct` URL so the badge keeps working when you're away from home (requires Plex Remote Access enabled)
 - **Dynamic toolbar icon** -- changes per-tab to reflect library status
 - **Options page** -- configure Plex servers, API keys, gap detection preferences, and cache management
 
@@ -118,6 +119,14 @@ Then load in Chrome:
 5. Open **Settings** to configure API keys and gap detection options
 
 The extension will index your library and start showing badges on supported sites.
+
+### Remote Access (optional)
+
+If you have **Plex Remote Access** enabled on your server, Parrot can automatically detect your server's public `.plex.direct` URL when you save credentials. The badge will then keep working when you're away from your home network, falling back to the remote URL whenever the local one is unreachable.
+
+You can also enter or edit the Remote URL manually in the server settings — useful if your public IP changes or auto-detection fails.
+
+See [`docs/Remote Access.md`](docs/Remote%20Access.md) for the full design.
 
 ## Development
 

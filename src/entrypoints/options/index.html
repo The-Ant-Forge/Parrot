@@ -39,6 +39,28 @@
               </div>
             </div>
 
+            <div class="server-form-row">
+              <div class="server-form-field server-form-url">
+                <label for="remoteUrl">
+                  Remote URL <span class="optional">(optional, auto-detected)</span>
+                </label>
+                <input
+                  type="text"
+                  id="remoteUrl"
+                  placeholder="https://192-168-1-100.xxxxxxxx.plex.direct:32400"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="server-form-field">
+                <label>&nbsp;</label>
+                <button id="autoDetectRemoteBtn" type="button">Auto-detect</button>
+              </div>
+            </div>
+            <p class="hint">
+              Used as fallback when you're away from your home network. Requires
+              Plex Remote Access enabled on your server. Leave blank to skip.
+            </p>
+
             <div class="button-row">
               <button id="saveServerBtn" class="primary">Save Server</button>
               <button id="cancelEditBtn" hidden>Cancel</button>
