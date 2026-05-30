@@ -1071,3 +1071,25 @@ A maintenance release covering one real bug fix, a UX polish to remove the word 
 ### Test Suite
 - 1 new regression test for `getRadarrCollection` tolerating responses without a `Movies` array
 - Total: 302 tests across 20 test files (up from 301)
+
+---
+
+## v1.22 — IMDb Popup Race Fix & Patch Updates
+
+A focused bug-fix release. The headline change resolves a race condition that left the popup showing "Unknown" + "Show" for owned movies on IMDb pages (e.g. Cocoon), even while the in-page badge correctly went gold with rating and resolution.
+
+### Bug Fixes
+- **IMDb popup race** — IMDb URLs don't say whether a title is a movie or a show, so the IMDb content script previously fired two sequential CHECKs (movie first, then show). The second CHECK's background-side tabMedia write raced with the first CHECK's async metadata-flip via TMDB cross-ref: when both initial lookups missed but the cross-ref later found the movie, the badge correctly went gold yet the popup cache was stuck with the show-shaped empty entry. Symptom: popup shows "Unknown" + "Show" while the in-page pill shows e.g. "Plex · 7.0 · 1080p" for a known movie. Fix moves the ambiguity-handling to `handleCheck` — when source is "imdb" and the requested mediaType misses (including all its cross-refs), the handler now retries with the opposite mediaType in the same server-side call. The response carries a new optional `resolvedMediaType` field telling the caller which type actually matched, and the tabMedia cache uses that resolved type instead of the requested one.
+
+### Code Improvements
+- **`handleCheck` refactor** — extracted the cross-reference chain (direct lookup + TVMaze bridge + Radarr proxy + TMDB API fallback) into a new `lookupWithCrossRefs` helper so it can be called twice for IMDb sources without duplicating logic. Eliminates the inlined two-CHECK pattern that other IMDb-aware content scripts may have inherited.
+- **IMDb content script simplified** — now sends a single CHECK and reads `response.resolvedMediaType` to pick the right gap-detection path. Wired up `setupOwnershipListener` so deferred TMDB cross-refs also trigger gap detection.
+- **CheckResponse type** — added optional `resolvedMediaType?: "movie" | "show"` field for sites where the requested type was ambiguous.
+
+### Dependency Updates
+- typescript-eslint 8.59.0 → 8.59.4 (patch, plugin + parser)
+- vitest 4.1.5 → 4.1.7 (patch)
+- ESLint 10 and TypeScript 6 still held — no compelling Parrot driver yet (codebase is small, lint is fast, type-checking takes seconds, no features we'd actively use). Will revisit when there's a concrete catalyst (WXT requires TS 6, a feature we want, etc.)
+
+### Tooling
+- **npmrc fix** (machine-global, not in repo) — `min-release-age=10080` was being read as 10080 days (~28 years), pushing the quarantine cutoff to 1998 and producing `ENOVERSIONS` errors. Corrected to `min-release-age=7` (bare integer interpreted as days). Documented in user-global `~/.claude/CLAUDE.md` under a new "min-release-age units gotcha (npm 11.13+)" section so future sessions recognise the symptom.
