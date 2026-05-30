@@ -139,6 +139,13 @@ export interface CheckResponse {
   plexUrl?: string;
   plexServerName?: string;
   resolution?: string;
+  /**
+   * For IMDb sources where the requested mediaType missed but the opposite
+   * type matched, this tells the caller which type actually owned the item
+   * so it can pick the right gap-detection path. Undefined when the requested
+   * type matched or nothing matched.
+   */
+  resolvedMediaType?: "movie" | "show";
 }
 
 export interface TestConnectionResponse {

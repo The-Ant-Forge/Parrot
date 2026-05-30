@@ -227,72 +227,20 @@ async function handleCheck(
       debugLog("BG", "CHECK: TVMaze API failed", err);
     }
   } else {
-    debugLog("BG", `CHECK: direct index lookup ${message.mediaType} ${message.source}:${message.id}`);
-    item = lookupItem(index, message.mediaType, message.source, message.id);
+    item = await lookupWithCrossRefs(index, message.mediaType, message.source, message.id);
+  }
 
-    // Cross-reference: if direct lookup missed, try alternate IDs
-    if (!item && message.source !== "tmdb" && message.source !== "title") {
-      // TVMaze bridge (free, no key): IMDb ↔ TVDB for shows
-      if (!item && message.mediaType === "show") {
-        try {
-          debugLog("BG", `CHECK: calling TVMaze cross-ref for ${message.source}:${message.id}`);
-          const ext = message.source === "imdb"
-            ? await lookupByImdb(message.id)
-            : message.source === "tvdb"
-              ? await lookupByTvdb(message.id)
-              : null;
-          if (ext) {
-            debugLog("BG", `CHECK: TVMaze resolved → tvdb:${ext.tvdbId ?? "none"} imdb:${ext.imdbId ?? "none"}`);
-            if (ext.tvdbId && message.source !== "tvdb") {
-              item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
-              if (item) debugLog("BG", `CHECK: found via TVMaze cross-ref → TVDB:${ext.tvdbId}`);
-            }
-            if (!item && ext.imdbId && message.source !== "imdb") {
-              item = lookupItem(index, "show", "imdb", ext.imdbId);
-              if (item) debugLog("BG", `CHECK: found via TVMaze cross-ref → IMDb:${ext.imdbId}`);
-            }
-          }
-        } catch (err) {
-          debugLog("BG", "CHECK: TVMaze cross-reference failed", err);
-        }
-      }
-
-      // Radarr proxy cross-reference for movies (free, no key)
-      if (!item && message.mediaType === "movie" && message.source === "imdb") {
-        try {
-          const options = await loadOptions();
-          if (options.useCommunityProxies) {
-            debugLog("BG", `CHECK: calling Radarr proxy for imdb:${message.id}`);
-            const radarrMovie = await getRadarrMovieByImdb(message.id);
-            if (radarrMovie?.TmdbId) {
-              item = lookupItem(index, "movie", "tmdb", String(radarrMovie.TmdbId));
-              if (item) debugLog("BG", `CHECK: found via Radarr cross-ref → TMDB:${radarrMovie.TmdbId}`);
-            }
-          }
-        } catch (err) {
-          debugLog("BG", "CHECK: Radarr cross-reference failed", err);
-        }
-      }
-
-      // TMDB API fallback (requires user API key)
-      if (!item) {
-        try {
-          const options = await loadOptions();
-          if (options.tmdbApiKey) {
-            const resolverName = message.source === "imdb" ? "findByImdbId" : "findByTvdbId";
-            debugLog("BG", `CHECK: calling TMDB ${resolverName} for ${message.id}`);
-            const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
-            const tmdbId = await resolver(options.tmdbApiKey, message.id);
-            if (tmdbId) {
-              item = lookupItem(index, message.mediaType, "tmdb", String(tmdbId));
-              if (item) debugLog("BG", `CHECK: found via TMDB cross-ref → TMDB:${tmdbId}`);
-            }
-          }
-        } catch (err) {
-          debugLog("BG", "CHECK: TMDB cross-reference failed", err);
-        }
-      }
-    }
+  // IMDb ambiguity: an IMDb ID can refer to a movie OR a show. If the
+  // requested type missed (including all its cross-refs), retry with the
+  // opposite type so a single CHECK can resolve either. resolvedMediaType
+  // tells the caller which type actually matched, so it can pick the right
+  // gap-detection path without needing to fire a second CHECK.
+  let resolvedMediaType: "movie" | "show" | undefined;
+  if (!item && message.source === "imdb") {
+    const opposite: "movie" | "show" = message.mediaType === "movie" ? "show" : "movie";
+    debugLog("BG", `CHECK: ${message.mediaType} miss, retrying as ${opposite} for imdb:${message.id}`);
+    item = await lookupWithCrossRefs(index, opposite, "imdb", message.id);
+    if (item) resolvedMediaType = opposite;
   }
 
   if (!item) return { owned: false };
@@ -306,7 +254,90 @@ async function handleCheck(
     plexUrl: plex?.url,
     plexServerName: plex?.serverName,
     resolution: item.resolution ? formatResolution(item.resolution) : undefined,
+    resolvedMediaType,
   };
+}
+
+/**
+ * Direct index lookup for a single (mediaType, source, id) tuple, with all
+ * the cross-reference fallbacks (TVMaze bridge, Radarr proxy, TMDB API) used
+ * when the direct lookup misses. Returns the OwnedItem or undefined.
+ *
+ * Called twice by handleCheck for IMDb sources — once with the requested
+ * mediaType, once with the opposite — so it must be self-contained and
+ * idempotent.
+ */
+async function lookupWithCrossRefs(
+  index: LibraryIndex,
+  mediaType: "movie" | "show",
+  source: "tmdb" | "imdb" | "tvdb" | "title",
+  id: string,
+): Promise<OwnedItem | undefined> {
+  debugLog("BG", `CHECK: direct index lookup ${mediaType} ${source}:${id}`);
+  let item = lookupItem(index, mediaType, source, id);
+  if (item) return item;
+  if (source === "tmdb" || source === "title") return undefined;
+
+  // TVMaze bridge (free, no key): IMDb ↔ TVDB for shows
+  if (mediaType === "show") {
+    try {
+      debugLog("BG", `CHECK: calling TVMaze cross-ref for ${source}:${id}`);
+      const ext = source === "imdb"
+        ? await lookupByImdb(id)
+        : source === "tvdb"
+          ? await lookupByTvdb(id)
+          : null;
+      if (ext) {
+        debugLog("BG", `CHECK: TVMaze resolved → tvdb:${ext.tvdbId ?? "none"} imdb:${ext.imdbId ?? "none"}`);
+        if (ext.tvdbId && source !== "tvdb") {
+          item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
+          if (item) { debugLog("BG", `CHECK: found via TVMaze cross-ref → TVDB:${ext.tvdbId}`); return item; }
+        }
+        if (ext.imdbId && source !== "imdb") {
+          item = lookupItem(index, "show", "imdb", ext.imdbId);
+          if (item) { debugLog("BG", `CHECK: found via TVMaze cross-ref → IMDb:${ext.imdbId}`); return item; }
+        }
+      }
+    } catch (err) {
+      debugLog("BG", "CHECK: TVMaze cross-reference failed", err);
+    }
+  }
+
+  // Radarr proxy cross-reference for movies (free, no key)
+  if (mediaType === "movie" && source === "imdb") {
+    try {
+      const options = await loadOptions();
+      if (options.useCommunityProxies) {
+        debugLog("BG", `CHECK: calling Radarr proxy for imdb:${id}`);
+        const radarrMovie = await getRadarrMovieByImdb(id);
+        if (radarrMovie?.TmdbId) {
+          item = lookupItem(index, "movie", "tmdb", String(radarrMovie.TmdbId));
+          if (item) { debugLog("BG", `CHECK: found via Radarr cross-ref → TMDB:${radarrMovie.TmdbId}`); return item; }
+        }
+      }
+    } catch (err) {
+      debugLog("BG", "CHECK: Radarr cross-reference failed", err);
+    }
+  }
+
+  // TMDB API fallback (requires user API key)
+  try {
+    const options = await loadOptions();
+    if (options.tmdbApiKey) {
+      const resolverName = source === "imdb" ? "findByImdbId" : "findByTvdbId";
+      debugLog("BG", `CHECK: calling TMDB ${resolverName} for ${id}`);
+      const resolver = source === "imdb" ? findByImdbId : findByTvdbId;
+      const tmdbId = await resolver(options.tmdbApiKey, id);
+      if (tmdbId) {
+        item = lookupItem(index, mediaType, "tmdb", String(tmdbId));
+        if (item) { debugLog("BG", `CHECK: found via TMDB cross-ref → TMDB:${tmdbId}`); return item; }
+      }
+    }
+  } catch (err) {
+    debugLog("BG", "CHECK: TMDB cross-reference failed", err);
+  }
+
+  return undefined;
 }
 
 type IconState = "owned" | "not-owned" | "inactive";
@@ -794,7 +825,9 @@ export default defineBackground(() => {
               }
 
               const mediaInfo: TabMediaInfo = {
-                mediaType: message.mediaType,
+                // For IMDb sources, prefer the type actually resolved by handleCheck
+                // (movie vs show) over the type the content script requested.
+                mediaType: result.resolvedMediaType ?? message.mediaType,
                 source: message.source,
                 id: message.id,
                 owned: result.owned,

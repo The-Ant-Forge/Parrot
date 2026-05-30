@@ -1,4 +1,5 @@
 import { injectBadge, removeBadge, showErrorBadge, updateBadgeFromResponse } from "../common/badge";
+import { setupOwnershipListener } from "../common/check-helpers";
 import { extractImdbId } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
@@ -21,24 +22,20 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   try {
-    // IMDb doesn't distinguish movie/show in URLs — try movie first, then show
-    let mediaType: "movie" | "show" = "movie";
-    let response: CheckResponse = await browser.runtime.sendMessage({
+    // IMDb URLs don't distinguish movie vs show. We send a single CHECK with
+    // mediaType="movie" as a default; the background handles the ambiguity
+    // by also checking the shows index if the movie lookup misses, and
+    // reports the resolved type back via `resolvedMediaType`. Sending one
+    // CHECK avoids the tabMedia race that two sequential CHECKs caused
+    // (where the second's empty response could overwrite the first's
+    // async ownership-flip).
+    const response: CheckResponse = await browser.runtime.sendMessage({
       type: "CHECK",
       mediaType: "movie",
       source: "imdb",
       id: imdbId,
     });
-
-    if (!response.owned) {
-      mediaType = "show";
-      response = await browser.runtime.sendMessage({
-        type: "CHECK",
-        mediaType: "show",
-        source: "imdb",
-        id: imdbId,
-      });
-    }
+    const mediaType = response.resolvedMediaType ?? "movie";
 
     debugLog("IMDb", mediaType, "imdb:" + imdbId, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
@@ -63,6 +60,9 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("IMDb", "v" + browser.runtime.getManifest().version, "loaded");
+    // When background's async TMDB cross-ref resolves ownership later,
+    // run gap detection with the resolved IDs.
+    setupOwnershipListener("IMDb");
     checkAndBadge();
 
     // IMDb uses client-side routing (debounced)
