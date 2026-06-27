@@ -1093,3 +1093,31 @@ A focused bug-fix release. The headline change resolves a race condition that le
 
 ### Tooling
 - **npmrc fix** (machine-global, not in repo) — `min-release-age=10080` was being read as 10080 days (~28 years), pushing the quarantine cutoff to 1998 and producing `ENOVERSIONS` errors. Corrected to `min-release-age=7` (bare integer interpreted as days). Documented in user-global `~/.claude/CLAUDE.md` under a new "min-release-age units gotcha (npm 11.13+)" section so future sessions recognise the symptom.
+
+---
+
+## v1.23 — Multi-CHECK Race Fix Extended To All Content Scripts
+
+Follow-up to v1.22. The IMDb popup-vs-badge race fix in v1.22 only patched `imdb.content.ts`, but the same pattern lived in seven other content scripts firing two sequential CHECKs for ambiguous-type lookups. The user reported the regression on NZBForYou (Love Is The Monster page — gray pill showed `Plex · 4.5` with the right rating, but popup showed "Unknown" with just the IMDb ID and no title/poster). This release extends the v1.22 server-side dual-lookup to every script that previously fired multiple CHECKs.
+
+### Code Improvements
+- **`checkWithImdbFallback` simplified to a sync wrapper** — previously fired a second CHECK with the opposite mediaType when source was IMDb and the first response wasn't owned. Since v1.22's `handleCheck` does the IMDb dual-lookup server-side and surfaces the resolved type via `response.resolvedMediaType`, the helper now just promotes that value to the caller. No second CHECK, no race. One change fixes six scripts: `justwatch`, `metacritic`, `rargb`, `rottentomatoes`, `trakt`, `trakt-app`.
+- **`nzbforyou.content.ts` rewritten** — sends a single CHECK and picks the right mediaType per source. For IMDb sources it uses `response.resolvedMediaType` from the background; for TMDB / TVDB / TVMaze sources it trusts the URL-derived type (which is authoritative — TMDB IDs are type-specific, so the old "try opposite type" retry was potentially matching unrelated content).
+- **`plex-app.content.ts` link-scan path simplified** — same single-CHECK pattern. The title-fallback path (`checkViaTitle`) still has a multi-CHECK retry but is scoped to Plex discover pages and uses different lookup keys, so it's deferred — title-source dual-lookup would require extending `handleCheck` further and is a separate change.
+
+### Bug Fixes
+- **Popup race condition across 8 content scripts** — when both initial mediaType lookups missed but the background's async TMDB cross-reference later found the item, the second CHECK's tabMedia write would overwrite the first's eventual ownership flip. The badge would correctly go gold with the right rating (because `RATINGS_READY` is sent after metadata enrichment), but the popup cache was stuck with the wrong-type empty entry from the second CHECK. Affected sites where source was IMDb: NZBForYou, Metacritic, Rotten Tomatoes, JustWatch, Letterboxd, RARGB, Trakt, Trakt App. Fixed by the helper change above.
+
+### Dependency Updates
+- typescript-eslint 8.59.4 → 8.61.1 (plugin + parser, minor within 8.x)
+- vitest 4.1.7 → 4.1.9 (patch)
+- happy-dom 20.9.0 → 20.10.6 (patch)
+- prettier 3.8.3 → 3.8.4 (patch)
+- ESLint 10 and TypeScript 6 still held — same reasoning as previous cycles.
+
+### Audit Status
+- 8 advisories surfaced from new transitive deps (esbuild dev-server file-read on Windows, shell-quote critical via fx-runner, tmp/uuid/node-notifier via web-ext-run). All blocked by WXT's `esbuild ^0.27.1` pin and the web-ext-run Firefox-runner chain. **None ship in the production extension ZIP** — the bundle contains only our TS + Vite-compiled output. Will clear when WXT updates upstream.
+
+### Test Suite
+- No new tests this cycle — the changes are behavior-preserving simplifications of code paths covered by the existing 302 tests (the underlying dual-lookup behavior is exercised via `lookupItem` tests and the v1.22 integration paths).
+- Total still 302 tests across 20 test files.
