@@ -40,26 +40,22 @@ async function checkViaLink(badge: HTMLSpanElement): Promise<boolean> {
   debugLog("PlexApp", "link scan →", extId ? extId.source + ":" + extId.id : "no links");
   if (!extId) return false;
 
-  // TVDB is always shows; others default to movie with fallback
-  let mediaType: "movie" | "show" = extId.source === "tvdb" ? "show" : "movie";
+  // Initial media type from the scanned link:
+  //   - TVDB and TVMaze are shows; TMDB links carry their type in the URL path.
+  //   - IMDb URLs are ambiguous — the background does a dual-lookup and reports
+  //     the resolved type via `response.resolvedMediaType`. No second CHECK
+  //     needed.
+  const initialType: "movie" | "show" = extId.mediaType ?? (extId.source === "tvdb" ? "show" : "movie");
 
-  let response: CheckResponse = await browser.runtime.sendMessage({
+  const response: CheckResponse = await browser.runtime.sendMessage({
     type: "CHECK",
-    mediaType,
+    mediaType: initialType,
     source: extId.source,
     id: extId.id,
   });
 
-  // Fallback: try opposite media type for ambiguous sources
-  if (!response.owned && extId.source !== "tvdb") {
-    mediaType = mediaType === "movie" ? "show" : "movie";
-    response = await browser.runtime.sendMessage({
-      type: "CHECK",
-      mediaType,
-      source: extId.source,
-      id: extId.id,
-    });
-  }
+  const mediaType: "movie" | "show" =
+    extId.source === "imdb" ? (response.resolvedMediaType ?? initialType) : initialType;
 
   debugLog("PlexApp", mediaType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
   updateBadgeFromResponse(badge, response);

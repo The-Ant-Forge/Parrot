@@ -13,28 +13,31 @@ import { debugLog } from "./logger";
 import type { CheckResponse } from "./types";
 
 /**
- * IMDb fallback: if CHECK returned not-owned and source is "imdb",
- * retry with the opposite media type (IMDb URLs are ambiguous).
+ * IMDb fallback: promote the background's resolved media type if the
+ * requested one was wrong. Previously this helper fired a second CHECK
+ * to retry with the opposite media type, but that caused a race in
+ * `tabMediaCache` — the second response (typically owned:false with
+ * empty metadata) could overwrite the first CHECK's async TMDB cross-ref
+ * flip, leaving the popup showing "Unknown" while the badge was correct.
  *
- * Returns the (possibly updated) mediaType and response.
+ * Since v1.22, `handleCheck` does the dual-lookup server-side for IMDb
+ * sources and reports the result via `response.resolvedMediaType`, so
+ * this helper just promotes that value to the caller. No second CHECK,
+ * no race. Kept as a sync function to preserve the existing call sites
+ * but the signature stays Promise-returning for backward compatibility.
  */
 export async function checkWithImdbFallback(
   mediaType: "movie" | "show",
   source: string,
-  id: string,
+  _id: string,
   response: CheckResponse,
 ): Promise<{ mediaType: "movie" | "show"; response: CheckResponse }> {
   if (response.owned || source !== "imdb") {
     return { mediaType, response };
   }
-  const opposite: "movie" | "show" = mediaType === "movie" ? "show" : "movie";
-  const retry: CheckResponse = await browser.runtime.sendMessage({
-    type: "CHECK",
-    mediaType: opposite,
-    source: "imdb",
-    id,
-  });
-  if (retry.owned) return { mediaType: opposite, response: retry };
+  if (response.resolvedMediaType && response.resolvedMediaType !== mediaType) {
+    return { mediaType: response.resolvedMediaType, response };
+  }
   return { mediaType, response };
 }
 

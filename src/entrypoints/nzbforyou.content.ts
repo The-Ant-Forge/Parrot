@@ -4,7 +4,7 @@ import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
 import type { CheckResponse } from "../common/types";
 
-function getMediaType(): "movie" | "show" | null {
+function getMediaTypeFromBreadcrumb(): "movie" | "show" | null {
   const breadcrumb = document.querySelector("li.breadcrumb");
   if (!breadcrumb) return null;
 
@@ -28,7 +28,7 @@ async function checkAndBadge() {
 
   // Waterfall: try IMDb first (most common on this site), then link scan
   const imdbId = findImdbId();
-  let source: string | undefined;
+  let source: "imdb" | "tmdb" | "tvdb" | "tvmaze" | undefined;
   let id: string | undefined;
   let scanMediaType: "movie" | "show" | undefined;
 
@@ -54,63 +54,37 @@ async function checkAndBadge() {
   if (!anchor) return;
 
   const badge = injectBadge(anchor);
-  let resolvedType = getMediaType() ?? scanMediaType ?? null;
+
+  // Pick the initial mediaType:
+  //   - non-IMDb scan sources carry an authoritative type (TVDB→show,
+  //     TVMaze→show, TMDB→derived from the link path) — use it directly.
+  //   - IMDb URLs don't say movie/show. We pass a breadcrumb-based hint
+  //     as the initial guess; the background's `handleCheck` does a
+  //     dual-lookup for IMDb sources and reports the resolved type via
+  //     `response.resolvedMediaType`. No second CHECK needed.
+  const initialType: "movie" | "show" = scanMediaType ?? getMediaTypeFromBreadcrumb() ?? "movie";
 
   try {
-    let response: CheckResponse;
+    const response: CheckResponse = await browser.runtime.sendMessage({
+      type: "CHECK",
+      mediaType: initialType,
+      source,
+      id,
+    });
 
-    if (resolvedType) {
-      response = await browser.runtime.sendMessage({
-        type: "CHECK",
-        mediaType: resolvedType,
-        source,
-        id,
-      });
-      // Breadcrumb hint missed — try opposite media type
-      if (!response.owned) {
-        const opposite = resolvedType === "movie" ? "show" : "movie";
-        const altResponse: CheckResponse = await browser.runtime.sendMessage({
-          type: "CHECK",
-          mediaType: opposite,
-          source,
-          id,
-        });
-        if (altResponse.owned) {
-          resolvedType = opposite;
-          response = altResponse;
-        }
-      }
-    } else {
-      // No media type hint — try movie first, then show
-      resolvedType = "movie";
-      response = await browser.runtime.sendMessage({
-        type: "CHECK",
-        mediaType: "movie",
-        source,
-        id,
-      });
-      if (!response.owned) {
-        resolvedType = "show";
-        response = await browser.runtime.sendMessage({
-          type: "CHECK",
-          mediaType: "show",
-          source,
-          id,
-        });
-      }
-    }
+    // For IMDb sources the background may have resolved the opposite type.
+    // For other sources the URL-derived type is authoritative — don't flip it.
+    const resolvedType: "movie" | "show" =
+      source === "imdb" ? (response.resolvedMediaType ?? initialType) : initialType;
 
     debugLog("NZBForYou", resolvedType, source + ":" + id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
-    // Gap detection: owned shows get episode check; movies always get collection check.
-    // NZBForYou breadcrumbs can misidentify type, so for unowned items always try
-    // movie collection check too (checkGaps handles movie vs show logic internally).
-    if (resolvedType && response.owned) {
+    // Gap detection: owned shows get episode check; movies always get
+    // collection check (even when not owned, to surface partially-owned
+    // collections).
+    if (response.owned || resolvedType === "movie") {
       checkGaps({ mediaType: resolvedType, source, id, response });
-    } else {
-      // Not owned — always try movie collection check
-      checkGaps({ mediaType: "movie", source, id, response });
     }
   } catch (err) {
     errorLog("NZBForYou", err);
