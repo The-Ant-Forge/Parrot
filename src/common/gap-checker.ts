@@ -43,6 +43,7 @@ async function resolveTmdbMovieId(
         type: "FIND_TMDB_ID",
         source,
         id,
+        mediaType: "movie", // collection resolution is movie-only
       });
       return result.tmdbId ? String(result.tmdbId) : null;
     } catch (err) {

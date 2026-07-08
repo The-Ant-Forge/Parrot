@@ -324,10 +324,13 @@ async function lookupWithCrossRefs(
   try {
     const options = await loadOptions();
     if (options.tmdbApiKey) {
-      const resolverName = source === "imdb" ? "findByImdbId" : "findByTvdbId";
-      debugLog("BG", `CHECK: calling TMDB ${resolverName} for ${id}`);
-      const resolver = source === "imdb" ? findByImdbId : findByTvdbId;
-      const tmdbId = await resolver(options.tmdbApiKey, id);
+      debugLog("BG", `CHECK: calling TMDB ${source === "imdb" ? "findByImdbId" : "findByTvdbId"} for ${id}`);
+      // TMDB movie and TV IDs are separate numeric namespaces — constrain the
+      // /find result to the mediaType we're resolving for, or a movie's TMDB
+      // id could be looked up in shows.byTmdbId (false OWNED on collision).
+      const tmdbId = source === "imdb"
+        ? await findByImdbId(options.tmdbApiKey, id, mediaType)
+        : await findByTvdbId(options.tmdbApiKey, id);
       if (tmdbId) {
         item = lookupItem(index, mediaType, "tmdb", String(tmdbId));
         if (item) { debugLog("BG", `CHECK: found via TMDB cross-ref → TMDB:${tmdbId}`); return item; }
@@ -663,7 +666,7 @@ export default defineBackground(() => {
   }
 
   // Check for extension updates (fire-and-forget), then refresh badge
-  maybeCheckForUpdate().then(() => refreshUpdateBadge()).catch(() => {});
+  maybeCheckForUpdate().then(() => refreshUpdateBadge()).catch((err) => debugLog("BG", "startup update check failed", err));
   // Also reconcile badge against any cached check (covers cold start when no new check was needed)
   refreshUpdateBadge();
 
@@ -672,7 +675,7 @@ export default defineBackground(() => {
     if (details.reason === "update") {
       clearEpisodeGapCache().then(() => {
         debugLog("BG", "episode gap cache cleared after extension update");
-      }).catch(() => {});
+      }).catch((err) => debugLog("BG", "episode gap cache clear failed", err));
       // Clear the "!" badge since we've reached or passed the previously-seen latest version
       refreshUpdateBadge();
     }
@@ -1286,9 +1289,13 @@ export default defineBackground(() => {
                 if (!tmdbId && year) {
                   tmdbId = await searcher(options.tmdbApiKey, query);
                 }
+              } else if (message.source === "imdb") {
+                // Constrain to the caller's mediaType — TMDB movie and TV IDs
+                // are separate namespaces, so an unconstrained /find could hand
+                // a show gap-check a movie id (or vice versa).
+                tmdbId = await findByImdbId(options.tmdbApiKey, message.id, message.mediaType);
               } else {
-                const resolver = message.source === "imdb" ? findByImdbId : findByTvdbId;
-                tmdbId = await resolver(options.tmdbApiKey, message.id);
+                tmdbId = await findByTvdbId(options.tmdbApiKey, message.id);
               }
               sendResponse({ tmdbId } satisfies FindTmdbIdResponse);
             } catch (err) {
@@ -1473,8 +1480,26 @@ export default defineBackground(() => {
             }
             break;
           }
+
+          default: {
+            // Unknown/future message type — respond immediately so the
+            // sender's await doesn't hang until the SW unloads.
+            errorLog("BG", `unknown message type: ${(message as { type?: string }).type}`);
+            sendResponse({ error: "Unknown message type" });
+            break;
+          }
         }
-      })();
+      })().catch((err) => {
+        // Top-level guard: without this, a throw inside any handler that
+        // lacks its own try/catch leaves sendResponse uncalled and the
+        // sender's await hanging until the service worker unloads.
+        errorLog("BG", `unhandled error in ${message.type} handler`, err);
+        try {
+          sendResponse({ error: String(err) });
+        } catch {
+          // channel already closed — nothing to do
+        }
+      });
       return true; // keep message channel open for async response
     },
   );

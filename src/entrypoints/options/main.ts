@@ -247,7 +247,16 @@ async function deleteServer(serverId: string) {
       showFeedback(plexFeedback, result.error ?? "Rebuild failed", "error");
     }
   } else {
-    showFeedback(plexFeedback, "All servers removed", "info");
+    // No servers left — drop the stale index too, or badges would keep
+    // reporting items as in-library against a server that's gone.
+    const cleared: ClearCacheResponse = await browser.runtime.sendMessage({
+      type: "CLEAR_CACHE",
+    });
+    showFeedback(
+      plexFeedback,
+      cleared.success ? "All servers removed — library cleared" : "All servers removed",
+      "info",
+    );
     showLibraryInfo(0, null);
   }
   updateStorageUsage();

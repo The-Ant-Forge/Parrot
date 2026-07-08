@@ -27,12 +27,17 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned) {
-      checkGaps({
-        mediaType: "show",
-        source: response.item?.tvdbId ? "tvdb" : response.item?.tmdbId ? "tmdb" : "tvdb",
-        id: String(response.item?.tvdbId ?? response.item?.tmdbId ?? info.id),
-        response,
-      });
+      // Gap check needs a TVDB or TMDB id. When the owned item carries
+      // neither (e.g. it matched via the IMDb map), skip rather than pass
+      // the TVMaze id under a false source — a numeric collision with a
+      // real TVDB id would render another show's episode panel.
+      if (response.item?.tvdbId) {
+        checkGaps({ mediaType: "show", source: "tvdb", id: String(response.item.tvdbId), response });
+      } else if (response.item?.tmdbId) {
+        checkGaps({ mediaType: "show", source: "tmdb", id: String(response.item.tmdbId), response });
+      } else {
+        debugLog("TVMaze", "owned item has no TVDB/TMDB id — skipping gap check");
+      }
     }
   } catch (err) {
     errorLog("TVMaze", err);

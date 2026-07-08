@@ -96,6 +96,15 @@ saveBtn.addEventListener("click", async () => {
     config,
   });
 
+  // Don't save a server we couldn't reach — a typo'd URL would otherwise be
+  // stored under an unstable synthetic id that can never merge with the real
+  // machineIdentifier entry created later. (Mirrors the options page.)
+  if (!testResult.success) {
+    setButtonLoading(saveBtn, false);
+    showFeedback(setupFeedback, testResult.error ?? "Connection failed", "error");
+    return;
+  }
+
   const serverId = testResult.machineIdentifier ?? `server-${Date.now()}`;
   const serverName = testResult.friendlyName ?? (() => {
     try { return new URL(config.serverUrl).hostname; } catch { return "Server 1"; }
