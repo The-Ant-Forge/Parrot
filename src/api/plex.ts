@@ -5,6 +5,7 @@ import type {
   ExternalIds,
   LibraryIndex,
 } from "../common/types";
+import { INDEX_SCHEMA_VERSION } from "../common/types";
 import { buildTitleKey, parseTitleFromH1 } from "../common/normalize";
 import { debugLog } from "../common/logger";
 
@@ -234,6 +235,7 @@ export function extractExternalIds(
 
 function emptyIndex(): LibraryIndex {
   return {
+    schemaVersion: INDEX_SCHEMA_VERSION,
     items: [],
     movies: { byTmdbId: {}, byImdbId: {}, byTitle: {} },
     shows: { byTvdbId: {}, byTmdbId: {}, byImdbId: {}, byTitle: {} },

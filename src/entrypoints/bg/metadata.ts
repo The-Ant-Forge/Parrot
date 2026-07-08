@@ -21,8 +21,9 @@ export function applyRadarrMetadata(info: TabMediaInfo, movie: RadarrMovie) {
   info.year = movie.Year;
   if (!info.tmdbId) info.tmdbId = movie.TmdbId;
   if (!info.imdbId && movie.ImdbId) info.imdbId = movie.ImdbId;
-  // Extract poster from images array
-  const poster = movie.Images?.find(i => i.CoverType.toLowerCase() === "poster");
+  // Extract poster from images array (fields optional — a malformed entry
+  // shouldn't throw and kill the whole enrichment)
+  const poster = movie.Images?.find(i => i.CoverType?.toLowerCase() === "poster");
   if (poster?.Url) info.posterUrl = poster.Url;
   if (movie.MovieRatings) applyRadarrRatings(info, movie.MovieRatings);
 }
@@ -37,8 +38,8 @@ export function applySonarrMetadata(info: TabMediaInfo, show: SonarrShow) {
   info.showStatus = show.status;
   info.seasonCount = show.seasons?.filter(s => s.seasonNumber > 0).length;
   info.episodeCount = show.episodes?.length;
-  // Extract poster from images array
-  const poster = show.images?.find(i => i.coverType.toLowerCase() === "poster");
+  // Extract poster from images array (fields optional — see RadarrImage note)
+  const poster = show.images?.find(i => i.coverType?.toLowerCase() === "poster");
   if (poster?.url) info.posterUrl = poster.url;
   // TVDB rating (value is a string)
   if (show.rating?.value) {

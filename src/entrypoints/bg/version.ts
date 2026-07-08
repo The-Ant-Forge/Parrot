@@ -2,6 +2,7 @@
  * Extension version comparison and update checking.
  */
 
+import { fetchWithTimeout } from "../../common/fetch-timeout";
 import { getUpdateCheck, saveUpdateCheck } from "../../common/storage";
 import { debugLog, errorLog } from "../../common/logger";
 
@@ -41,7 +42,7 @@ export function pickZipAssetUrl(assets: GitHubReleaseAsset[] | undefined): strin
  */
 export async function checkForUpdate(): Promise<void> {
   try {
-    const response = await fetch("https://api.github.com/repos/The-Ant-Forge/Parrot/releases/latest", {
+    const response = await fetchWithTimeout("https://api.github.com/repos/The-Ant-Forge/Parrot/releases/latest", {
       headers: { Accept: "application/vnd.github.v3+json" },
     });
     if (!response.ok) {

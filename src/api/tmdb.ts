@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../common/fetch-timeout";
+
 const BASE_URL = "https://api.themoviedb.org/3";
 
 export interface TMDBCollectionRef {
@@ -60,7 +62,7 @@ interface TMDBFindResponse {
 
 async function tmdbFetch<T>(apiKey: string, path: string): Promise<T> {
   const url = `${BASE_URL}${path}${path.includes("?") ? "&" : "?"}api_key=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
@@ -68,6 +70,7 @@ async function tmdbFetch<T>(apiKey: string, path: string): Promise<T> {
   }
   return res.json() as Promise<T>;
 }
+
 
 /**
  * Get movie details — returns collection ref, poster, title, etc.

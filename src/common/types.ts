@@ -20,8 +20,18 @@ export interface OwnedItem {
   resolution?: string; // raw Plex videoResolution (e.g. "1080", "4k")
 }
 
+/**
+ * Bump when the index-building code changes shape or semantics (new lookup
+ * maps, changed title normalization, etc.). An index stored by a different
+ * version keeps serving lookups but triggers an immediate background rebuild
+ * — otherwise users keep matching against keys built by the old algorithm
+ * until the next scheduled auto-refresh.
+ */
+export const INDEX_SCHEMA_VERSION = 2;
+
 /** Cached index of the user's Plex library (stored in browser.storage.local) */
 export interface LibraryIndex {
+  schemaVersion?: number;
   items: OwnedItem[];
   movies: {
     byTmdbId: Record<string, number>;  // value = index into items[]

@@ -1,4 +1,4 @@
-import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps, clearEpisodeGapCache, getUpdateCheck } from "../common/storage";
+import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions, saveOptions, getCachedCollection, saveCachedCollection, getCachedEpisodeGaps, saveCachedEpisodeGaps, clearMetadataCaches, getUpdateCheck } from "../common/storage";
 import { testConnection, buildLibraryIndex, fetchShowEpisodes, formatResolution } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie, searchTv } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
@@ -9,6 +9,7 @@ import { getRadarrMovie, getRadarrMovieByImdb, getRadarrCollection, searchRadarr
 import type { RadarrMovie } from "../api/radarr";
 import { getSonarrShow, searchSonarrShow } from "../api/sonarr";
 import type { SonarrShow } from "../api/sonarr";
+import { fetchWithTimeout } from "../common/fetch-timeout";
 import { debugLog, errorLog } from "../common/logger";
 import { isNewerVersion, maybeCheckForUpdate, checkForUpdate } from "./bg/version";
 import { resolveItemPlex, lookupItem } from "./bg/library";
@@ -41,6 +42,7 @@ import type {
   OwnedItem,
   PlexServerConfig,
 } from "../common/types";
+import { INDEX_SCHEMA_VERSION } from "../common/types";
 
 let cachedIndex: LibraryIndex | null = null;
 let cachedServers: PlexServerConfig[] | null = null;
@@ -145,29 +147,44 @@ async function loadIndex(): Promise<LibraryIndex | null> {
     }
   }
 
-  // Auto-refresh if stale (fire-and-forget, returns current index immediately)
+  // Auto-refresh if stale or built by an older schema version (fire-and-forget;
+  // the current index keeps serving lookups while the rebuild runs).
   if (cachedIndex && !autoRefreshing) {
-    const options = await loadOptions();
-    if (options.autoRefresh) {
-      const ageMs = Date.now() - (cachedIndex.lastRefresh ?? 0);
-      const thresholdMs = options.autoRefreshDays * 24 * 60 * 60 * 1000;
-      if (ageMs >= thresholdMs) {
-        autoRefreshing = true;
-        loadServers().then(async (servers) => {
-          if (servers.length === 0) { autoRefreshing = false; return; }
-          try {
-            debugLog("BG", `auto-refresh — index is ${Math.floor(ageMs / 86400000)}d old, refreshing`);
-            const newIndex = await buildLibraryIndex(servers);
-            await saveLibraryIndex(newIndex);
-            setIndex(newIndex);
-            debugLog("BG", `auto-refresh complete — ${newIndex.itemCount} items`);
-          } catch (err) {
-            errorLog("BG", "auto-refresh failed", err);
-          } finally {
-            autoRefreshing = false;
-          }
-        });
+    // Schema mismatch always rebuilds, regardless of the autoRefresh option —
+    // the stored index was built by code with different semantics (e.g. changed
+    // title normalization) and would silently mis-match until the next refresh.
+    const schemaOutdated = cachedIndex.schemaVersion !== INDEX_SCHEMA_VERSION;
+    let due = schemaOutdated;
+    let reason = `schema v${cachedIndex.schemaVersion ?? 1} → v${INDEX_SCHEMA_VERSION}`;
+
+    if (!due) {
+      const options = await loadOptions();
+      if (options.autoRefresh) {
+        const ageMs = Date.now() - (cachedIndex.lastRefresh ?? 0);
+        const thresholdMs = options.autoRefreshDays * 24 * 60 * 60 * 1000;
+        if (ageMs >= thresholdMs) {
+          due = true;
+          reason = `index is ${Math.floor(ageMs / 86400000)}d old`;
+        }
       }
+    }
+
+    if (due) {
+      autoRefreshing = true;
+      loadServers().then(async (servers) => {
+        if (servers.length === 0) { autoRefreshing = false; return; }
+        try {
+          debugLog("BG", `auto-refresh — ${reason}, refreshing`);
+          const newIndex = await buildLibraryIndex(servers);
+          await saveLibraryIndex(newIndex);
+          setIndex(newIndex);
+          debugLog("BG", `auto-refresh complete — ${newIndex.itemCount} items`);
+        } catch (err) {
+          errorLog("BG", "auto-refresh failed", err);
+        } finally {
+          autoRefreshing = false;
+        }
+      });
     }
   }
 
@@ -683,12 +700,14 @@ export default defineBackground(() => {
   // Also reconcile badge against any cached check (covers cold start when no new check was needed)
   refreshUpdateBadge();
 
-  // Clear episode gap cache on extension update (stale entries may use old logic)
+  // Clear all derived metadata caches on extension update — cached entries
+  // must never bake in parsing/logic from an older version. (The library
+  // index self-heals via its schemaVersion check in loadIndex.)
   browser.runtime.onInstalled.addListener((details) => {
     if (details.reason === "update") {
-      clearEpisodeGapCache().then(() => {
-        debugLog("BG", "episode gap cache cleared after extension update");
-      }).catch((err) => debugLog("BG", "episode gap cache clear failed", err));
+      clearMetadataCaches().then(() => {
+        debugLog("BG", "metadata caches cleared after extension update");
+      }).catch((err) => debugLog("BG", "metadata cache clear failed", err));
       // Clear the "!" badge since we've reached or passed the previously-seen latest version
       refreshUpdateBadge();
     }
@@ -885,7 +904,7 @@ export default defineBackground(() => {
 
           case "VALIDATE_TMDB_KEY": {
             try {
-              const res = await fetch(
+              const res = await fetchWithTimeout(
                 `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(message.apiKey)}`,
                 { headers: { Accept: "application/json" } },
               );

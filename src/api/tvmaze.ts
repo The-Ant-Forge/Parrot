@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../common/fetch-timeout";
+
 export interface TvMazeExternals {
   tvdbId: number | null;
   imdbId: string | null;
@@ -14,7 +16,9 @@ function parseExternals(data: Record<string, unknown>): TvMazeExternals {
 
 /** Get external IDs for a TVMaze show by its TVMaze numeric ID. */
 export async function getTvMazeExternals(tvmazeId: string): Promise<TvMazeExternals> {
-  const res = await fetch(`${TVMAZE_BASE}/shows/${tvmazeId}`, {
+  // TVMaze sits directly in the CHECK hot path — a hung call here delays the
+  // CHECK response itself (badge stuck invisible), hence the timeout.
+  const res = await fetchWithTimeout(`${TVMAZE_BASE}/shows/${tvmazeId}`, {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) throw new Error(`TVMaze API error: ${res.status}`);
@@ -23,7 +27,7 @@ export async function getTvMazeExternals(tvmazeId: string): Promise<TvMazeExtern
 
 /** Look up a show by IMDb ID → returns TVDB ID (and IMDb ID back). */
 export async function lookupByImdb(imdbId: string): Promise<TvMazeExternals | null> {
-  const res = await fetch(`${TVMAZE_BASE}/lookup/shows?imdb=${encodeURIComponent(imdbId)}`, {
+  const res = await fetchWithTimeout(`${TVMAZE_BASE}/lookup/shows?imdb=${encodeURIComponent(imdbId)}`, {
     headers: { Accept: "application/json" },
   });
   if (res.status === 404) return null;
@@ -33,7 +37,7 @@ export async function lookupByImdb(imdbId: string): Promise<TvMazeExternals | nu
 
 /** Look up a show by TVDB ID → returns IMDb ID (and TVDB ID back). */
 export async function lookupByTvdb(tvdbId: string): Promise<TvMazeExternals | null> {
-  const res = await fetch(`${TVMAZE_BASE}/lookup/shows?thetvdb=${encodeURIComponent(tvdbId)}`, {
+  const res = await fetchWithTimeout(`${TVMAZE_BASE}/lookup/shows?thetvdb=${encodeURIComponent(tvdbId)}`, {
     headers: { Accept: "application/json" },
   });
   if (res.status === 404) return null;

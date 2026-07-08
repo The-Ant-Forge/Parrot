@@ -90,6 +90,69 @@ describe("searchSonarrShow", () => {
   });
 });
 
+describe("getSonarrShow tiered TTL", () => {
+  const HOUR = 60 * 60 * 1000;
+  const cacheKey = "pc:sonarr:show:81189";
+
+  function mockCachedEntry(show: unknown, ageMs: number) {
+    vi.stubGlobal("browser", {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({
+            [cacheKey]: { data: show, fetchedAt: Date.now() - ageMs },
+          }),
+          set: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+  }
+
+  it("serves a fresh entry (<24h) regardless of status", async () => {
+    const show = { tvdbId: 81189, title: "The Copper Meridian", status: "Continuing" };
+    mockCachedEntry(show, 2 * HOUR);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const result = await sonarrModule.getSonarrShow(81189);
+    expect(result).toEqual(show);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("serves a 3-day-old entry for an ended show", async () => {
+    const show = { tvdbId: 81189, title: "The Copper Meridian", status: "Ended" };
+    mockCachedEntry(show, 72 * HOUR);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const result = await sonarrModule.getSonarrShow(81189);
+    expect(result).toEqual(show);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("refetches a 3-day-old entry for a continuing show", async () => {
+    const cached = { tvdbId: 81189, title: "The Copper Meridian", status: "Continuing" };
+    const refreshed = { ...cached, episodes: [{ seasonNumber: 5, episodeNumber: 3 }] };
+    mockCachedEntry(cached, 72 * HOUR);
+    mockFetch(refreshed);
+
+    const result = await sonarrModule.getSonarrShow(81189);
+    expect(result).toEqual(refreshed);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://skyhook.sonarr.tv/v1/tvdb/shows/en/81189",
+      expect.anything(),
+    );
+  });
+
+  it("falls back to the day-old entry when refetch fails", async () => {
+    const cached = { tvdbId: 81189, title: "The Copper Meridian", status: "Continuing" };
+    mockCachedEntry(cached, 72 * HOUR);
+    mockFetchError();
+
+    const result = await sonarrModule.getSonarrShow(81189);
+    expect(result).toEqual(cached);
+  });
+});
+
 describe("circuit breaker integration", () => {
   it("opens circuit after 3 consecutive failures", async () => {
     mockFetch({}, 500);

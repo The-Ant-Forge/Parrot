@@ -30,8 +30,9 @@ export interface RadarrMovieRatings {
 }
 
 export interface RadarrImage {
-  CoverType: string;
-  Url: string;
+  // Optional: a malformed image entry shouldn't kill the whole enrichment
+  CoverType?: string;
+  Url?: string;
 }
 
 export interface RadarrCollectionRef {
@@ -111,6 +112,10 @@ async function radarrFetch<T>(path: string): Promise<T | null> {
 const LOOKUP_TTL = 7 * 24 * 60 * 60 * 1000;  // 7 days for ID lookups
 const SEARCH_TTL = 24 * 60 * 60 * 1000;       // 24 hours for searches
 
+// Coalesce concurrent misses on the same key (e.g. two tabs opening the same
+// title, or CHECK + metadata enrichment racing) into one proxy request.
+const inflight = new Map<string, Promise<unknown>>();
+
 /** Cache-first fetch: return cached data if fresh, else fetch and cache. */
 async function cachedRadarrFetch<T>(cacheKey: string, ttl: number, path: string): Promise<T | null> {
   const cached = await getProxyCache<T>(cacheKey, ttl);
@@ -118,9 +123,19 @@ async function cachedRadarrFetch<T>(cacheKey: string, ttl: number, path: string)
     debugLog("Radarr", `cache hit for ${cacheKey}`);
     return cached;
   }
-  const data = await radarrFetch<T>(path);
-  if (data) setProxyCache(cacheKey, data);
-  return data;
+  const existing = inflight.get(cacheKey);
+  if (existing) return existing as Promise<T | null>;
+  const p = (async () => {
+    try {
+      const data = await radarrFetch<T>(path);
+      if (data) await setProxyCache(cacheKey, data);
+      return data;
+    } finally {
+      inflight.delete(cacheKey);
+    }
+  })();
+  inflight.set(cacheKey, p);
+  return p;
 }
 
 // --- Public API ---

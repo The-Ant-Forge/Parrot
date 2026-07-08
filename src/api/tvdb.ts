@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../common/fetch-timeout";
+
 const BASE_URL = "https://api4.thetvdb.com/v4";
 
 export interface TVDBEpisode {
@@ -11,7 +13,7 @@ export interface TVDBEpisode {
 let cachedToken: string | null = null;
 
 async function login(apiKey: string): Promise<string> {
-  const res = await fetch(`${BASE_URL}/login`, {
+  const res = await fetchWithTimeout(`${BASE_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -40,7 +42,7 @@ async function tvdbFetch<T>(apiKey: string, path: string): Promise<T> {
     cachedToken = await login(apiKey);
   }
 
-  let res = await fetch(`${BASE_URL}${path}`, {
+  let res = await fetchWithTimeout(`${BASE_URL}${path}`, {
     headers: {
       Authorization: `Bearer ${cachedToken}`,
       Accept: "application/json",
@@ -50,7 +52,7 @@ async function tvdbFetch<T>(apiKey: string, path: string): Promise<T> {
   // Token expired — re-authenticate and retry
   if (res.status === 401) {
     cachedToken = await login(apiKey);
-    res = await fetch(`${BASE_URL}${path}`, {
+    res = await fetchWithTimeout(`${BASE_URL}${path}`, {
       headers: {
         Authorization: `Bearer ${cachedToken}`,
         Accept: "application/json",

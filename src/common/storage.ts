@@ -80,11 +80,19 @@ export async function saveCachedEpisodeGaps(entry: EpisodeGapCacheEntry): Promis
   await browser.storage.local.set({ [key]: entry });
 }
 
-export async function clearEpisodeGapCache(): Promise<void> {
+/**
+ * Clear every derived metadata cache: episode gaps, collections, proxy
+ * responses, plus the pre-per-key legacy blobs. Called on extension update so
+ * cached entries can never bake in parsing/logic from an older version, and
+ * so expired entries don't accumulate forever. (The library index is NOT
+ * cleared here — it self-heals via its schemaVersion check.)
+ */
+export async function clearMetadataCaches(): Promise<void> {
   const all = await browser.storage.local.get(null);
-  const keysToRemove = Object.keys(all).filter((k) => k.startsWith(EPISODE_GAP_PREFIX));
-  // Also drop the pre-per-key blob if it's still around from an old version
-  keysToRemove.push(LEGACY_EPISODE_GAP_CACHE_KEY);
+  const keysToRemove = Object.keys(all).filter(
+    (k) => k.startsWith(EPISODE_GAP_PREFIX) || k.startsWith(COLLECTION_PREFIX) || k.startsWith(PROXY_PREFIX),
+  );
+  keysToRemove.push(LEGACY_EPISODE_GAP_CACHE_KEY, LEGACY_COLLECTION_CACHE_KEY);
   await browser.storage.local.remove(keysToRemove);
 }
 
@@ -129,12 +137,6 @@ export async function getProxyCache<T>(key: string, ttlMs: number): Promise<T | 
 export async function setProxyCache(key: string, data: unknown): Promise<void> {
   const storageKey = PROXY_PREFIX + key;
   await browser.storage.local.set({ [storageKey]: { data, fetchedAt: Date.now() } });
-}
-
-export async function clearProxyCache(): Promise<void> {
-  const all = await browser.storage.local.get(null);
-  const keysToRemove = Object.keys(all).filter(k => k.startsWith(PROXY_PREFIX));
-  if (keysToRemove.length > 0) await browser.storage.local.remove(keysToRemove);
 }
 
 // --- Custom sites ---

@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../common/fetch-timeout";
+
 const BASE_URL = "https://www.omdbapi.com";
 const TIMEOUT_MS = 4000;
 
@@ -16,13 +18,9 @@ export async function getImdbRating(
   imdbId: string,
 ): Promise<number | null> {
   const url = `${BASE_URL}/?i=${encodeURIComponent(imdbId)}&apikey=${encodeURIComponent(apiKey)}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { Accept: "application/json" },
-    signal: controller.signal,
-  });
-  clearTimeout(timer);
+  }, TIMEOUT_MS);
   if (!res.ok) return null;
 
   const data: OMDbResponse = await res.json();
@@ -39,9 +37,9 @@ export async function getImdbRating(
 export async function validateOmdbKey(apiKey: string): Promise<boolean> {
   try {
     const url = `${BASE_URL}/?i=tt0000001&apikey=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { Accept: "application/json" },
-    });
+    }, TIMEOUT_MS);
     if (!res.ok) return false;
     const data: OMDbResponse = await res.json();
     // Invalid key returns Response: "False" with Error: "Invalid API key!"

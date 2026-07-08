@@ -28,7 +28,8 @@ export interface PlexResource {
   publicAddress?: string;
   owned: boolean;
   provides?: string;
-  connections: PlexConnection[];
+  // Optional: offline/partial resource entries can omit it
+  connections?: PlexConnection[];
 }
 
 /**
@@ -75,6 +76,6 @@ export async function fetchServerConnections(token: string): Promise<PlexResourc
 export function pickRemoteUrl(resources: PlexResource[], machineIdentifier: string): string | null {
   const server = resources.find((r) => r.clientIdentifier === machineIdentifier);
   if (!server) return null;
-  const remote = server.connections.find((c) => !c.local && !c.relay);
+  const remote = (server.connections ?? []).find((c) => !c.local && !c.relay);
   return remote?.uri ?? null;
 }
