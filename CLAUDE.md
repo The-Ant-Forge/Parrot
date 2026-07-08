@@ -7,46 +7,17 @@ Read agents.md
 - **Purpose:** Browser extension that checks if media you're browsing (TMDB, TVDB, IMDb) is already in your Plex library
 - **Companion to:** [ComPlexionist](https://github.com/The-Ant-Forge/ComPlexionist) (finds library gaps; Parrot prevents duplicate hunting)
 - **Tech stack:** TypeScript, Manifest V3, Vite/WXT
-- **Target browsers:** Chrome (primary), Firefox (secondary)
-- **Full spec:** `docs/Parrot spec.md`
+- **Target browsers:** Chrome. (Firefox builds exist but aren't distributed or tested — don't spend effort there.)
+- **Full spec (incl. component map + message types):** `docs/Parrot spec.md`
 
 ---
 
-## Architecture
+## Architecture (orientation only — see spec for the full map)
 
-```
-src/
-├── entrypoints/
-│   ├── background.ts              # Library index cache, Plex API proxy
-│   ├── *.content.ts               # Content scripts (one per supported site)
-│   ├── options/                   # Full-tab options page
-│   └── popup/                     # Settings/status popup
-├── api/
-│   ├── plex.ts                    # Plex API client
-│   ├── radarr.ts                  # Radarr community proxy (free movies + 5 rating sources)
-│   ├── sonarr.ts                  # Sonarr community proxy (free TV + episodes)
-│   ├── tmdb.ts                    # TMDB v3 API client (fallback)
-│   ├── tvdb.ts                    # TVDB v4 API client (fallback)
-│   ├── tvmaze.ts                  # TVMaze API client (free, no key)
-│   └── omdb.ts                    # OMDb API client (IMDb ratings, fallback)
-└── common/
-    ├── types.ts                   # Shared types
-    ├── storage.ts                 # Storage helpers
-    ├── badge.ts                   # Smart badge (wrapper+pill, floating panel)
-    ├── gap-checker.ts             # Shared gap detection orchestration
-    ├── collection-panel.ts        # Collection gap panel component
-    ├── episode-panel.ts           # Episode gap panel component
-    ├── panel-utils.ts             # Shared panel styling utilities
-    ├── extractors.ts              # URL/ID extractors + DOM link scanner + JSON-LD
-    ├── url-observer.ts            # Debounced URL change observer for SPAs
-    ├── normalize.ts               # Title normalization + h1 text parsing
-    ├── dom-utils.ts               # DOM utilities (waitForElement)
-    ├── title-check.ts             # Title-based CHECK with year fallback
-    ├── circuit-breaker.ts         # Circuit breaker for community proxy resilience
-    ├── ui-helpers.ts              # Shared UI helpers (feedback, button loading, timestamps)
-    ├── logger.ts                  # Debug/error logging gated by settings toggle
-    └── sites.ts                   # Supported site definitions
-```
+- `src/entrypoints/` — `background.ts` service worker (CHECK handling, library index, metadata enrichment) + `bg/` helper modules; 17 `*.content.ts` scripts (one per site); `options/`; `popup/`
+- `src/api/` — one client per external service: `plex.ts` (+ `plex-tv.ts` server discovery), community proxies `radarr.ts`/`sonarr.ts`, fallbacks `tmdb.ts`/`tvdb.ts`/`omdb.ts`, `tvmaze.ts`
+- `src/common/` — shared types, storage, badge + gap panels, extractors, gap-checker, check-helpers, circuit breaker, logger
+- `scripts/` — version bump scripts, `sync-wiki.js`
 
 ### Data Flow
 
@@ -71,48 +42,21 @@ Both use circuit breakers (3 failures → 5-min cooldown) and 4-second timeouts.
 
 ### Library Index (Compact, Multi-Server)
 
-Parrot supports N Plex servers. On setup/refresh, it fetches all items from each server and builds a merged index. Items are stored once in `items[]`; lookup maps hold numeric indices (two-step lookup). Items existing on multiple servers share a single `OwnedItem` with `plexKeys: Record<serverId, ratingKey>`. Servers are priority-ordered (first = primary for deep linking).
-
-Lookup maps:
-- `movies.byTmdbId`, `movies.byImdbId`, `movies.byTitle`
-- `shows.byTvdbId`, `shows.byTmdbId`, `shows.byImdbId`, `shows.byTitle`
-
-Stored in `browser.storage.local` (with `unlimitedStorage` permission). Auto-refreshed on configurable interval (default 7 days).
+Merged index across N priority-ordered Plex servers: items stored once in `items[]`, lookup maps (`byTmdbId`/`byImdbId`/`byTvdbId`/`byTitle` per media type) hold numeric indices. Lives in `browser.storage.local` (`unlimitedStorage`), auto-refreshed every 7 days by default. Details in the spec.
 
 ---
 
 ## Development
 
-### Setup
 ```bash
 npm install
+npm run dev      # hot-reload dev mode
+npm run build    # production build (auto-bumps build number)
+npm test         # vitest
+npm run lint     # eslint
 ```
 
-### Dev mode (with hot reload)
-```bash
-npm run dev
-```
-
-### Build
-```bash
-npm run build
-```
-
-### Test
-```bash
-npm test
-```
-
-### Lint
-```bash
-npm run lint
-```
-
-### Load in Chrome
-1. Go to `chrome://extensions/`
-2. Enable Developer Mode
-3. Click "Load unpacked"
-4. Select `.output/chrome-mv3/` folder
+Load in Chrome: `chrome://extensions/` → Developer Mode → Load unpacked → `.output/chrome-mv3/`
 
 ### Versioning
 
@@ -198,25 +142,44 @@ Periodically we do a consolidation review covering all source, tests, build conf
    missing user-facing messages, silent catch blocks
 6. **Security boundaries** — input validation, XSS/innerHTML in content scripts,
    message origin checks, credential handling, token leakage in logs
-7. **Type safety** — missing annotations, `Any` overuse, unsafe type assertions
-8. **Test gaps** — untested paths, stale tests, missing edge cases
-9. **Documentation drift** — specs, README, CLAUDE.md out of sync with code
-10. **Performance, caching & quotas** — hot-path storage reads, bundle size,
-    cache TTL policy, API rate limits, redundant network calls
-11. **MV3 lifecycle** — service worker cold starts, idempotent listeners, SPA
+7. **Type safety** — missing annotations, unsafe assertions, and truthiness
+   bugs on numeric/string fields where `0` or `""` are valid values
+   (`if (x.Value)` vs `if (x.Value != null)` — this shipped a real bug)
+8. **Async races & message flows** — content scripts firing more than one
+   message for the same page state; background caches written by
+   fire-and-forget async work (`tabMediaCache`, session memos);
+   last-write-wins overwrites; duplicate in-flight requests that should
+   coalesce. (The v1.22/v1.23 popup race lived here for months.)
+9. **Test gaps** — untested paths, stale tests, missing edge cases
+10. **Documentation drift** — spec, README, CLAUDE.md, `docs/wiki/` +
+    published wiki, screenshots out of sync with code
+11. **Performance, caching & quotas** — hot-path storage reads, bundle size,
+    cache TTL policy, API rate limits, redundant network calls. Include
+    **cache entry versioning**: when parsing/shape changes, do stale cached
+    entries (7-day proxy TTLs) mask the fix? Which caches flush on extension
+    update, which don't?
+12. **MV3 lifecycle** — service worker cold starts, idempotent listeners, SPA
     navigation, tab sleep/wake, alarm/reconnect logic
-12. **Content script safety** — DOM injection hygiene (no raw innerHTML with
-    external data), style isolation, Shadow DOM handling, duplicate badge
-    prevention, host page breakage
-13. **API contract drift** — type assertions vs actual API responses, changed
-    endpoints or response shapes across all providers
-14. **Storage schema migration** — backward compat when stored data shapes change
-15. **Manifest & permissions** — unused permissions, missing host_permissions
+13. **Content script safety** — DOM injection hygiene (no raw innerHTML with
+    external data), style isolation, duplicate badge prevention, host page
+    breakage
+14. **API contract drift** — verify types against REAL captured responses
+    (inspect cached `pc:*` entries in `chrome.storage.local`), not just by
+    re-reading the type definitions. Prefer optional fields for
+    community-API types so the compiler forces absence checks. (Both Radarr
+    bugs were invisible in code, obvious in cached JSON.)
+15. **Storage schema migration** — backward compat when stored data shapes change
+16. **Manifest & permissions** — unused permissions, missing host_permissions
     matches, web_accessible_resources, CSP
-16. **Cross-browser compat** — Firefox vs Chrome API differences
-17. **Graceful degradation** — offline/rate-limit/proxy-down behaviour, circuit
+17. **Graceful degradation** — every network call has an AbortController
+    timeout tuned to its operation (a connection test and a full-library
+    fetch differ by 10×); offline/rate-limit/proxy-down behaviour, circuit
     breaker coverage, stale-cache fallback, user-facing failure messages
-18. **TODO/FIXME/HACK audit** — resolve or remove stale markers
+18. **Tooling contracts** — release zip naming vs update-checker asset regex,
+    `wiki:sync` source-of-truth, version bump scripts, anything in `scripts/`
+19. **TODO/FIXME/HACK audit** — resolve or remove stale markers
+20. **Cross-browser compat** — low priority: Chrome-only user base. Don't
+    spend review time on Firefox; just avoid gratuitously breaking it.
 
 ### Deliverable
 A review document in `docs/` named `Code-Review-YYMMDD.md` (or similar) with:
@@ -226,6 +189,8 @@ A review document in `docs/` named `Code-Review-YYMMDD.md` (or similar) with:
 
 ### Process
 1. Produce the review document — do NOT implement during review
-2. Review and approve findings with the user
-3. Implement approved items in focused commits
-4. Re-run tests after each change
+2. Optionally get a second-opinion review (`/consult-codex` or
+   `/consult-gemini`) and merge findings before presenting
+3. Review and approve findings with the user
+4. Implement approved items in focused commits
+5. Re-run tests after each change
