@@ -5,8 +5,12 @@ import type { TMDBCollection } from "../api/tmdb";
 const SERVERS_KEY = "plexServers";
 const INDEX_KEY = "libraryIndex";
 const OPTIONS_KEY = "parrotOptions";
-const COLLECTION_CACHE_KEY = "tmdbCollections";
-const EPISODE_GAP_CACHE_KEY = "episodeGaps";
+// Legacy single-blob cache keys (pre per-key storage) — removed on update
+export const LEGACY_COLLECTION_CACHE_KEY = "tmdbCollections";
+export const LEGACY_EPISODE_GAP_CACHE_KEY = "episodeGaps";
+// Per-key cache prefixes (read-modify-write-free, like the proxy cache's pc:*)
+const COLLECTION_PREFIX = "cc:";
+const EPISODE_GAP_PREFIX = "eg:";
 
 const COLLECTION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const EPISODE_GAP_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -15,8 +19,6 @@ interface CollectionCacheEntry {
   data: TMDBCollection;
   fetchedAt: number;
 }
-
-type CollectionCache = Record<string, CollectionCacheEntry>;
 
 // --- Plex server config (multi-server) ---
 
@@ -49,43 +51,41 @@ export async function saveOptions(options: ParrotOptions): Promise<void> {
 }
 
 export async function getCachedCollection(collectionId: number): Promise<TMDBCollection | null> {
-  const result = await browser.storage.local.get(COLLECTION_CACHE_KEY);
-  const cache = (result[COLLECTION_CACHE_KEY] as CollectionCache) ?? {};
-  const entry = cache[String(collectionId)];
+  const key = COLLECTION_PREFIX + String(collectionId);
+  const result = await browser.storage.local.get(key);
+  const entry = result[key] as CollectionCacheEntry | undefined;
   if (!entry) return null;
   if (Date.now() - entry.fetchedAt > COLLECTION_TTL_MS) return null;
   return entry.data;
 }
 
 export async function saveCachedCollection(collection: TMDBCollection): Promise<void> {
-  const result = await browser.storage.local.get(COLLECTION_CACHE_KEY);
-  const cache = (result[COLLECTION_CACHE_KEY] as CollectionCache) ?? {};
-  cache[String(collection.id)] = { data: collection, fetchedAt: Date.now() };
-  await browser.storage.local.set({ [COLLECTION_CACHE_KEY]: cache });
+  const key = COLLECTION_PREFIX + String(collection.id);
+  await browser.storage.local.set({ [key]: { data: collection, fetchedAt: Date.now() } });
 }
 
 // --- Episode gap cache ---
 
-type EpisodeGapCache = Record<string, EpisodeGapCacheEntry>;
-
 export async function getCachedEpisodeGaps(cacheKey: string): Promise<EpisodeGapCacheEntry | null> {
-  const result = await browser.storage.local.get(EPISODE_GAP_CACHE_KEY);
-  const cache = (result[EPISODE_GAP_CACHE_KEY] as EpisodeGapCache) ?? {};
-  const entry = cache[cacheKey];
+  const key = EPISODE_GAP_PREFIX + cacheKey;
+  const result = await browser.storage.local.get(key);
+  const entry = result[key] as EpisodeGapCacheEntry | undefined;
   if (!entry) return null;
   if (Date.now() - entry.fetchedAt > EPISODE_GAP_TTL_MS) return null;
   return entry;
 }
 
 export async function saveCachedEpisodeGaps(entry: EpisodeGapCacheEntry): Promise<void> {
-  const result = await browser.storage.local.get(EPISODE_GAP_CACHE_KEY);
-  const cache = (result[EPISODE_GAP_CACHE_KEY] as EpisodeGapCache) ?? {};
-  cache[entry.cacheKey] = entry;
-  await browser.storage.local.set({ [EPISODE_GAP_CACHE_KEY]: cache });
+  const key = EPISODE_GAP_PREFIX + entry.cacheKey;
+  await browser.storage.local.set({ [key]: entry });
 }
 
 export async function clearEpisodeGapCache(): Promise<void> {
-  await browser.storage.local.remove(EPISODE_GAP_CACHE_KEY);
+  const all = await browser.storage.local.get(null);
+  const keysToRemove = Object.keys(all).filter((k) => k.startsWith(EPISODE_GAP_PREFIX));
+  // Also drop the pre-per-key blob if it's still around from an old version
+  keysToRemove.push(LEGACY_EPISODE_GAP_CACHE_KEY);
+  await browser.storage.local.remove(keysToRemove);
 }
 
 // --- Update check ---

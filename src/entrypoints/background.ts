@@ -52,8 +52,6 @@ const tabMediaCache = new Map<number, TabMediaInfo>();
 let plexKeyMap: Map<string, number> | null = null;
 let movieIndexSet: Set<number> | null = null;
 
-const SESSION_KEY = "tabMedia";
-const MAX_SESSION_ENTRIES = 20;
 
 async function loadServers(): Promise<PlexServerConfig[]> {
   if (!cachedServers) {
@@ -69,22 +67,33 @@ async function loadOptions(): Promise<import("../common/types").ParrotOptions> {
   return cachedOpts;
 }
 
+// Monotonic per-tab CHECK generation. Each CHECK bumps it; the enrichment it
+// spawns captures the value and re-verifies before any late write or notify.
+// Without this, a slow enrichment chain from the previous page (SPA nav) could
+// overwrite the new page's tabMedia and restyle the wrong badge.
+const tabCheckGeneration = new Map<number, number>();
+
+function bumpTabGeneration(tabId: number): number {
+  const gen = (tabCheckGeneration.get(tabId) ?? 0) + 1;
+  tabCheckGeneration.set(tabId, gen);
+  return gen;
+}
+
+// Per-tab session keys ("tm:{tabId}") instead of one shared map: concurrent
+// CHECKs from different tabs previously interleaved read-modify-write on the
+// single key and could drop each other's entries. Per-key writes can't.
+// Closed tabs are cleaned up by the tabs.onRemoved listener; session storage
+// itself is cleared by the browser at end of session.
+function tabMediaKey(tabId: number): string {
+  return `tm:${tabId}`;
+}
+
 async function persistTabMedia(tabId: number, info: TabMediaInfo) {
   tabMediaCache.set(tabId, info);
   try {
-    const stored: Record<string, TabMediaInfo> =
-      (await browser.storage.session.get(SESSION_KEY))[SESSION_KEY] ?? {};
-    stored[String(tabId)] = info;
-    // Limit entries
-    const keys = Object.keys(stored);
-    if (keys.length > MAX_SESSION_ENTRIES) {
-      for (const k of keys.slice(0, keys.length - MAX_SESSION_ENTRIES)) {
-        delete stored[k];
-      }
-    }
-    await browser.storage.session.set({ [SESSION_KEY]: stored });
-  } catch {
-    // session storage not available (e.g. Firefox MV2 fallback)
+    await browser.storage.session.set({ [tabMediaKey(tabId)]: info });
+  } catch (err) {
+    debugLog("BG", "session write failed for tabMedia", err);
   }
 }
 
@@ -92,15 +101,14 @@ async function getTabMedia(tabId: number): Promise<TabMediaInfo | null> {
   const cached = tabMediaCache.get(tabId);
   if (cached) return cached;
   try {
-    const stored: Record<string, TabMediaInfo> =
-      (await browser.storage.session.get(SESSION_KEY))[SESSION_KEY] ?? {};
-    const info = stored[String(tabId)];
+    const key = tabMediaKey(tabId);
+    const info = (await browser.storage.session.get(key))[key] as TabMediaInfo | undefined;
     if (info) {
       tabMediaCache.set(tabId, info);
       return info;
     }
-  } catch {
-    // session storage not available
+  } catch (err) {
+    debugLog("BG", "session read failed for tabMedia", err);
   }
   return null;
 }
@@ -108,12 +116,9 @@ async function getTabMedia(tabId: number): Promise<TabMediaInfo | null> {
 async function removeTabMedia(tabId: number) {
   tabMediaCache.delete(tabId);
   try {
-    const stored: Record<string, TabMediaInfo> =
-      (await browser.storage.session.get(SESSION_KEY))[SESSION_KEY] ?? {};
-    delete stored[String(tabId)];
-    await browser.storage.session.set({ [SESSION_KEY]: stored });
-  } catch {
-    // session storage not available
+    await browser.storage.session.remove(tabMediaKey(tabId));
+  } catch (err) {
+    debugLog("BG", "session remove failed for tabMedia", err);
   }
 }
 
@@ -443,7 +448,10 @@ async function trySonarrShowMetadata(info: TabMediaInfo): Promise<boolean> {
   return true;
 }
 
-async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
+async function fetchTabMetadata(tabId: number, info: TabMediaInfo, generation: number) {
+  // True when a newer CHECK has run for this tab — all external effects
+  // (persist, icon, messages) must be skipped so we don't clobber its state.
+  const isStale = () => tabCheckGeneration.get(tabId) !== generation;
   try {
     const options = await loadOptions();
     debugLog("BG", `META: enriching ${info.mediaType} ${info.source}:${info.id} (owned:${info.owned})`);
@@ -491,7 +499,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
 
     // Re-check library ownership by resolved TMDB ID
     // Catches items missed by title matching but present in the index by TMDB ID
-    if (!info.owned && tmdbId) {
+    if (!info.owned && tmdbId && !isStale()) {
       const index = await loadIndex();
       if (index) {
         const map = info.mediaType === "movie" ? index.movies.byTmdbId : index.shows.byTmdbId;
@@ -499,6 +507,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
         if (itemIdx !== undefined) {
           const item = index.items[itemIdx];
           const servers = await loadServers();
+          if (isStale()) return; // re-check: loadIndex/loadServers awaited above
           const plex = resolveItemPlex(item, servers);
           info.owned = true;
           info.plexUrl = plex?.url;
@@ -534,7 +543,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
           info.posterUrl = tvdbDetails.image ?? undefined;
           info.year = tvdbDetails.year ? parseInt(tvdbDetails.year, 10) : undefined;
           info.showStatus = tvdbDetails.status?.name;
-          persistTabMedia(tabId, info);
+          if (!isStale()) persistTabMedia(tabId, info);
         }
         return;
       }
@@ -617,6 +626,10 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo) {
       } catch { /* TMDB supplement non-critical */ }
     }
 
+    if (isStale()) {
+      debugLog("BG", `META: discarding stale enrichment for ${info.source}:${info.id} (tab ${tabId} moved on)`);
+      return;
+    }
     persistTabMedia(tabId, info);
     sendRatingsToTab(tabId, info);
   } catch (err) {
@@ -844,8 +857,11 @@ export default defineBackground(() => {
                 resolution: result.resolution,
               };
               persistTabMedia(tabId, mediaInfo);
-              // Fire-and-forget metadata fetch
-              fetchTabMetadata(tabId, mediaInfo).catch((err) =>
+              // Fire-and-forget metadata fetch. Bumping the generation first
+              // invalidates any still-running enrichment from a previous CHECK
+              // on this tab (SPA navigation) so it can't overwrite this one.
+              const generation = bumpTabGeneration(tabId);
+              fetchTabMetadata(tabId, mediaInfo, generation).catch((err) =>
                 errorLog("BG", "metadata fetch failed", err),
               );
             }
@@ -1507,6 +1523,7 @@ export default defineBackground(() => {
   // Clean up stale tab media cache entries
   browser.tabs.onRemoved.addListener((tabId) => {
     removeTabMedia(tabId);
+    tabCheckGeneration.delete(tabId);
   });
 
   // Invalidate cached servers when storage changes (e.g. options page saves)
