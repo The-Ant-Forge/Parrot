@@ -12,6 +12,11 @@ export interface TVDBEpisode {
 // In-memory bearer token (lives for the service worker's lifetime)
 let cachedToken: string | null = null;
 
+/** Reset the token memo — used by tests. */
+export function _resetTokenCache(): void {
+  cachedToken = null;
+}
+
 async function login(apiKey: string): Promise<string> {
   const res = await fetchWithTimeout(`${BASE_URL}/login`, {
     method: "POST",

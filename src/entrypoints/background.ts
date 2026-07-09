@@ -2,7 +2,7 @@ import { getServers, saveServers, getLibraryIndex, saveLibraryIndex, getOptions,
 import { testConnection, buildLibraryIndex, fetchShowEpisodes, formatResolution } from "../api/plex";
 import { getMovie, getCollection, getTvShow, getTvSeason, findByTvdbId, findByImdbId, searchMovie, searchTv } from "../api/tmdb";
 import { getSeriesEpisodes, getSeriesDetails, validateTvdbKey } from "../api/tvdb";
-import { getTvMazeExternals, lookupByImdb, lookupByTvdb } from "../api/tvmaze";
+import { lookupByImdb } from "../api/tvmaze";
 import { getImdbRating, validateOmdbKey } from "../api/omdb";
 import { fetchServerConnections, pickRemoteUrl } from "../api/plex-tv";
 import { getRadarrMovie, getRadarrMovieByImdb, getRadarrCollection, searchRadarrMovie } from "../api/radarr";
@@ -12,9 +12,11 @@ import type { SonarrShow } from "../api/sonarr";
 import { fetchWithTimeout } from "../common/fetch-timeout";
 import { debugLog, errorLog } from "../common/logger";
 import { isNewerVersion, maybeCheckForUpdate, checkForUpdate } from "./bg/version";
-import { resolveItemPlex, lookupItem } from "./bg/library";
+import { resolveItemPlex } from "./bg/library";
 import { applyRadarrMetadata, applySonarrMetadata, hasAnyRatings } from "./bg/metadata";
 import { computeSeasonGaps, episodeKey, type GapEpisode } from "./bg/season-gaps";
+import { handleCheck } from "./bg/check";
+import { evaluateCollection, type CollectionPart } from "./bg/collection";
 import type {
   Message,
   CheckResponse,
@@ -40,7 +42,6 @@ import type {
   TabMediaInfo,
   TabMediaResponse,
   LibraryIndex,
-  OwnedItem,
   PlexServerConfig,
 } from "../common/types";
 import { INDEX_SCHEMA_VERSION } from "../common/types";
@@ -213,162 +214,6 @@ function ensurePlexKeyMap(index: LibraryIndex) {
   ]);
 }
 
-
-async function handleCheck(
-  message: Extract<Message, { type: "CHECK" }>,
-  index: LibraryIndex,
-): Promise<CheckResponse> {
-  let item: OwnedItem | undefined;
-
-  // TVMaze: resolve to TVDB/IMDb via TVMaze API, then look up
-  if (message.source === "tvmaze") {
-    try {
-      debugLog("BG", `CHECK: calling TVMaze externals for tvmaze:${message.id}`);
-      const ext = await getTvMazeExternals(message.id);
-      debugLog("BG", `CHECK: TVMaze resolved → tvdb:${ext.tvdbId ?? "none"} imdb:${ext.imdbId ?? "none"}`);
-      if (ext.tvdbId) {
-        item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
-        if (item) debugLog("BG", `CHECK: found via TVMaze→TVDB:${ext.tvdbId}`);
-      }
-      if (!item && ext.imdbId) {
-        item = lookupItem(index, "show", "imdb", ext.imdbId);
-        if (item) debugLog("BG", `CHECK: found via TVMaze→IMDb:${ext.imdbId}`);
-      }
-      // TMDB cross-reference fallback
-      if (!item && ext.imdbId) {
-        try {
-          const options = await loadOptions();
-          if (options.tmdbApiKey) {
-            debugLog("BG", `CHECK: calling TMDB findByImdbId for ${ext.imdbId}`);
-            const tmdbId = await findByImdbId(options.tmdbApiKey, ext.imdbId);
-            if (tmdbId) {
-              item = lookupItem(index, "show", "tmdb", String(tmdbId));
-              if (item) debugLog("BG", `CHECK: found via TVMaze→TMDB:${tmdbId}`);
-            }
-          }
-        } catch (err) {
-          debugLog("BG", "CHECK: TMDB cross-reference via TVMaze failed", err);
-        }
-      }
-    } catch (err) {
-      debugLog("BG", "CHECK: TVMaze API failed", err);
-    }
-  } else {
-    item = await lookupWithCrossRefs(index, message.mediaType, message.source, message.id);
-  }
-
-  // IMDb ambiguity: an IMDb ID can refer to a movie OR a show. If the
-  // requested type missed (including all its cross-refs), retry with the
-  // opposite type so a single CHECK can resolve either. resolvedMediaType
-  // tells the caller which type actually matched, so it can pick the right
-  // gap-detection path without needing to fire a second CHECK.
-  let resolvedMediaType: "movie" | "show" | undefined;
-  if (!item && message.source === "imdb") {
-    const opposite: "movie" | "show" = message.mediaType === "movie" ? "show" : "movie";
-    debugLog("BG", `CHECK: ${message.mediaType} miss, retrying as ${opposite} for imdb:${message.id}`);
-    item = await lookupWithCrossRefs(index, opposite, "imdb", message.id);
-    if (item) resolvedMediaType = opposite;
-  }
-
-  if (!item) return { owned: false };
-
-  const servers = await loadServers();
-  const plex = resolveItemPlex(item, servers);
-
-  return {
-    owned: true,
-    item,
-    plexUrl: plex?.url,
-    plexServerName: plex?.serverName,
-    resolution: item.resolution ? formatResolution(item.resolution) : undefined,
-    resolvedMediaType,
-  };
-}
-
-/**
- * Direct index lookup for a single (mediaType, source, id) tuple, with all
- * the cross-reference fallbacks (TVMaze bridge, Radarr proxy, TMDB API) used
- * when the direct lookup misses. Returns the OwnedItem or undefined.
- *
- * Called twice by handleCheck for IMDb sources — once with the requested
- * mediaType, once with the opposite — so it must be self-contained and
- * idempotent.
- */
-async function lookupWithCrossRefs(
-  index: LibraryIndex,
-  mediaType: "movie" | "show",
-  source: "tmdb" | "imdb" | "tvdb" | "title",
-  id: string,
-): Promise<OwnedItem | undefined> {
-  debugLog("BG", `CHECK: direct index lookup ${mediaType} ${source}:${id}`);
-  let item = lookupItem(index, mediaType, source, id);
-  if (item) return item;
-  if (source === "tmdb" || source === "title") return undefined;
-
-  // TVMaze bridge (free, no key): IMDb ↔ TVDB for shows
-  if (mediaType === "show") {
-    try {
-      debugLog("BG", `CHECK: calling TVMaze cross-ref for ${source}:${id}`);
-      const ext = source === "imdb"
-        ? await lookupByImdb(id)
-        : source === "tvdb"
-          ? await lookupByTvdb(id)
-          : null;
-      if (ext) {
-        debugLog("BG", `CHECK: TVMaze resolved → tvdb:${ext.tvdbId ?? "none"} imdb:${ext.imdbId ?? "none"}`);
-        if (ext.tvdbId && source !== "tvdb") {
-          item = lookupItem(index, "show", "tvdb", String(ext.tvdbId));
-          if (item) { debugLog("BG", `CHECK: found via TVMaze cross-ref → TVDB:${ext.tvdbId}`); return item; }
-        }
-        if (ext.imdbId && source !== "imdb") {
-          item = lookupItem(index, "show", "imdb", ext.imdbId);
-          if (item) { debugLog("BG", `CHECK: found via TVMaze cross-ref → IMDb:${ext.imdbId}`); return item; }
-        }
-      }
-    } catch (err) {
-      debugLog("BG", "CHECK: TVMaze cross-reference failed", err);
-    }
-  }
-
-  // Radarr proxy cross-reference for movies (free, no key)
-  if (mediaType === "movie" && source === "imdb") {
-    try {
-      const options = await loadOptions();
-      if (options.useCommunityProxies) {
-        debugLog("BG", `CHECK: calling Radarr proxy for imdb:${id}`);
-        const radarrMovie = await getRadarrMovieByImdb(id);
-        if (radarrMovie?.TmdbId) {
-          item = lookupItem(index, "movie", "tmdb", String(radarrMovie.TmdbId));
-          if (item) { debugLog("BG", `CHECK: found via Radarr cross-ref → TMDB:${radarrMovie.TmdbId}`); return item; }
-        }
-      }
-    } catch (err) {
-      debugLog("BG", "CHECK: Radarr cross-reference failed", err);
-    }
-  }
-
-  // TMDB API fallback (requires user API key)
-  try {
-    const options = await loadOptions();
-    if (options.tmdbApiKey) {
-      debugLog("BG", `CHECK: calling TMDB ${source === "imdb" ? "findByImdbId" : "findByTvdbId"} for ${id}`);
-      // TMDB movie and TV IDs are separate numeric namespaces — constrain the
-      // /find result to the mediaType we're resolving for, or a movie's TMDB
-      // id could be looked up in shows.byTmdbId (false OWNED on collision).
-      const tmdbId = source === "imdb"
-        ? await findByImdbId(options.tmdbApiKey, id, mediaType)
-        : await findByTvdbId(options.tmdbApiKey, id);
-      if (tmdbId) {
-        item = lookupItem(index, mediaType, "tmdb", String(tmdbId));
-        if (item) { debugLog("BG", `CHECK: found via TMDB cross-ref → TMDB:${tmdbId}`); return item; }
-      }
-    }
-  } catch (err) {
-    debugLog("BG", "CHECK: TMDB cross-reference failed", err);
-  }
-
-  return undefined;
-}
 
 type IconState = "owned" | "not-owned" | "inactive";
 
@@ -845,7 +690,7 @@ export default defineBackground(() => {
               sendResponse({ owned: false } satisfies CheckResponse);
               break;
             }
-            const result = await handleCheck(message, index);
+            const result = await handleCheck(message, index, await loadOptions(), await loadServers());
             debugLog("BG",
               `CHECK: ${message.mediaType} ${message.source}:${message.id} → ${result.owned ? "OWNED" : "not owned"}`,
               result.owned ? result.item : "",
@@ -1315,7 +1160,7 @@ export default defineBackground(() => {
 
               // Resolve collection ID + parts list (Radarr proxy first, TMDB fallback)
               let collectionName: string | undefined;
-              let collParts: { tmdbId: number; title: string; year?: number; releaseDate?: string }[] | null = null;
+              let collParts: CollectionPart[] | null = null;
 
               // --- Radarr proxy path (free, no key) ---
               if (options.useCommunityProxies) {
@@ -1367,70 +1212,20 @@ export default defineBackground(() => {
                 break;
               }
 
-              // Filter parts based on options
-              const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
-              const todayYear = parseInt(today.slice(0, 4), 10);
-              let parts = collParts;
-              if (options.excludeFuture) {
-                parts = parts.filter((m) => {
-                  if (m.releaseDate) return m.releaseDate <= today;
-                  if (m.year) return m.year <= todayYear;
-                  return true; // include if no date info
-                });
-              }
-
-              // Check size filters
-              if (parts.length < options.minCollectionSize) {
-                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
-                break;
-              }
-
-              // Check ownership against library index (two-step lookup)
-              const index = await loadIndex();
-              const servers = await loadServers();
-              const ownedMovies: { title: string; year?: number; plexUrl?: string }[] = [];
-              const missingMovies: { title: string; releaseDate?: string; tmdbId: number }[] = [];
-
-              for (const part of parts) {
-                const tmdbId = String(part.tmdbId);
-                const itemIdx = index?.movies.byTmdbId[tmdbId];
-
-                if (itemIdx !== undefined && index) {
-                  const ownedItem = index.items[itemIdx];
-                  const plexResult = resolveItemPlex(ownedItem, servers);
-                  ownedMovies.push({
-                    title: part.title,
-                    year: part.year,
-                    plexUrl: plexResult?.url,
-                  });
-                } else {
-                  missingMovies.push({
-                    title: part.title,
-                    releaseDate: part.releaseDate,
-                    tmdbId: part.tmdbId,
-                  });
-                }
-              }
-
-              // Apply minOwned filter
-              if (ownedMovies.length < options.minOwned) {
-                sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
-                break;
-              }
-
-              debugLog("BG",
-                `COLLECTION: ${collectionName} — ${ownedMovies.length}/${parts.length} owned, ${missingMovies.length} missing`,
+              const result = evaluateCollection(
+                collectionName,
+                collParts,
+                await loadIndex(),
+                await loadServers(),
+                options,
               );
 
-              sendResponse({
-                hasCollection: true,
-                collection: {
-                  name: collectionName,
-                  totalMovies: parts.length,
-                  ownedMovies,
-                  missingMovies,
-                },
-              } satisfies CollectionCheckResponse);
+              if (result.collection) {
+                debugLog("BG",
+                  `COLLECTION: ${collectionName} — ${result.collection.ownedMovies.length}/${result.collection.totalMovies} owned, ${result.collection.missingMovies.length} missing`,
+                );
+              }
+              sendResponse(result);
             } catch (err) {
               errorLog("BG", "collection check failed", err);
               sendResponse({ hasCollection: false } satisfies CollectionCheckResponse);
