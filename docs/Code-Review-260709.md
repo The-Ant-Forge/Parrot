@@ -1,5 +1,12 @@
 # Code Review — 2026-07-09
 
+> **Implementation status (v1.24.0):** findings **1–7, 9–13, 15, 16, 18, 20–22, 24
+> implemented** across five commits (`31a2ce1`, `eb2166e`, `0cc10f8`, `fd4bf28` + release docs).
+> **Deferred to a dedicated refactor session:** 8 (title-retry convergence — largely
+> neutralized by finding 1's generation guard in the meantime), 14 (season-gap dedup +
+> `excludeFuture` boundary decision), 17 (handler test extraction), 19 (consolidations),
+> 23 (type-aware ESLint). Deferred set is tracked in TODO.md.
+
 > **Status: FINAL — two-reviewer merge.** Internal full-checklist pass (23 findings)
 > merged with an independent Codex (GPT-5.3) second-opinion pass (10 findings).
 > Codex independently confirmed findings **1, 7, 8, 16, 17, 22** — marked

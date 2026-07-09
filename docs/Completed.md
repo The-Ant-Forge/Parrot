@@ -1121,3 +1121,34 @@ Follow-up to v1.22. The IMDb popup-vs-badge race fix in v1.22 only patched `imdb
 ### Test Suite
 - No new tests this cycle — the changes are behavior-preserving simplifications of code paths covered by the existing 302 tests (the underlying dual-lookup behavior is exercised via `lookupItem` tests and the v1.22 integration paths).
 - Total still 302 tests across 20 test files.
+
+---
+
+## v1.24 — Code-Review Hardening (Code-Review-260709, 19 of 24 findings)
+
+Implementation of the two-reviewer consolidation review ([`Code-Review-260709.md`](Code-Review-260709.md)). Five focused commits covering every Tier 1/2 finding; the interlocking structural items (8, 14, 17, 19, 23) are deferred to a dedicated refactor session.
+
+### Bug Fixes
+- **SPA-navigation stale-write race (finding 1, both reviewers' #1)** — `fetchTabMetadata` is now generation-guarded: each CHECK bumps a per-tab counter, and the enrichment it spawned re-verifies before every external effect (tabMedia persist, icon flip, `OWNERSHIP_UPDATED`, `RATINGS_READY`). Slow enrichment from the previous page can no longer overwrite the new page's popup data or restyle its badge.
+- **`findByImdbId` cross-namespace confusion (2)** — the resolver now receives the known mediaType in `lookupWithCrossRefs` and `FIND_TMDB_ID`; TMDB movie/TV IDs are separate numeric namespaces, so an unconstrained `/find` could produce a false OWNED on numeric collision.
+- **Stale index after last-server delete (3)** — removing the final Plex server now clears the library index instead of leaving badges reporting OWNED.
+- **Popup setup validation (4)** — the popup no longer saves a server when the connection test failed (previously stored a broken entry under an unstable `server-{timestamp}` id).
+- **TVMaze id under false source (5)** — the TVMaze script skips the gap check when the owned item lacks TVDB/TMDB ids rather than passing the TVMaze id as `source: "tvdb"`.
+- **Hanging message senders (6)** — the background message switch gained a top-level catch and a `default:` case; a throw inside any handler (or an unknown message type) now responds with an error instead of leaving the content script's `await` hanging.
+- **Weekly shows stuck on "Complete" (9)** — `getSonarrShow` uses a tiered TTL (24 h for continuing shows, 7 days for ended); the 7-day proxy cache no longer defeats the 24 h episode-gap TTL. Refetch failures fall back to the day-old entry.
+
+### Code Improvements
+- **Timeouts everywhere (7)** — new shared `fetchWithTimeout` helper applied to TMDB, TVDB (login + fetch + 401-retry), TVMaze (sits in the CHECK hot path), OMDb key validation, the GitHub update check, and the inline TMDB key validator. Every network call now has a tuned abort timeout.
+- **Per-key cache storage (15)** — collection cache, episode-gap cache, and the tabMedia session mirror moved to per-key entries (`cc:`, `eg:`, `tm:` prefixes), eliminating read-modify-write races between tabs.
+- **Request coalescing (24)** — Radarr/Sonarr cache-miss fetches share one in-flight promise per key; cache writes are awaited.
+- **Index schema versioning (10)** — `LibraryIndex.schemaVersion` triggers an immediate background rebuild when the index-building code changes (previously stale normalization could mis-match for up to 7 days). `onInstalled(update)` now clears ALL derived caches via the new `clearMetadataCaches` (proxy + collection + episode-gap + legacy blobs).
+- **Honest community-API types (16)** — `SonarrShow.episodes`/`.status`, `PlexResource.connections`, and Radarr/Sonarr image fields are now optional with guarded consumption; a malformed proxy entry can no longer kill an entire enrichment.
+- **Consistency trivia (20, 21)** — popup rating average now uses all 6 normalized sources (matches the badge); RT logs under one tag; `minOwned` empty-input fallback matches the documented default; TVMaze dropped from movie-only page scanners; `cachedOpts` invalidated when options sync in from another device.
+- **Dead code removed (18)** — `clearProxyCache`, `clearEpisodeGapCache` (superseded), `isRadarrCircuitOpen`, `isSonarrCircuitOpen`.
+
+### Documentation
+- **Truth-up (11, 12, 13, 22)** — removed CLAUDE.md's dead `agents.md` reference; spec's plexFetch timeout corrected to 30 s, Message union completed (4 missing types), host list completed (plex.tv, api.github.com), and the `GET /` CORS dependency documented as deliberate; wiki + spec + options UI now say custom sites are stored but **not yet active** (they were described as a working feature, including a permission prompt that never existed).
+
+### Test Suite
+- 4 new tests for the tiered Sonarr TTL (fresh hit, ended-show stale hit, continuing-show refetch, refetch-failure fallback)
+- Total: 306 tests across 20 test files (up from 302)
