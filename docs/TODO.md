@@ -24,14 +24,6 @@ Forward-looking roadmap. See [`Completed.md`](Completed.md) for everything alrea
 - [ ] Add unit tests for `gap-checker.ts` (needs browser.runtime mocking)
 - [ ] Add unit tests for `url-observer.ts` (needs MutationObserver mocking)
 
-### Deferred from Code-Review-260709 (one refactor session, in this order)
-
-- [ ] **#23** Enable type-checked ESLint (`recommendedTypeChecked` + `no-floating-promises`) first — it mechanically exposes the fire-and-forget class and guides the refactor. Also widen lint globs to `scripts/` + root configs, and fix the pre-existing `tsc --noEmit` errors it will surface (loadIndex `never` narrowing, `seasonGaps` use-before-assign)
-- [ ] **#14** Extract shared `computeSeasonGaps()` from the three near-duplicate season-grouping blocks in `CHECK_EPISODES`; resolve the three-way `excludeFuture` aired-today boundary inconsistency deliberately while unifying
-- [ ] **#17** Extract `handleCheck`/`lookupWithCrossRefs` to `bg/check.ts` + collection filtering to pure functions; add handler tests; add the missing `tvdb.ts` client tests (401 re-login, pagination)
-- [ ] **#8** Converge remaining two-CHECK title retries (plex-app `checkViaTitle`, iPlayer/PSA/Metacritic/RT slug fallback) on a server-side dual title lookup — races already neutralized by the v1.24 generation guard, so this is consistency cleanup
-- [ ] **#19** Consolidations as their files get touched: `formatTimestamp` variants, title merge-and-fallback helper, `createProxyClient` factory
-
 ---
 
 ## Additional Sites

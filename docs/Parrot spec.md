@@ -102,9 +102,18 @@ TMDB, IMDb, TVDB, Trakt, Trakt App, and JustWatch are single-page applications. 
 parrot/
 ├── src/
 │   ├── entrypoints/
-│   │   ├── background.ts              # Library cache, API proxy, icon rendering
+│   │   ├── background.ts              # Message routing, library cache, enrichment, icon rendering
+│   │   ├── bg/
+│   │   │   ├── check.ts               # CHECK handling: index lookups + cross-ref fallbacks + dual lookups
+│   │   │   ├── collection.ts          # CHECK_COLLECTION filtering/partitioning (pure)
+│   │   │   ├── season-gaps.ts         # Shared season-gap computation for CHECK_EPISODES (pure)
+│   │   │   ├── library.ts             # Index lookups, Plex deep links
+│   │   │   ├── metadata.ts            # Radarr/Sonarr metadata + ratings application
+│   │   │   └── version.ts             # Update check against GitHub releases
 │   │   ├── tmdb.content.ts            # TMDB content script
 │   │   ├── imdb.content.ts            # IMDb content script
+│   │   ├── iplayer.content.ts         # BBC iPlayer content script (title-based)
+│   │   ├── plex-app.content.ts        # Plex app content script (plexKey lookup + link/title fallback)
 │   │   ├── tvdb.content.ts            # TVDB series content script
 │   │   ├── tvdb-movies.content.ts     # TVDB movies content script
 │   │   ├── nzbgeek.content.ts         # NZBGeek content script
@@ -145,12 +154,14 @@ parrot/
 │       ├── extractors.ts              # URL/ID extractors + DOM link scanner
 │       ├── url-observer.ts            # Debounced URL change observer for SPAs
 │       ├── normalize.ts               # Title normalization for slug-based matching
-│       ├── title-check.ts             # Title-based CHECK with year fallback
+│       ├── title-check.ts             # Title-based CHECK (slug+heading merge, server-side alt-key retry)
+│       ├── check-helpers.ts           # Shared CHECK/gap-detection content-script patterns
+│       ├── proxy-client.ts            # Community-proxy client factory (timeout, breaker, cache, coalescing)
 │       ├── circuit-breaker.ts         # Circuit breaker for community proxy resilience
 │       ├── logger.ts                  # Debug/error logging gated by settings toggle
 │       ├── dom-utils.ts               # DOM utilities (waitForElement)
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (253 tests)
+├── tests/                             # Vitest test suite (356 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -170,7 +181,7 @@ parrot/
 - Auto-refreshes stale library index on demand (configurable interval, default 7 days)
 - Resolves the right Plex server URL per request: tries the configured local URL first, falls back to the optional auto-detected `remoteUrl`, and memoizes the working URL per server for the session
 
-**Content Scripts (16 scripts)**
+**Content Scripts (17 scripts)**
 - One per supported site
 - Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker
@@ -242,7 +253,10 @@ type Message =
   | { type: "TEST_ALL_SERVERS" }
   | { type: "BUILD_INDEX" }
   | { type: "GET_STATUS" }
-  | { type: "CHECK"; mediaType: "movie"|"show"; source: "tmdb"|"imdb"|"tvdb"|"title"|"tvmaze"; id: string }
+  | { type: "CHECK"; mediaType: "movie"|"show"; source: "tmdb"|"imdb"|"tvdb"|"title"|"tvmaze"; id: string;
+      altId?: string;          // title only: alternate (slug) key tried server-side on miss
+      ambiguousType?: boolean  // title only: retry opposite mediaType on miss (→ resolvedMediaType)
+    }
   | { type: "GET_OPTIONS" }
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
   | { type: "VALIDATE_TMDB_KEY"; apiKey: string }

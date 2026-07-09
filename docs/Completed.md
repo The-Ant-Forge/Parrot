@@ -1152,3 +1152,30 @@ Implementation of the two-reviewer consolidation review ([`Code-Review-260709.md
 ### Test Suite
 - 4 new tests for the tiered Sonarr TTL (fresh hit, ended-show stale hit, continuing-show refetch, refetch-failure fallback)
 - Total: 306 tests across 20 test files (up from 302)
+
+---
+
+## v1.24.x — Deferred Refactor Session (Code-Review-260709 findings 8, 14, 17, 19, 23)
+
+The dedicated refactor session for the five interlocking structural findings deferred from the v1.24 hardening pass. Five focused commits, in dependency order (#23 → #14 → #17 → #8 → #19).
+
+### Tooling (23)
+- **Type-checked ESLint** — `recommendedTypeChecked` with `projectService`; lint now also covers `scripts/*.js` and the root configs. `no-misused-promises` allows async callbacks in argument position (deliberate MV3 event-listener pattern) but checks everything else.
+- **Logger redesign** — `debugLog`/`errorLog` are now synchronous fire-and-forget by design; they were async and accounted for ~200 of the initial 273 `no-floating-promises` hits.
+- **Floating-promise triage** — `persistTabMedia` awaited in async flows; the auto-refresh chain got a real `.catch`; the startup `setIcon` rejection is actually caught (the old sync try/catch around it caught nothing); deliberate fire-and-forgets (`checkGaps`, `checkAndBadge`, `refreshUpdateBadge`) are explicit `void`.
+- **Pre-existing tsc errors fixed** — `loadIndex` never-narrowing, `CHECK_EPISODES` definite assignment, the `"tvmaze"` source-union mismatch across 8 content scripts (now an explicit `GapSource` with a skip guard so a TVMaze id is never sent under another source), typed casts at every `res.json()` boundary, `PlexSection.type` narrowed to `"movie" | "show"`.
+
+### Deduplication & Extraction (14, 17, 19)
+- **`bg/season-gaps.ts`** — the three near-duplicate Sonarr/TVDB/TMDB season-grouping blocks in `CHECK_EPISODES` (~45 lines each) collapsed into one tested `computeSeasonGaps()`. The `excludeFuture` boundary turned out to already be consistent (the review's suspected three-way divergence was two complementary comparisons); the deliberate rule — unowned episodes airing today or undated count as future — is now documented and tested.
+- **`bg/check.ts`** — `handleCheck`/`lookupWithCrossRefs` extracted; they take index/options/servers as parameters, so tests only mock the api modules. The TVMaze-externals TMDB fallback now constrains `findByImdbId` to shows (same namespace fix as finding 2).
+- **`bg/collection.ts`** — `CHECK_COLLECTION` filtering/partitioning as pure `evaluateCollection()`; released-today movies are deliberately surfaced as gaps (unlike episodes).
+- **`common/proxy-client.ts`** — `createProxyClient(baseUrl, tag)` factory owns timeout, circuit breaker, in-flight coalescing and cache-first logic once; radarr/sonarr shrink to types + TTL policy + endpoints.
+- **`formatTimestamp`** — options-page duplicate deleted; the shared helper now shows an absolute date beyond 24 h (popup inherits).
+
+### Single-CHECK Convergence (8)
+- CHECK gained `altId` (alternate title key tried server-side on miss) and `ambiguousType` (retry opposite mediaType, reported via `resolvedMediaType`).
+- iPlayer/PSA/Metacritic/RT slug fallbacks collapsed into shared `titleCheckWithSlugFallback()`; Plex app's movie-then-show double CHECK replaced by one `ambiguousType` CHECK. No remaining site fires two CHECKs for one page state.
+
+### Test Suite
+- New: `bg-season-gaps` (11), `bg-check` (18, incl. alt-key/ambiguous-type retries), `bg-collection` (8), `api-tvdb` (10 — the only API client that had no test file; covers 401 re-login retry and 500-per-page pagination termination).
+- Total: **356 tests across 24 files** (up from 306).
