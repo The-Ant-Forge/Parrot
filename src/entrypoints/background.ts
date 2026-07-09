@@ -14,6 +14,7 @@ import { debugLog, errorLog } from "../common/logger";
 import { isNewerVersion, maybeCheckForUpdate, checkForUpdate } from "./bg/version";
 import { resolveItemPlex, lookupItem } from "./bg/library";
 import { applyRadarrMetadata, applySonarrMetadata, hasAnyRatings } from "./bg/metadata";
+import { computeSeasonGaps, episodeKey, type GapEpisode } from "./bg/season-gaps";
 import type {
   Message,
   CheckResponse,
@@ -1064,7 +1065,7 @@ export default defineBackground(() => {
               for (const outcome of await Promise.all(serverFetches)) {
                 if (!outcome) continue;
                 for (const ep of outcome.result.episodes) {
-                  ownedSet.add(`S${ep.seasonNumber}E${ep.episodeNumber}`);
+                  ownedSet.add(episodeKey(ep.seasonNumber, ep.episodeNumber));
                 }
                 if (!latestResolution && outcome.result.latestResolution) {
                   latestResolution = outcome.result.latestResolution;
@@ -1077,7 +1078,10 @@ export default defineBackground(() => {
                 break;
               }
 
-              const today = new Date().toLocaleDateString("en-CA");
+              const gapOptions = {
+                excludeSpecials: options.excludeSpecials,
+                excludeFuture: options.excludeFuture,
+              };
               // Initialized here because TS can't prove one of the three data
               // paths below always assigns (the sonarrHandled flag hides it).
               let seasonGaps: SeasonGapInfo[] = [];
@@ -1096,47 +1100,16 @@ export default defineBackground(() => {
                   const sonarrShow = await getSonarrShow(tvdbIdForSonarr);
                   if (sonarrShow?.episodes?.length) {
                     showTitle = sonarrShow.title;
-
-                    // Group episodes by season
-                    const bySeason = new Map<number, typeof sonarrShow.episodes>();
-                    for (const ep of sonarrShow.episodes) {
-                      if (options.excludeSpecials && ep.seasonNumber === 0) continue;
-                      const key = `S${ep.seasonNumber}E${ep.episodeNumber}`;
-                      if (options.excludeFuture && !ownedSet.has(key) && (!ep.airDate || ep.airDate >= today)) continue;
-                      const list = bySeason.get(ep.seasonNumber) ?? [];
-                      list.push(ep);
-                      bySeason.set(ep.seasonNumber, list);
-                    }
-
-                    seasonGaps = [];
-                    const sortedSeasons = [...bySeason.keys()].sort((a, b) => a - b);
-
-                    for (const seasonNum of sortedSeasons) {
-                      const episodes = bySeason.get(seasonNum)!;
-                      const missing: SeasonGapInfo["missing"] = [];
-                      let ownedCount = 0;
-
-                      for (const ep of episodes) {
-                        const key = `S${ep.seasonNumber}E${ep.episodeNumber}`;
-                        if (ownedSet.has(key)) {
-                          ownedCount++;
-                        } else {
-                          missing.push({
-                            number: ep.episodeNumber,
-                            name: ep.title ?? `Episode ${ep.episodeNumber}`,
-                            airDate: ep.airDate ?? undefined,
-                          });
-                        }
-                      }
-
-                      seasonGaps.push({
-                        seasonNumber: seasonNum,
-                        ownedCount,
-                        totalCount: episodes.length,
-                        missing,
-                      });
-                    }
-
+                    seasonGaps = computeSeasonGaps(
+                      sonarrShow.episodes.map((ep) => ({
+                        seasonNumber: ep.seasonNumber,
+                        episodeNumber: ep.episodeNumber,
+                        name: ep.title,
+                        airDate: ep.airDate,
+                      })),
+                      ownedSet,
+                      gapOptions,
+                    );
                     sonarrHandled = true;
                     debugLog("BG", `EPISODES: using Sonarr for tvdb:${tvdbIdForSonarr}`);
                   }
@@ -1146,48 +1119,16 @@ export default defineBackground(() => {
               if (!sonarrHandled && useTvdb) {
                 // --- TVDB path: one paginated call for all episodes ---
                 const allEpisodes = await getSeriesEpisodes(options.tvdbApiKey, message.id);
-                showTitle = ownedShow.title;
-
-                // Group episodes by season
-                const bySeason = new Map<number, typeof allEpisodes>();
-                for (const ep of allEpisodes) {
-                  if (options.excludeSpecials && ep.seasonNumber === 0) continue;
-                  const tvdbKey = `S${ep.seasonNumber}E${ep.number}`;
-                  if (options.excludeFuture && !ownedSet.has(tvdbKey) && (!ep.aired || ep.aired >= today)) continue;
-                  const list = bySeason.get(ep.seasonNumber) ?? [];
-                  list.push(ep);
-                  bySeason.set(ep.seasonNumber, list);
-                }
-
-                seasonGaps = [];
-                const sortedSeasons = [...bySeason.keys()].sort((a, b) => a - b);
-
-                for (const seasonNum of sortedSeasons) {
-                  const episodes = bySeason.get(seasonNum)!;
-                  const missing: SeasonGapInfo["missing"] = [];
-                  let ownedCount = 0;
-
-                  for (const ep of episodes) {
-                    const key = `S${ep.seasonNumber}E${ep.number}`;
-                    if (ownedSet.has(key)) {
-                      ownedCount++;
-                    } else {
-                      missing.push({
-                        number: ep.number,
-                        name: ep.name ?? `Episode ${ep.number}`,
-                        airDate: ep.aired ?? undefined,
-                      });
-                    }
-                  }
-
-                  seasonGaps.push({
-                    seasonNumber: seasonNum,
-                    ownedCount,
-                    totalCount: episodes.length,
-                    missing,
-                  });
-                }
-
+                seasonGaps = computeSeasonGaps(
+                  allEpisodes.map((ep) => ({
+                    seasonNumber: ep.seasonNumber,
+                    episodeNumber: ep.number,
+                    name: ep.name ?? undefined,
+                    airDate: ep.aired ?? undefined,
+                  })),
+                  ownedSet,
+                  gapOptions,
+                );
                 debugLog("BG", `EPISODES: using TVDB for ${message.id}`);
               } else if (!sonarrHandled) {
                 // --- TMDB path: per-season fetching ---
@@ -1209,49 +1150,25 @@ export default defineBackground(() => {
 
                 let seasons = tvShow.seasons;
                 if (options.excludeSpecials) {
+                  // Filter here too (not just in computeSeasonGaps) to skip
+                  // the per-season network fetch for specials.
                   seasons = seasons.filter((s) => s.season_number !== 0);
                 }
 
-                seasonGaps = [];
-
+                const tmdbEpisodes: GapEpisode[] = [];
                 for (const season of seasons) {
                   if (season.episode_count === 0) continue;
-
                   const tmdbSeason = await getTvSeason(options.tmdbApiKey, tmdbId, season.season_number);
-                  let episodes = tmdbSeason.episodes;
-
-                  if (options.excludeFuture) {
-                    episodes = episodes.filter((ep) => {
-                      const key = `S${season.season_number}E${ep.episode_number}`;
-                      return ownedSet.has(key) || (ep.air_date && ep.air_date < today);
+                  for (const ep of tmdbSeason.episodes) {
+                    tmdbEpisodes.push({
+                      seasonNumber: season.season_number,
+                      episodeNumber: ep.episode_number,
+                      name: ep.name,
+                      airDate: ep.air_date ?? undefined,
                     });
                   }
-
-                  if (episodes.length === 0) continue;
-
-                  const missing: SeasonGapInfo["missing"] = [];
-                  let ownedCount = 0;
-
-                  for (const ep of episodes) {
-                    const key = `S${season.season_number}E${ep.episode_number}`;
-                    if (ownedSet.has(key)) {
-                      ownedCount++;
-                    } else {
-                      missing.push({
-                        number: ep.episode_number,
-                        name: ep.name,
-                        airDate: ep.air_date ?? undefined,
-                      });
-                    }
-                  }
-
-                  seasonGaps.push({
-                    seasonNumber: season.season_number,
-                    ownedCount,
-                    totalCount: episodes.length,
-                    missing,
-                  });
                 }
+                seasonGaps = computeSeasonGaps(tmdbEpisodes, ownedSet, gapOptions);
 
                 debugLog("BG", `EPISODES: using TMDB for ${message.id}`);
               }
