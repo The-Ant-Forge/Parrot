@@ -73,15 +73,10 @@ async function checkViaTitle(badge: HTMLSpanElement, h1Text: string): Promise<vo
   const { title, year } = parseTitleFromH1(h1Text);
   const titleKey = buildTitleKey(title, year);
 
-  // Try movie first
-  let mediaType: "movie" | "show" = "movie";
-  let response = await tryTitleCheck("movie", title, year);
-
-  // If not found as movie, try show
-  if (!response.owned) {
-    mediaType = "show";
-    response = await tryTitleCheck("show", title, year);
-  }
+  // Plex titles don't reveal the media type — the background retries the
+  // opposite type server-side and reports the match via resolvedMediaType.
+  const response = await tryTitleCheck("movie", title, year, { ambiguousType: true });
+  const mediaType: "movie" | "show" = response.resolvedMediaType ?? "movie";
 
   debugLog("PlexApp", mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
   updateBadgeFromResponse(badge, response);

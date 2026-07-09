@@ -169,6 +169,57 @@ describe("handleCheck — TVMaze source", () => {
   });
 });
 
+describe("handleCheck — title alt key and ambiguous type (server-side retries)", () => {
+  function titleCheck(extra: { mediaType?: "movie" | "show"; id: string; altId?: string; ambiguousType?: boolean }) {
+    const message: Extract<Message, { type: "CHECK" }> = {
+      type: "CHECK",
+      mediaType: extra.mediaType ?? "movie",
+      source: "title",
+      id: extra.id,
+      altId: extra.altId,
+      ambiguousType: extra.ambiguousType,
+    };
+    return handleCheck(message, index, options, servers);
+  }
+
+  it("falls back to the alternate title key when the primary misses", async () => {
+    const result = await titleCheck({ id: "the copper meridian movie|2018", altId: "the copper meridian|2018" });
+    expect(result.owned).toBe(true);
+    expect(result.item?.title).toBe("The Copper Meridian");
+  });
+
+  it("prefers the primary key over the alternate", async () => {
+    const result = await titleCheck({ id: "the copper meridian", altId: "some other key" });
+    expect(result.owned).toBe(true);
+  });
+
+  it("retries the opposite media type only when ambiguousType is set", async () => {
+    const plain = await titleCheck({ mediaType: "movie", id: "harbor of glass|2020" });
+    expect(plain).toEqual({ owned: false });
+
+    const ambiguous = await titleCheck({ mediaType: "movie", id: "harbor of glass|2020", ambiguousType: true });
+    expect(ambiguous.owned).toBe(true);
+    expect(ambiguous.item?.title).toBe("Harbor of Glass");
+    expect(ambiguous.resolvedMediaType).toBe("show");
+  });
+
+  it("combines the opposite type with the alternate key", async () => {
+    const result = await titleCheck({
+      mediaType: "movie",
+      id: "harbor of glass tv|2020",
+      altId: "harbor of glass|2020",
+      ambiguousType: true,
+    });
+    expect(result.owned).toBe(true);
+    expect(result.resolvedMediaType).toBe("show");
+  });
+
+  it("returns not-owned when both keys miss both types", async () => {
+    const result = await titleCheck({ id: "unknown|2001", altId: "also unknown", ambiguousType: true });
+    expect(result).toEqual({ owned: false });
+  });
+});
+
 describe("lookupWithCrossRefs", () => {
   it("prefers the direct index hit over any cross-ref", async () => {
     const item = await lookupWithCrossRefs(index, options, "show", "tvdb", "555");

@@ -4,8 +4,7 @@ import { waitForElement } from "../common/dom-utils";
 import { extractIplayerFromUrl } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
-import { parseSlug, parseTitleFromH1, buildTitleKey } from "../common/normalize";
-import { tryTitleCheck } from "../common/title-check";
+import { titleCheckWithSlugFallback } from "../common/title-check";
 
 async function checkAndBadge() {
   removeBadge();
@@ -24,27 +23,9 @@ async function checkAndBadge() {
   const badge = injectBadge(anchor);
 
   try {
-    // Parse both sources and merge — take the richest info from each
-    const slug = parseSlug(info.slug);
-    const dom = titleText ? parseTitleFromH1(titleText) : undefined;
-
-    // Prefer DOM title (better formatted), fall back to slug
-    const title = dom?.title ?? slug.title;
-    // Take year from whichever has it (DOM is more authoritative)
-    const year = dom?.year ?? slug.year;
-
-    debugLog("iPlayer", "merged →", title, year ?? "no year",
-      `(slug: ${slug.title}/${slug.year ?? "none"}, dom: ${dom?.title ?? "none"}/${dom?.year ?? "none"})`);
-
-    let response = await tryTitleCheck(info.mediaType, title, year);
-
-    // If merged lookup missed and slug has a different title, try slug as fallback
-    if (!response.owned && slug.title !== title) {
-      debugLog("iPlayer", "fallback → slug title:", slug.title, slug.year ?? "no year");
-      response = await tryTitleCheck(info.mediaType, slug.title, slug.year);
-    }
-
-    const titleKey = buildTitleKey(title, year);
+    const { response, titleKey } = await titleCheckWithSlugFallback(
+      "iPlayer", info.mediaType, info.slug, titleText,
+    );
     debugLog("iPlayer", info.mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 

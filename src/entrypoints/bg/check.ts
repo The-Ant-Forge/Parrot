@@ -63,18 +63,22 @@ export async function handleCheck(
     }
   } else {
     item = await lookupWithCrossRefs(index, options, message.mediaType, message.source, message.id);
+    if (!item) item = lookupAltTitleKey(message, index, message.mediaType);
   }
 
-  // IMDb ambiguity: an IMDb ID can refer to a movie OR a show. If the
-  // requested type missed (including all its cross-refs), retry with the
-  // opposite type so a single CHECK can resolve either. resolvedMediaType
-  // tells the caller which type actually matched, so it can pick the right
-  // gap-detection path without needing to fire a second CHECK.
+  // Type ambiguity: an IMDb ID can refer to a movie OR a show, and title
+  // checks from pages that don't reveal the type (Plex app) send
+  // ambiguousType. If the requested type missed (including all its
+  // cross-refs), retry with the opposite type so a single CHECK can resolve
+  // either. resolvedMediaType tells the caller which type actually matched,
+  // so it can pick the right gap-detection path without needing to fire a
+  // second CHECK (which would race this one's async enrichment).
   let resolvedMediaType: "movie" | "show" | undefined;
-  if (!item && message.source === "imdb") {
+  if (!item && (message.source === "imdb" || (message.source === "title" && message.ambiguousType))) {
     const opposite: "movie" | "show" = message.mediaType === "movie" ? "show" : "movie";
-    debugLog("BG", `CHECK: ${message.mediaType} miss, retrying as ${opposite} for imdb:${message.id}`);
-    item = await lookupWithCrossRefs(index, options, opposite, "imdb", message.id);
+    debugLog("BG", `CHECK: ${message.mediaType} miss, retrying as ${opposite} for ${message.source}:${message.id}`);
+    item = await lookupWithCrossRefs(index, options, opposite, message.source, message.id);
+    if (!item) item = lookupAltTitleKey(message, index, opposite);
     if (item) resolvedMediaType = opposite;
   }
 
@@ -90,6 +94,22 @@ export async function handleCheck(
     resolution: item.resolution ? formatResolution(item.resolution) : undefined,
     resolvedMediaType,
   };
+}
+
+/**
+ * Server-side fallback for the alternate (slug-derived) title key, so sites
+ * that parse both a heading and a URL slug stay single-CHECK.
+ */
+function lookupAltTitleKey(
+  message: Extract<Message, { type: "CHECK" }>,
+  index: LibraryIndex,
+  mediaType: "movie" | "show",
+): OwnedItem | undefined {
+  if (message.source !== "title" || !message.altId || message.altId === message.id) {
+    return undefined;
+  }
+  debugLog("BG", `CHECK: title miss, retrying alt key ${mediaType} title:${message.altId}`);
+  return lookupItem(index, mediaType, "title", message.altId);
 }
 
 /**

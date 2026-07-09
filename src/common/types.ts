@@ -108,6 +108,17 @@ export type Message =
       mediaType: "movie" | "show";
       source: "tmdb" | "imdb" | "tvdb" | "title" | "tvmaze";
       id: string;
+      /**
+       * Title source only: alternate title key (e.g. slug-derived) tried
+       * server-side when the primary key misses. Keeps sites single-CHECK —
+       * a second CHECK would race the first one's async enrichment.
+       */
+      altId?: string;
+      /**
+       * Title source only: the mediaType is a guess (e.g. Plex app pages);
+       * retry the opposite type on miss and report it via resolvedMediaType.
+       */
+      ambiguousType?: boolean;
     }
   | { type: "GET_OPTIONS" }
   | { type: "SAVE_OPTIONS"; options: ParrotOptions }
@@ -150,10 +161,11 @@ export interface CheckResponse {
   plexServerName?: string;
   resolution?: string;
   /**
-   * For IMDb sources where the requested mediaType missed but the opposite
-   * type matched, this tells the caller which type actually owned the item
-   * so it can pick the right gap-detection path. Undefined when the requested
-   * type matched or nothing matched.
+   * For IMDb sources (and ambiguousType title checks) where the requested
+   * mediaType missed but the opposite type matched, this tells the caller
+   * which type actually owned the item so it can pick the right
+   * gap-detection path. Undefined when the requested type matched or
+   * nothing matched.
    */
   resolvedMediaType?: "movie" | "show";
 }

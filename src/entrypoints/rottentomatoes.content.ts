@@ -3,8 +3,7 @@ import { checkWithImdbFallback, setupOwnershipListener } from "../common/check-h
 import { extractRtMediaType, findExternalIdFromJsonLd } from "../common/extractors";
 import { checkGaps } from "../common/gap-checker";
 import { debugLog, errorLog } from "../common/logger";
-import { parseSlug, parseTitleFromH1, buildTitleKey } from "../common/normalize";
-import { tryTitleCheck } from "../common/title-check";
+import { titleCheckWithSlugFallback } from "../common/title-check";
 import type { CheckResponse } from "../common/types";
 
 function extractSlug(): string | null {
@@ -67,24 +66,10 @@ async function checkAndBadge() {
   debugLog("RT", "strategy 2 (slug) →", rawSlug ?? "no slug");
   if (!rawSlug) return;
 
-  const slug = parseSlug(rawSlug);
-  const h1 = h1Text ? parseTitleFromH1(h1Text) : undefined;
-  const title = h1?.title ?? slug.title;
-  const year = h1?.year ?? slug.year;
-  const titleKey = buildTitleKey(title, year);
-
-  debugLog("RT", "merged →", title, year ?? "no year",
-    `(slug: ${slug.title}/${slug.year ?? "none"}, h1: ${h1?.title ?? "none"}/${h1?.year ?? "none"})`);
-
   try {
-    let response = await tryTitleCheck(mediaType, title, year);
-
-    // If merged lookup missed and slug has a different title, try slug as fallback
-    if (!response.owned && slug.title !== title) {
-      debugLog("RT", "fallback → slug title:", slug.title, slug.year ?? "no year");
-      response = await tryTitleCheck(mediaType, slug.title, slug.year);
-    }
-
+    const { response, titleKey } = await titleCheckWithSlugFallback(
+      "RT", mediaType, rawSlug, h1Text,
+    );
     debugLog("RT", mediaType, "title:" + titleKey, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
