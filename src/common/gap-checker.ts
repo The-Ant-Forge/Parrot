@@ -6,9 +6,17 @@ import { createPanelContainer, createPanelRow } from "./panel-utils";
 import { getOptions } from "./storage";
 import type { CheckResponse, CollectionCheckResponse, EpisodeGapResponse, FindTmdbIdResponse } from "./types";
 
+/**
+ * Sources a gap check can start from. "tvmaze" is accepted so link-scanning
+ * sites can pass their scan result straight through, but it can't be resolved
+ * to a TMDB/TVDB id here — those checks fall back to the enriched OwnedItem
+ * ids or skip (a TVMaze id must never be sent as another source's id).
+ */
+export type GapSource = "tmdb" | "imdb" | "tvdb" | "title" | "tvmaze";
+
 interface GapCheckParams {
   mediaType: "movie" | "show";
-  source: "tmdb" | "imdb" | "tvdb" | "title";
+  source: GapSource;
   id: string;
   response: CheckResponse;
 }
@@ -25,7 +33,7 @@ export async function checkGaps(params: GapCheckParams): Promise<void> {
 }
 
 async function resolveTmdbMovieId(
-  source: string,
+  source: GapSource,
   id: string,
   response: CheckResponse,
 ): Promise<string | null> {
@@ -56,7 +64,7 @@ async function resolveTmdbMovieId(
 }
 
 async function checkMovieGaps(
-  source: string,
+  source: GapSource,
   id: string,
   response: CheckResponse,
   showCompletePanels: boolean,
@@ -95,7 +103,7 @@ async function checkMovieGaps(
 }
 
 async function checkShowGaps(
-  source: string,
+  source: GapSource,
   id: string,
   response: CheckResponse,
   showCompletePanels: boolean,
@@ -119,6 +127,11 @@ async function checkShowGaps(
       } else if (response.item?.tmdbId) {
         episodeSource = "tmdb";
         episodeId = String(response.item.tmdbId);
+      } else if (source === "tvmaze") {
+        // A TVMaze id can't be resolved to TMDB/TVDB and must never be sent
+        // as another source's id (numeric collision → wrong show's gaps).
+        debugLog("GapChecker", `cannot resolve episode source for tvmaze:${id} — no external IDs`);
+        return;
       } else {
         // OwnedItem lacks external IDs — resolve via TMDB search
         try {

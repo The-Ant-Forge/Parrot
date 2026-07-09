@@ -8,7 +8,7 @@ beforeEach(() => {
 
 describe("showFeedback", () => {
   it("sets text, class, and unhides element", () => {
-    const el = document.createElement("div") as HTMLDivElement;
+    const el = document.createElement("div");
     el.hidden = true;
     showFeedback(el, "Saved!", "success");
     expect(el.textContent).toBe("Saved!");
@@ -17,13 +17,13 @@ describe("showFeedback", () => {
   });
 
   it("applies error class", () => {
-    const el = document.createElement("div") as HTMLDivElement;
+    const el = document.createElement("div");
     showFeedback(el, "Failed", "error");
     expect(el.className).toBe("feedback error");
   });
 
   it("applies info class", () => {
-    const el = document.createElement("div") as HTMLDivElement;
+    const el = document.createElement("div");
     showFeedback(el, "Note", "info");
     expect(el.className).toBe("feedback info");
   });
@@ -31,7 +31,7 @@ describe("showFeedback", () => {
 
 describe("hideFeedback", () => {
   it("sets hidden to true", () => {
-    const el = document.createElement("div") as HTMLDivElement;
+    const el = document.createElement("div");
     el.hidden = false;
     hideFeedback(el);
     expect(el.hidden).toBe(true);

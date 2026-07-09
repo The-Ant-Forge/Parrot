@@ -61,14 +61,14 @@ async function plexFetch(config: PlexConnConfig, path: string): Promise<Response
   if (config.serverUrl && !candidates.includes(config.serverUrl)) candidates.push(config.serverUrl);
   if (config.remoteUrl && !candidates.includes(config.remoteUrl)) candidates.push(config.remoteUrl);
 
-  let lastError: unknown;
+  let lastError: Error | undefined;
   for (const url of candidates) {
     try {
       const res = await fetchAttempt(url, path, config.token);
       if (memoKey) lastWorkingUrl.set(memoKey, url);
       return res;
     } catch (err) {
-      lastError = err;
+      lastError = err instanceof Error ? err : new Error(String(err));
       debugLog("Plex", `attempt failed for ${url}${path}:`, err);
       // Drop a stale memo so the next candidate gets tried fresh
       if (memoKey && lastWorkingUrl.get(memoKey) === url) lastWorkingUrl.delete(memoKey);
@@ -120,7 +120,7 @@ export async function testConnection(
       }
       return { success: false, error: `Server returned ${res.status}` };
     }
-    const data = await res.json();
+    const data = (await res.json()) as { MediaContainer?: { Directory?: unknown[] } };
     const sections = data.MediaContainer?.Directory ?? [];
 
     // Fetch machineIdentifier and friendlyName from server identity
@@ -129,7 +129,9 @@ export async function testConnection(
     try {
       const idRes = await plexFetch(config, "/");
       if (idRes.ok) {
-        const idData = await idRes.json();
+        const idData = (await idRes.json()) as {
+          MediaContainer?: { machineIdentifier?: string; friendlyName?: string };
+        };
         machineIdentifier = idData.MediaContainer?.machineIdentifier;
         friendlyName = idData.MediaContainer?.friendlyName;
       }
@@ -148,11 +150,13 @@ export async function fetchLibrarySections(
 ): Promise<PlexSection[]> {
   const res = await plexFetch(config, "/library/sections");
   if (!res.ok) throw new Error(`Plex API error: ${res.status}`);
-  const data = await res.json();
-  const dirs: Array<{ key: string; title: string; type: string }> =
-    data.MediaContainer?.Directory ?? [];
+  const data = (await res.json()) as {
+    MediaContainer?: { Directory?: Array<{ key: string; title: string; type: string }> };
+  };
+  const dirs = data.MediaContainer?.Directory ?? [];
   return dirs
-    .filter((d) => d.type === "movie" || d.type === "show")
+    .filter((d): d is { key: string; title: string; type: "movie" | "show" } =>
+      d.type === "movie" || d.type === "show")
     .map((d) => ({ key: d.key, title: d.title, type: d.type }));
 }
 
@@ -165,17 +169,25 @@ export async function fetchSectionItems(
     `/library/sections/${sectionKey}/all?includeGuids=1`,
   );
   if (!res.ok) throw new Error(`Plex API error: ${res.status}`);
-  const data = await res.json();
+  const data = (await res.json()) as {
+    MediaContainer?: {
+      Metadata?: Array<{
+        title: string;
+        year?: number;
+        ratingKey: string;
+        Guid?: Array<{ id: string }>;
+        Media?: Array<{ videoResolution?: string }>;
+      }>;
+    };
+  };
   const items = data.MediaContainer?.Metadata ?? [];
-  return items.map(
-    (item: { title: string; year?: number; ratingKey: string; Guid?: Array<{ id: string }>; Media?: Array<{ videoResolution?: string }> }) => ({
-      title: item.title,
-      year: item.year,
-      ratingKey: item.ratingKey,
-      guids: item.Guid ?? [],
-      resolution: item.Media ? pickHighestResolution(item.Media) : undefined,
-    }),
-  );
+  return items.map((item) => ({
+    title: item.title,
+    year: item.year,
+    ratingKey: item.ratingKey,
+    guids: item.Guid ?? [],
+    resolution: item.Media ? pickHighestResolution(item.Media) : undefined,
+  }));
 }
 
 export async function fetchShowEpisodes(
@@ -187,9 +199,12 @@ export async function fetchShowEpisodes(
 }> {
   const res = await plexFetch(config, `/library/metadata/${ratingKey}/allLeaves`);
   if (!res.ok) throw new Error(`Plex API error: ${res.status}`);
-  const data = await res.json();
-  const raw: Array<{ parentIndex?: number; index?: number; Media?: Array<{ videoResolution?: string }> }> =
-    data.MediaContainer?.Metadata ?? [];
+  const data = (await res.json()) as {
+    MediaContainer?: {
+      Metadata?: Array<{ parentIndex?: number; index?: number; Media?: Array<{ videoResolution?: string }> }>;
+    };
+  };
+  const raw = data.MediaContainer?.Metadata ?? [];
 
   const valid = raw.filter((ep) => ep.parentIndex != null && ep.index != null);
 

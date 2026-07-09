@@ -50,7 +50,7 @@ function getFormConfig(): { serverUrl: string; token: string } {
 
 settingsLink.addEventListener("click", (e) => {
   e.preventDefault();
-  browser.runtime.openOptionsPage();
+  void browser.runtime.openOptionsPage();
 });
 
 testBtn.addEventListener("click", async () => {
@@ -372,14 +372,14 @@ function addRatedIdLink(rating: number | undefined, label: string, fullText: str
 
 // --- Init ---
 
-(async () => {
+void (async () => {
   const servers = await getServers();
   const status: StatusResponse = await browser.runtime.sendMessage({
     type: "GET_STATUS",
   });
 
   if (status.configured && servers.length > 0) {
-    initDashboard();
+    void initDashboard();
   } else {
     setupView.hidden = false;
     if (servers.length > 0) {

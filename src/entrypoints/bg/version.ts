@@ -49,10 +49,14 @@ export async function checkForUpdate(): Promise<void> {
       errorLog("BG", `update check failed: ${response.status}`);
       return;
     }
-    const data = await response.json();
-    const tagName = data.tag_name as string;
+    const data = (await response.json()) as {
+      tag_name: string;
+      html_url?: string;
+      assets?: GitHubReleaseAsset[];
+    };
+    const tagName = data.tag_name;
     const latestVersion = tagName.replace(/^v/, "");
-    const downloadUrl = (data.html_url as string) ?? `https://github.com/The-Ant-Forge/Parrot/releases/tag/${tagName}`;
+    const downloadUrl = data.html_url ?? `https://github.com/The-Ant-Forge/Parrot/releases/tag/${tagName}`;
     const assetUrl = pickZipAssetUrl(data.assets);
     await saveUpdateCheck({ latestVersion, downloadUrl, assetUrl, checkedAt: Date.now() });
     debugLog("BG", `update check complete — latest: ${latestVersion}, asset: ${assetUrl ?? "none"}`);
@@ -64,5 +68,5 @@ export async function checkForUpdate(): Promise<void> {
 export async function maybeCheckForUpdate(): Promise<void> {
   const cached = await getUpdateCheck();
   if (cached && Date.now() - cached.checkedAt < UPDATE_CHECK_INTERVAL_MS) return;
-  checkForUpdate(); // fire-and-forget
+  void checkForUpdate(); // fire-and-forget (has its own try/catch)
 }

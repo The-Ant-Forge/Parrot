@@ -23,16 +23,20 @@ async function isDebugEnabled(): Promise<boolean> {
   return _debugEnabled;
 }
 
+function log(kind: "log" | "error", site: string, args: unknown[]): void {
+  // Fire-and-forget by design: logging must never block or be awaitable.
+  // The options read races the first few logs after a cold start; acceptable.
+  void isDebugEnabled().then((enabled) => {
+    if (enabled) console[kind](`Parrot ${site}:`, ...args);
+  });
+}
+
 /** Log debug information (only when debugLogging is enabled). */
-export async function debugLog(site: string, ...args: unknown[]): Promise<void> {
-  if (await isDebugEnabled()) {
-    console.log(`Parrot ${site}:`, ...args);
-  }
+export function debugLog(site: string, ...args: unknown[]): void {
+  log("log", site, args);
 }
 
 /** Log an error (only when debugLogging is enabled). */
-export async function errorLog(site: string, ...args: unknown[]): Promise<void> {
-  if (await isDebugEnabled()) {
-    console.error(`Parrot ${site}:`, ...args);
-  }
+export function errorLog(site: string, ...args: unknown[]): void {
+  log("error", site, args);
 }

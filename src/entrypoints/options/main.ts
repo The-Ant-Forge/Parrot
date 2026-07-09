@@ -260,7 +260,7 @@ async function deleteServer(serverId: string) {
     );
     showLibraryInfo(0, null);
   }
-  updateStorageUsage();
+  void updateStorageUsage();
 }
 
 // --- Server save handler ---
@@ -347,7 +347,7 @@ saveServerBtn.addEventListener("click", async () => {
   if (result.success) {
     showFeedback(plexFeedback, `Synced ${result.itemCount} items`, "success");
     showLibraryInfo(result.itemCount ?? 0, Date.now());
-    updateStorageUsage();
+    void updateStorageUsage();
     // Re-read servers to pick up itemCount updated by background
     servers = await getServers();
     renderServerList();
@@ -457,7 +457,7 @@ refreshBtn.addEventListener("click", async () => {
   if (result.success) {
     showFeedback(plexFeedback, `Refreshed — ${result.itemCount} items`, "success");
     showLibraryInfo(result.itemCount ?? 0, Date.now());
-    updateStorageUsage();
+    void updateStorageUsage();
     servers = await getServers();
     renderServerList();
   } else {
@@ -478,7 +478,7 @@ clearCacheBtn.addEventListener("click", async () => {
   if (result.success) {
     showFeedback(plexFeedback, "Library cache cleared", "success");
     showLibraryInfo(0, null);
-    updateStorageUsage();
+    void updateStorageUsage();
   }
 });
 
@@ -527,7 +527,7 @@ updateActionBtn.addEventListener("click", async () => {
   // Prefer the direct ZIP asset; fall back to the release web page
   const targetUrl = result.updateAssetUrl ?? result.updateUrl;
   if (targetUrl) {
-    browser.tabs.create({ url: targetUrl });
+    void browser.tabs.create({ url: targetUrl });
   } else {
     showFeedback(updateFeedback, "Could not find a download — try again later", "error");
   }
@@ -746,7 +746,7 @@ resetSitesBtn.addEventListener("click", async () => {
 
 // --- Init: load saved servers, options, and status ---
 
-(async () => {
+void (async () => {
   // Load servers
   servers = await getServers();
   renderServerList();
@@ -775,7 +775,7 @@ resetSitesBtn.addEventListener("click", async () => {
     type: "GET_STATUS",
   });
   showLibraryInfo(status.itemCount, status.lastRefresh);
-  updateStorageUsage();
+  void updateStorageUsage();
   populateUpdateSection(status);
 
   // Load custom sites and render sites table

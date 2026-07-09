@@ -28,7 +28,7 @@ async function checkAndBadge() {
     debugLog("TVDBMovies", "movie", extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);
 
-    checkGaps({
+    void checkGaps({
       mediaType: "movie",
       source: extId.source,
       id: extId.id,
@@ -45,7 +45,7 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("TVDBMovies", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
     observeUrlChanges(checkAndBadge);
   },
 });

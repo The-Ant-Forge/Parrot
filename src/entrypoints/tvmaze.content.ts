@@ -32,9 +32,9 @@ async function checkAndBadge() {
       // the TVMaze id under a false source — a numeric collision with a
       // real TVDB id would render another show's episode panel.
       if (response.item?.tvdbId) {
-        checkGaps({ mediaType: "show", source: "tvdb", id: String(response.item.tvdbId), response });
+        void checkGaps({ mediaType: "show", source: "tvdb", id: String(response.item.tvdbId), response });
       } else if (response.item?.tmdbId) {
-        checkGaps({ mediaType: "show", source: "tmdb", id: String(response.item.tmdbId), response });
+        void checkGaps({ mediaType: "show", source: "tmdb", id: String(response.item.tmdbId), response });
       } else {
         debugLog("TVMaze", "owned item has no TVDB/TMDB id — skipping gap check");
       }
@@ -50,6 +50,6 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("TVMaze", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
   },
 });

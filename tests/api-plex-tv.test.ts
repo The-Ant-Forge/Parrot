@@ -63,6 +63,7 @@ describe("fetchServerConnections", () => {
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("plex.tv/api/v2/resources"),
       expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect matchers are any-typed
         headers: expect.objectContaining({ "X-Plex-Token": "token-123" }),
       }),
     );

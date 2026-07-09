@@ -36,7 +36,7 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || info.mediaType === "movie") {
-      checkGaps({
+      void checkGaps({
         mediaType: info.mediaType,
         source: "tmdb",
         id: info.id,
@@ -57,7 +57,7 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("TMDB", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
 
     // TMDB is an SPA — re-check on navigation (debounced)
     observeUrlChanges(checkAndBadge);

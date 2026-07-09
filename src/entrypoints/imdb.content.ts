@@ -42,7 +42,7 @@ async function checkAndBadge() {
 
     // Gap detection: always for movies (collection check), owned-only for shows
     if (response.owned || mediaType === "movie") {
-      checkGaps({
+      void checkGaps({
         mediaType,
         source: "imdb",
         id: imdbId,
@@ -63,7 +63,7 @@ export default defineContentScript({
     // When background's async TMDB cross-ref resolves ownership later,
     // run gap detection with the resolved IDs.
     setupOwnershipListener("IMDb");
-    checkAndBadge();
+    void checkAndBadge();
 
     // IMDb uses client-side routing (debounced)
     observeUrlChanges(checkAndBadge);

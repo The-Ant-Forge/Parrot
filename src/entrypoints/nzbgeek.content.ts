@@ -35,7 +35,7 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || mediaType === "movie") {
-      checkGaps({
+      void checkGaps({
         mediaType,
         source: extId.source,
         id: extId.id,
@@ -53,6 +53,6 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("NZBGeek", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
   },
 });

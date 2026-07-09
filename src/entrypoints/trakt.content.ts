@@ -49,7 +49,7 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("Trakt", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
     observeUrlChanges(checkAndBadge);
   },
 });

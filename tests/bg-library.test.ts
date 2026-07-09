@@ -51,6 +51,8 @@ describe("resolveItemPlex", () => {
 describe("lookupItem", () => {
   const index: LibraryIndex = {
     itemCount: 3,
+    movieCount: 2,
+    showCount: 1,
     lastRefresh: Date.now(),
     items: [
       { title: "Movie A", year: 2020, plexKeys: { s1: "1" } },

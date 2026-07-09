@@ -18,7 +18,7 @@ const server: PlexServerConfig = {
 function okResponse(body: unknown): Response {
   return {
     ok: true,
-    json: async () => body,
+    json: () => Promise.resolve(body),
   } as Response;
 }
 

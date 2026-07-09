@@ -44,6 +44,6 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("RARGB", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
   },
 });

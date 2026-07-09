@@ -132,13 +132,14 @@ function setIndex(index: LibraryIndex | null) {
 
 async function loadIndex(): Promise<LibraryIndex | null> {
   if (!cachedIndex) {
-    setIndex(await getLibraryIndex());
-    if (cachedIndex) {
-      const movieTmdb = Object.keys(cachedIndex.movies.byTmdbId).length;
-      const movieImdb = Object.keys(cachedIndex.movies.byImdbId).length;
-      const showTvdb = Object.keys(cachedIndex.shows.byTvdbId).length;
-      const showTmdb = Object.keys(cachedIndex.shows.byTmdbId).length;
-      const showImdb = Object.keys(cachedIndex.shows.byImdbId).length;
+    const loaded = await getLibraryIndex();
+    setIndex(loaded);
+    if (loaded) {
+      const movieTmdb = Object.keys(loaded.movies.byTmdbId).length;
+      const movieImdb = Object.keys(loaded.movies.byImdbId).length;
+      const showTvdb = Object.keys(loaded.shows.byTvdbId).length;
+      const showTmdb = Object.keys(loaded.shows.byTmdbId).length;
+      const showImdb = Object.keys(loaded.shows.byImdbId).length;
       debugLog("BG",
         `loaded index — movies: ${movieTmdb} tmdb / ${movieImdb} imdb, shows: ${showTvdb} tvdb / ${showTmdb} tmdb / ${showImdb} imdb`,
       );
@@ -184,6 +185,9 @@ async function loadIndex(): Promise<LibraryIndex | null> {
         } finally {
           autoRefreshing = false;
         }
+      }).catch((err: unknown) => {
+        autoRefreshing = false;
+        errorLog("BG", "auto-refresh failed to load servers", err);
       });
     }
   }
@@ -560,7 +564,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo, generation: n
           info.posterUrl = tvdbDetails.image ?? undefined;
           info.year = tvdbDetails.year ? parseInt(tvdbDetails.year, 10) : undefined;
           info.showStatus = tvdbDetails.status?.name;
-          if (!isStale()) persistTabMedia(tabId, info);
+          if (!isStale()) await persistTabMedia(tabId, info);
         }
         return;
       }
@@ -647,7 +651,7 @@ async function fetchTabMetadata(tabId: number, info: TabMediaInfo, generation: n
       debugLog("BG", `META: discarding stale enrichment for ${info.source}:${info.id} (tab ${tabId} moved on)`);
       return;
     }
-    persistTabMedia(tabId, info);
+    await persistTabMedia(tabId, info);
     sendRatingsToTab(tabId, info);
   } catch (err) {
     // 404 = TMDB ID doesn't exist (stale/merged); not worth alarming about
@@ -689,16 +693,15 @@ export default defineBackground(() => {
   // Set default inactive icon on startup
   const manifest = browser.runtime.getManifest();
   debugLog("BG", `v${manifest.version} service worker starting`);
-  try {
-    browser.action.setIcon({ path: getIconPaths("inactive") });
-  } catch (err) {
+  // setIcon rejects asynchronously — a sync try/catch around it catches nothing
+  browser.action.setIcon({ path: getIconPaths("inactive") }).catch((err: unknown) => {
     errorLog("BG", "failed to set default icon", err);
-  }
+  });
 
   // Check for extension updates (fire-and-forget), then refresh badge
   maybeCheckForUpdate().then(() => refreshUpdateBadge()).catch((err) => debugLog("BG", "startup update check failed", err));
   // Also reconcile badge against any cached check (covers cold start when no new check was needed)
-  refreshUpdateBadge();
+  void refreshUpdateBadge();
 
   // Clear all derived metadata caches on extension update — cached entries
   // must never bake in parsing/logic from an older version. (The library
@@ -709,7 +712,7 @@ export default defineBackground(() => {
         debugLog("BG", "metadata caches cleared after extension update");
       }).catch((err) => debugLog("BG", "metadata cache clear failed", err));
       // Clear the "!" badge since we've reached or passed the previously-seen latest version
-      refreshUpdateBadge();
+      void refreshUpdateBadge();
     }
   });
 
@@ -875,7 +878,7 @@ export default defineBackground(() => {
                 year: result.item?.year ?? yearFromKey,
                 resolution: result.resolution,
               };
-              persistTabMedia(tabId, mediaInfo);
+              await persistTabMedia(tabId, mediaInfo);
               // Fire-and-forget metadata fetch. Bumping the generation first
               // invalidates any still-running enrichment from a previous CHECK
               // on this tab (SPA navigation) so it can't overwrite this one.
@@ -1075,8 +1078,10 @@ export default defineBackground(() => {
               }
 
               const today = new Date().toLocaleDateString("en-CA");
-              let seasonGaps: SeasonGapInfo[];
-              let showTitle: string;
+              // Initialized here because TS can't prove one of the three data
+              // paths below always assigns (the sonarrHandled flag hides it).
+              let seasonGaps: SeasonGapInfo[] = [];
+              let showTitle: string = ownedShow.title;
 
               // --- Sonarr path: free episode data via community proxy ---
               let sonarrHandled = false;
@@ -1281,7 +1286,7 @@ export default defineBackground(() => {
                 const existingMedia = await getTabMedia(epTabId);
                 if (existingMedia) {
                   existingMedia.resolution = formattedResolution;
-                  persistTabMedia(epTabId, existingMedia);
+                  await persistTabMedia(epTabId, existingMedia);
                 }
               }
 
@@ -1541,7 +1546,7 @@ export default defineBackground(() => {
 
   // Clean up stale tab media cache entries
   browser.tabs.onRemoved.addListener((tabId) => {
-    removeTabMedia(tabId);
+    void removeTabMedia(tabId); // has its own catch
     tabCheckGeneration.delete(tabId);
   });
 

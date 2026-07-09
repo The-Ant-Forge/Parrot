@@ -16,14 +16,14 @@ globalThis.fetch = mockFetch;
 function plexResponse(metadata: unknown[]) {
   return {
     ok: true,
-    json: async () => ({ MediaContainer: { Metadata: metadata } }),
+    json: () => Promise.resolve({ MediaContainer: { Metadata: metadata } }),
   };
 }
 
 function sectionsResponse(directories: unknown[]) {
   return {
     ok: true,
-    json: async () => ({ MediaContainer: { Directory: directories } }),
+    json: () => Promise.resolve({ MediaContainer: { Directory: directories } }),
   };
 }
 

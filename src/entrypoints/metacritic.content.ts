@@ -45,7 +45,7 @@ async function checkAndBadge() {
       updateBadgeFromResponse(badge, response);
 
       if (response.owned || resolvedType === "movie") {
-        checkGaps({
+        void checkGaps({
           mediaType: resolvedType,
           source: extId.source,
           id: extId.id,
@@ -87,7 +87,7 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned || mediaType === "movie") {
-      checkGaps({
+      void checkGaps({
         mediaType,
         source: "title",
         id: titleKey,
@@ -107,6 +107,6 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("Metacritic", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
   },
 });

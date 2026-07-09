@@ -96,8 +96,8 @@ export function findExternalIdFromJsonLd(
   const ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
   for (const script of ldScripts) {
     try {
-      const data = JSON.parse(script.textContent ?? "");
-      const sameAs = Array.isArray(data.sameAs) ? data.sameAs : data.sameAs ? [data.sameAs] : [];
+      const data = JSON.parse(script.textContent ?? "") as { sameAs?: unknown };
+      const sameAs: unknown[] = Array.isArray(data.sameAs) ? data.sameAs : data.sameAs ? [data.sameAs] : [];
       for (const url of sameAs) {
         if (typeof url !== "string") continue;
         const imdbMatch = url.match(/imdb\.com\/title\/(tt\d+)/);

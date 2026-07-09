@@ -29,8 +29,8 @@ async function login(apiKey: string): Promise<string> {
     throw new Error(`TVDB login failed: ${res.status}`);
   }
 
-  const data = await res.json();
-  const token = data?.data?.token;
+  const data = (await res.json()) as { data?: { token?: string } };
+  const token = data.data?.token;
   if (!token) {
     throw new Error("TVDB login: no token in response");
   }

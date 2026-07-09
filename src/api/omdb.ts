@@ -23,7 +23,7 @@ export async function getImdbRating(
   }, TIMEOUT_MS);
   if (!res.ok) return null;
 
-  const data: OMDbResponse = await res.json();
+  const data = (await res.json()) as OMDbResponse;
   if (data.Response !== "True" || !data.imdbRating || data.imdbRating === "N/A") {
     return null;
   }
@@ -41,7 +41,7 @@ export async function validateOmdbKey(apiKey: string): Promise<boolean> {
       headers: { Accept: "application/json" },
     }, TIMEOUT_MS);
     if (!res.ok) return false;
-    const data: OMDbResponse = await res.json();
+    const data = (await res.json()) as OMDbResponse;
     // Invalid key returns Response: "False" with Error: "Invalid API key!"
     return data.Response === "True" || !data.Error?.includes("Invalid API key");
   } catch {

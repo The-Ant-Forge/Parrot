@@ -61,7 +61,7 @@ async function checkViaLink(badge: HTMLSpanElement): Promise<boolean> {
   updateBadgeFromResponse(badge, response);
 
   if (response.owned || mediaType === "movie") {
-    checkGaps({ mediaType, source: extId.source, id: extId.id, response });
+    void checkGaps({ mediaType, source: extId.source, id: extId.id, response });
   }
 
   return true;
@@ -87,7 +87,7 @@ async function checkViaTitle(badge: HTMLSpanElement, h1Text: string): Promise<vo
   updateBadgeFromResponse(badge, response);
 
   if (response.owned || mediaType === "movie") {
-    checkGaps({ mediaType, source: "title", id: titleKey, response });
+    void checkGaps({ mediaType, source: "title", id: titleKey, response });
   }
 }
 
@@ -129,7 +129,7 @@ async function checkAndBadge() {
         updateBadgeFromResponse(badge, response);
 
         if (response.owned || lookup.mediaType === "movie") {
-          checkGaps({
+          void checkGaps({
             mediaType: lookup.mediaType,
             source: lookup.source,
             id: lookup.id,
@@ -162,7 +162,7 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("PlexApp", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
     observeUrlChanges(checkAndBadge);
   },
 });

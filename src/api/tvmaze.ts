@@ -22,7 +22,7 @@ export async function getTvMazeExternals(tvmazeId: string): Promise<TvMazeExtern
     headers: { Accept: "application/json" },
   });
   if (!res.ok) throw new Error(`TVMaze API error: ${res.status}`);
-  return parseExternals(await res.json());
+  return parseExternals((await res.json()) as Record<string, unknown>);
 }
 
 /** Look up a show by IMDb ID → returns TVDB ID (and IMDb ID back). */
@@ -32,7 +32,7 @@ export async function lookupByImdb(imdbId: string): Promise<TvMazeExternals | nu
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`TVMaze lookup error: ${res.status}`);
-  return parseExternals(await res.json());
+  return parseExternals((await res.json()) as Record<string, unknown>);
 }
 
 /** Look up a show by TVDB ID → returns IMDb ID (and TVDB ID back). */
@@ -42,5 +42,5 @@ export async function lookupByTvdb(tvdbId: string): Promise<TvMazeExternals | nu
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`TVMaze lookup error: ${res.status}`);
-  return parseExternals(await res.json());
+  return parseExternals((await res.json()) as Record<string, unknown>);
 }

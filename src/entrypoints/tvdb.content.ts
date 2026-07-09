@@ -48,7 +48,7 @@ async function checkAndBadge() {
     updateBadgeFromResponse(badge, response);
 
     if (response.owned) {
-      checkGaps({
+      void checkGaps({
         mediaType: "show",
         source: "tvdb",
         id: tvdbId,
@@ -66,7 +66,7 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("TVDB", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
 
     // TVDB uses client-side routing (debounced)
     observeUrlChanges(checkAndBadge);

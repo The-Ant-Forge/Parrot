@@ -8,7 +8,7 @@
  */
 
 import { onOwnershipUpdated } from "./badge";
-import { checkGaps } from "./gap-checker";
+import { checkGaps, type GapSource } from "./gap-checker";
 import { debugLog } from "./logger";
 import type { CheckResponse } from "./types";
 
@@ -41,14 +41,14 @@ export function checkWithImdbFallback(
  */
 export function checkGapsWithFallback(
   mediaType: "movie" | "show",
-  source: string,
+  source: GapSource,
   id: string,
   response: CheckResponse,
 ): void {
   if (response.owned || mediaType === "movie") {
-    checkGaps({ mediaType, source, id, response });
+    void checkGaps({ mediaType, source, id, response });
   } else {
-    checkGaps({ mediaType: "movie", source, id, response });
+    void checkGaps({ mediaType: "movie", source, id, response });
   }
 }
 
@@ -59,7 +59,7 @@ export function checkGapsWithFallback(
 export function setupOwnershipListener(site: string): void {
   onOwnershipUpdated((msg) => {
     debugLog(site, "ownership updated via TMDB re-check →", msg.source + ":" + msg.id);
-    checkGaps({
+    void checkGaps({
       mediaType: msg.mediaType,
       source: msg.source as "tmdb",
       id: msg.id,

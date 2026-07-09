@@ -84,7 +84,7 @@ async function checkAndBadge() {
     // collection check (even when not owned, to surface partially-owned
     // collections).
     if (response.owned || resolvedType === "movie") {
-      checkGaps({ mediaType: resolvedType, source, id, response });
+      void checkGaps({ mediaType: resolvedType, source, id, response });
     }
   } catch (err) {
     errorLog("NZBForYou", err);
@@ -100,6 +100,6 @@ export default defineContentScript({
   runAt: "document_idle",
   main() {
     debugLog("NZBForYou", "v" + browser.runtime.getManifest().version, "loaded");
-    checkAndBadge();
+    void checkAndBadge();
   },
 });

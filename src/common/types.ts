@@ -57,11 +57,11 @@ export interface ExternalIds {
   imdbId?: string;
 }
 
-/** A Plex library section */
+/** A Plex library section (only movie/show sections are indexed) */
 export interface PlexSection {
   key: string;
   title: string;
-  type: "movie" | "show" | string;
+  type: "movie" | "show";
 }
 
 // --- Options (stored in browser.storage.sync) ---
