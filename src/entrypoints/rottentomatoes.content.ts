@@ -41,7 +41,7 @@ async function checkAndBadge() {
         id: extId.id,
       });
 
-      const { mediaType: resolvedType, response } = await checkWithImdbFallback(mediaType, extId.source, extId.id, initialResponse);
+      const { mediaType: resolvedType, response } = checkWithImdbFallback(mediaType, extId.source, initialResponse);
 
       debugLog("RT", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
       updateBadgeFromResponse(badge, response);
@@ -56,7 +56,7 @@ async function checkAndBadge() {
       }
       return;
     } catch (err) {
-      errorLog("RottenTomatoes", err);
+      errorLog("RT", err);
       showErrorBadge(badge, "Could not check Plex library");
       return;
     }
@@ -99,7 +99,7 @@ async function checkAndBadge() {
 
     setupOwnershipListener("RT");
   } catch (err) {
-    errorLog("RottenTomatoes", err);
+    errorLog("RT", err);
     showErrorBadge(badge, "Could not check Plex library");
   }
 }

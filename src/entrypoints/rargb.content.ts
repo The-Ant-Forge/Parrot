@@ -27,7 +27,7 @@ async function checkAndBadge() {
       id: extId.id,
     });
 
-    const { mediaType, response } = await checkWithImdbFallback(initialMediaType, extId.source, extId.id, initialResponse);
+    const { mediaType, response } = checkWithImdbFallback(initialMediaType, extId.source, initialResponse);
 
     debugLog("RARGB", mediaType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
     updateBadgeFromResponse(badge, response);

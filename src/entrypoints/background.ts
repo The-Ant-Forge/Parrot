@@ -1545,10 +1545,15 @@ export default defineBackground(() => {
     tabCheckGeneration.delete(tabId);
   });
 
-  // Invalidate cached servers when storage changes (e.g. options page saves)
+  // Invalidate in-memory caches when synced storage changes — covers saves
+  // from this device AND changes arriving via storage.sync from another
+  // profile/machine (SAVE_OPTIONS only covers the former).
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "sync" && changes.plexServers) {
       cachedServers = null;
+    }
+    if (areaName === "sync" && changes.parrotOptions) {
+      cachedOpts = null;
     }
   });
 });

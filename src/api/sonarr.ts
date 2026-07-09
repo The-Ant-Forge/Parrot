@@ -172,7 +172,3 @@ export async function searchSonarrShow(query: string): Promise<SonarrShow[] | nu
   return cachedSonarrFetch<SonarrShow[]>(`sonarr:search:${query}`, SEARCH_TTL, `/tvdb/search/en/?term=${encodeURIComponent(query)}`);
 }
 
-/** Check if the Sonarr proxy circuit breaker is open. */
-export function isSonarrCircuitOpen(): boolean {
-  return breaker.isOpen();
-}

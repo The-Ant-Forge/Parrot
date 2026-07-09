@@ -165,7 +165,3 @@ export async function searchRadarrMovie(query: string, year?: number): Promise<R
   return results && results.length > 0 ? results[0] : null;
 }
 
-/** Check if the Radarr proxy circuit breaker is open. */
-export function isRadarrCircuitOpen(): boolean {
-  return breaker.isOpen();
-}

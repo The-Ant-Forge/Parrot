@@ -40,7 +40,7 @@ async function checkAndBadge() {
         id: extId.id,
       });
 
-      const { mediaType: resolvedType, response } = await checkWithImdbFallback(mediaType, extId.source, extId.id, initialResponse);
+      const { mediaType: resolvedType, response } = checkWithImdbFallback(mediaType, extId.source, initialResponse);
 
       debugLog("JustWatch", resolvedType, extId.source + ":" + extId.id, response.owned ? "OWNED" : "not owned");
       updateBadgeFromResponse(badge, response);

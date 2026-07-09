@@ -253,10 +253,15 @@ function renderMediaCard(media: NonNullable<TabMediaResponse["media"]>, debug = 
   const yearStr = media.year ? ` (${media.year})` : "";
   mediaTitle.textContent = (media.title ?? "Unknown") + yearStr;
 
-  // Average rating from available sources (TMDB + IMDb)
+  // Average rating across all sources, normalized to 0-10 — mirrors the
+  // badge's getRatingText() so the popup and pill show the same number
   const ratingValues: number[] = [];
   if (media.tmdbRating && media.tmdbRating > 0) ratingValues.push(media.tmdbRating);
   if (media.imdbRating && media.imdbRating > 0) ratingValues.push(media.imdbRating);
+  if (media.rtRating && media.rtRating > 0) ratingValues.push(media.rtRating / 10);
+  if (media.metacriticRating && media.metacriticRating > 0) ratingValues.push(media.metacriticRating / 10);
+  if (media.traktRating && media.traktRating > 0) ratingValues.push(media.traktRating);
+  if (media.tvdbRating && media.tvdbRating > 0) ratingValues.push(media.tvdbRating);
   const ratingText = ratingValues.length > 0
     ? (ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length).toFixed(1)
     : null;

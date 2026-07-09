@@ -1,7 +1,5 @@
 # Parrot — Browser Extension
 
-Read agents.md
-
 ## Project basics
 
 - **Purpose:** Browser extension that checks if media you're browsing (TMDB, TVDB, IMDb) is already in your Plex library

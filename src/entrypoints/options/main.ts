@@ -1,6 +1,7 @@
 import { getServers, saveServers, getCustomSites, saveCustomSites } from "../../common/storage";
 import { showFeedback, hideFeedback, setButtonLoading } from "../../common/ui-helpers";
 import { DEFAULT_SITES } from "../../common/sites";
+import { DEFAULT_OPTIONS } from "../../common/types";
 import type {
   PlexServerConfig,
   ParrotOptions,
@@ -106,7 +107,7 @@ function gatherOptions(): ParrotOptions {
     excludeFuture: excludeFutureInput.checked,
     excludeSpecials: excludeSpecialsInput.checked,
     minCollectionSize: Math.max(2, parseInt(minCollectionSizeInput.value) || 2),
-    minOwned: Math.max(1, parseInt(minOwnedInput.value) || 1),
+    minOwned: Math.max(1, parseInt(minOwnedInput.value) || DEFAULT_OPTIONS.minOwned),
     showCompletePanels: showCompletePanelsInput.checked,
     debugLogging: debugLoggingInput.checked,
     autoRefresh: autoRefreshInput.checked,

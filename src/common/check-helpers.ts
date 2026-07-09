@@ -14,24 +14,18 @@ import type { CheckResponse } from "./types";
 
 /**
  * IMDb fallback: promote the background's resolved media type if the
- * requested one was wrong. Previously this helper fired a second CHECK
- * to retry with the opposite media type, but that caused a race in
- * `tabMediaCache` — the second response (typically owned:false with
- * empty metadata) could overwrite the first CHECK's async TMDB cross-ref
- * flip, leaving the popup showing "Unknown" while the badge was correct.
- *
- * Since v1.22, `handleCheck` does the dual-lookup server-side for IMDb
- * sources and reports the result via `response.resolvedMediaType`, so
- * this helper just promotes that value to the caller. No second CHECK,
- * no race. Kept as a sync function to preserve the existing call sites
- * but the signature stays Promise-returning for backward compatibility.
+ * requested one was wrong. `handleCheck` does the dual-lookup server-side
+ * for IMDb sources and reports the result via `response.resolvedMediaType`;
+ * this helper just promotes that value to the caller. (It used to fire a
+ * second CHECK itself, which raced the first CHECK's async enrichment in
+ * `tabMediaCache` — the "popup shows Unknown while the badge is correct"
+ * bug fixed in v1.22/v1.23.)
  */
-export async function checkWithImdbFallback(
+export function checkWithImdbFallback(
   mediaType: "movie" | "show",
   source: string,
-  _id: string,
   response: CheckResponse,
-): Promise<{ mediaType: "movie" | "show"; response: CheckResponse }> {
+): { mediaType: "movie" | "show"; response: CheckResponse } {
   if (response.owned || source !== "imdb") {
     return { mediaType, response };
   }

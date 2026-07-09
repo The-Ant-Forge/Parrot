@@ -61,21 +61,11 @@ Sites that expose stable external IDs (TMDB, IMDb, NZBGeek) work the most reliab
 
 When in doubt, look in the service worker console (`chrome://extensions/` → Service Worker under Parrot, then reload the page) — every content script logs which strategy ran and what it found.
 
-## Custom sites
+## Custom sites (planned — not yet active)
 
-In the Supported Sites card you can add your own:
+The Supported Sites card lets you define custom site entries (name, media type, URL pattern, badge selector) and they're saved to your synced settings — **but they don't take effect yet**. Making them live requires a universal content script with dynamic registration and per-site permission prompts, which is on the roadmap. Until that lands, only the built-in sites inject badges.
 
-1. Click **Add Site**
-2. Enter a name, media type (auto/movie/show), URL pattern (e.g. `*://example.com/movies/*`), and CSS selector for the badge anchor
-3. Save
-
-Custom sites use the link-scan strategy by default, so the page needs to have a TMDB / IMDb / TVDB / TVMaze link somewhere in the DOM for the lookup to succeed.
-
-Be aware: adding a custom site requires the extension to have permission for that host. Chrome will prompt for the permission when you save.
-
-## Disabling a site
-
-Uncheck the checkbox next to any site in the table to disable its content script without removing it. Useful if a site is misbehaving and you want to silence it temporarily.
+Per-site enable/disable is on the same roadmap; the built-in sites are currently always active on their URL patterns.
 
 ## Roadmap
 

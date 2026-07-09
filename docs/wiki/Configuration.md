@@ -71,11 +71,7 @@ These options control when collection and episode gap panels appear:
 
 <img src="https://raw.githubusercontent.com/The-Ant-Forge/Parrot/master/docs/screenshots/options-sites.png" alt="Supported Sites card" width="540" />
 
-The built-in sites are enabled by default. You can:
-
-- **Toggle individual sites** off if you don't want Parrot to inject on them
-- **Add a custom site** with a URL pattern and CSS selector for the badge anchor
-- **Reset Defaults** to revert any changes
+The table lists the built-in sites and what each reads. You can also **add a custom site** definition (URL pattern + CSS selector) — note that custom sites are saved but **not yet active**; they await the planned universal content script (see [Supported Sites](Supported-Sites)). **Reset Defaults** reverts any changes.
 
 See [Supported Sites](Supported-Sites) for details on what each one reads.
 

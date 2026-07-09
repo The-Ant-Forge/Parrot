@@ -8,7 +8,7 @@ import type { CheckResponse } from "../common/types";
 async function checkAndBadge() {
   removeBadge();
 
-  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb", "tvdb", "tvmaze"] });
+  const extId = scanLinksForExternalId({ sources: ["tmdb", "imdb", "tvdb"] });
   debugLog("TVDBMovies", "checking", location.href, "→", extId ? extId.source + ":" + extId.id : "no links");
   if (!extId) return;
 

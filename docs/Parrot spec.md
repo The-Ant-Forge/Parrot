@@ -183,7 +183,7 @@ parrot/
 - Plex Servers: multi-server management (add/edit/delete), server list with status dots, library info, Test All/Refresh/Clear, auto-refresh settings
 - API key management (TMDB required, TVDB optional) with validation buttons
 - Gap detection toggles (exclude future, exclude specials, minimum thresholds)
-- Supported sites table with custom site CRUD
+- Supported sites table with custom site CRUD (custom entries are stored but not yet consumed at runtime — awaiting the universal content script on the roadmap)
 
 **Popup (`popup/`)**
 - Quick-access configuration UI (Plex URL, token)
@@ -251,9 +251,13 @@ type Message =
   | { type: "CLEAR_CACHE" }
   | { type: "CHECK_COLLECTION"; tmdbMovieId: string }
   | { type: "CHECK_EPISODES"; source: "tvdb" | "tmdb"; id: string }
-  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string }
+  | { type: "FIND_TMDB_ID"; source: "imdb" | "tvdb" | "title"; id: string; mediaType?: "movie" | "show" }
   | { type: "GET_TAB_MEDIA"; tabId: number }
   | { type: "GET_STORAGE_USAGE" }
+  | { type: "UPDATE_ICON"; state: "owned" | "not-owned" }
+  | { type: "PLEX_LOOKUP"; machineIdentifier: string; ratingKey: string }
+  | { type: "FETCH_REMOTE_URL"; token: string; machineIdentifier: string }
+  | { type: "CHECK_FOR_UPDATE" }
 ```
 
 Content scripts always go through the service worker — they never call Plex or external APIs directly.
@@ -281,7 +285,7 @@ Each `PlexServerConfig` may store both a local `serverUrl` (e.g. `http://192.168
 2. **Local `serverUrl`** — the configured primary URL
 3. **`remoteUrl`** — the auto-detected fallback
 
-Each attempt has a 3-second timeout via `AbortController`. The first attempt to return a Response (any status) wins; only network errors / timeouts trigger fallback. The working URL is memoized in a service-worker-scoped `Map<serverId, string>` so subsequent calls in the same session don't repeat the probe. When the service worker unloads, the memo resets — so a laptop sleep/wake or home/away transition re-probes naturally on the next request.
+Each attempt has a 30-second timeout via `AbortController` (a full-library fetch on a large server takes 10-25 s even over LAN; short "connection test" timeouts abort it mid-stream). The first attempt to return a Response (any status) wins; only network errors / timeouts trigger fallback. The working URL is memoized in a service-worker-scoped `Map<serverId, string>` so subsequent calls in the same session don't repeat the probe. When the service worker unloads, the memo resets — so a laptop sleep/wake or home/away transition re-probes naturally on the next request.
 
 `remoteUrl` is populated automatically when the user saves credentials (via [`plex-tv.ts`](#plex-tv-account-api-srcapiplex-tvts--server-discovery) → `fetchServerConnections`) and can be edited manually in the options UI.
 
@@ -708,12 +712,23 @@ Key permissions:
 - `unlimitedStorage` — removes 10MB cap on `storage.local` for large multi-server indexes
 - `host_permissions`:
   - `http://*/library/*`, `https://*/library/*` — Plex API access
+  - `https://plex.tv/*` — plex.tv account API (remote-URL discovery)
   - `https://api.radarr.video/*` — Radarr community proxy
   - `https://skyhook.sonarr.tv/*` — Sonarr community proxy
   - `https://api.themoviedb.org/*` — TMDB API (fallback)
   - `https://api4.thetvdb.com/*` — TVDB API (fallback)
   - `https://www.omdbapi.com/*` — OMDb API (fallback)
   - `https://api.tvmaze.com/*` — TVMaze API
+  - `https://api.github.com/*` — release update check
+
+Known quirk (deliberate): the `GET /` server-identity call in `testConnection`
+is **not** covered by the `*/library/*` patterns — it works because Plex
+servers send permissive CORS headers on that endpoint. Broadening the grant to
+`http(s)://*/*` would trigger a scary all-sites permission warning, so we
+consciously rely on Plex's CORS posture instead. If a future Plex release or a
+CORS-stripping reverse proxy breaks it, the symptom is servers saving with
+`server-{timestamp}` ids and no deep links, while all `/library/*` calls keep
+working.
 
 Content script URL matches are defined in each `*.content.ts` file via WXT's `defineContentScript()`.
 
