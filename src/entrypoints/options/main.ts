@@ -1,5 +1,5 @@
 import { getServers, saveServers, getCustomSites, saveCustomSites } from "../../common/storage";
-import { showFeedback, hideFeedback, setButtonLoading } from "../../common/ui-helpers";
+import { showFeedback, hideFeedback, setButtonLoading, formatTimestamp } from "../../common/ui-helpers";
 import { DEFAULT_SITES } from "../../common/sites";
 import { DEFAULT_OPTIONS } from "../../common/types";
 import type {
@@ -120,15 +120,6 @@ async function saveAllOptions(): Promise<void> {
     type: "SAVE_OPTIONS",
     options: gatherOptions(),
   });
-}
-
-function formatTimestamp(ts: number): string {
-  const now = Date.now();
-  const diffMin = Math.floor((now - ts) / 60_000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
-  return new Date(ts).toLocaleDateString();
 }
 
 function formatBytes(bytes: number): string {

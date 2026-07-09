@@ -26,5 +26,7 @@ export function formatTimestamp(ts: number): string {
   if (diffMin < 1) return "just now";
   if (diffMin < 60) return `${diffMin}m ago`;
   if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
-  return `${Math.floor(diffMin / 1440)}d ago`;
+  // Beyond a day, an absolute date reads better than "12d ago" for
+  // "last sync"-style labels (and matches what the options page showed).
+  return new Date(ts).toLocaleDateString();
 }

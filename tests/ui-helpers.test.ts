@@ -71,8 +71,9 @@ describe("formatTimestamp", () => {
     expect(formatTimestamp(Date.now() - 3 * 60 * 60_000)).toBe("3h ago");
   });
 
-  it("returns days ago", () => {
-    expect(formatTimestamp(Date.now() - 2 * 24 * 60 * 60_000)).toBe("2d ago");
+  it("returns an absolute date beyond 24 hours", () => {
+    const twoDaysAgo = Date.now() - 2 * 24 * 60 * 60_000;
+    expect(formatTimestamp(twoDaysAgo)).toBe(new Date(twoDaysAgo).toLocaleDateString());
   });
 
   it("returns 'just now' for less than 1 minute", () => {

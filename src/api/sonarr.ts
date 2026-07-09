@@ -4,14 +4,11 @@
  * No authentication required.
  */
 
-import { createCircuitBreaker } from "../common/circuit-breaker";
 import { debugLog } from "../common/logger";
-import { getProxyCache, setProxyCache } from "../common/storage";
+import { createProxyClient } from "../common/proxy-client";
+import { getProxyCache } from "../common/storage";
 
-const BASE_URL = "https://skyhook.sonarr.tv/v1";
-const TIMEOUT_MS = 4000;
-
-const breaker = createCircuitBreaker();
+const client = createProxyClient("https://skyhook.sonarr.tv/v1", "Sonarr");
 
 // --- Response types (camelCase to match API) ---
 
@@ -64,76 +61,11 @@ export interface SonarrShow {
   actors?: { name: string; character: string; image?: string }[];
 }
 
-// --- Fetch helper with timeout + circuit breaker ---
-
-async function sonarrFetch<T>(path: string): Promise<T | null> {
-  if (breaker.isOpen()) {
-    debugLog("Sonarr", "circuit breaker open, skipping");
-    return null;
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      breaker.recordFailure();
-      debugLog("Sonarr", `HTTP ${res.status} for ${path}`);
-      return null;
-    }
-
-    const data = await res.json() as T;
-    breaker.recordSuccess();
-    return data;
-  } catch (err) {
-    clearTimeout(timer);
-    breaker.recordFailure();
-    debugLog("Sonarr", `fetch failed for ${path}:`, err);
-    return null;
-  }
-}
-
 // --- Cache TTLs ---
 
 const ENDED_TTL = 7 * 24 * 60 * 60 * 1000;   // 7 days — ended shows' episode lists don't change
 const FRESH_TTL = 24 * 60 * 60 * 1000;        // 24 hours — continuing shows air new episodes
 const SEARCH_TTL = 24 * 60 * 60 * 1000;       // 24 hours for searches
-
-// Coalesce concurrent misses on the same key (e.g. two tabs opening the same
-// title) so they share one proxy request instead of stampeding.
-const inflight = new Map<string, Promise<unknown>>();
-
-function fetchAndCache<T>(cacheKey: string, path: string): Promise<T | null> {
-  const existing = inflight.get(cacheKey);
-  if (existing) return existing as Promise<T | null>;
-  const p = (async () => {
-    try {
-      const data = await sonarrFetch<T>(path);
-      if (data) await setProxyCache(cacheKey, data);
-      return data;
-    } finally {
-      inflight.delete(cacheKey);
-    }
-  })();
-  inflight.set(cacheKey, p);
-  return p;
-}
-
-/** Cache-first fetch: return cached data if fresh, else fetch and cache. */
-async function cachedSonarrFetch<T>(cacheKey: string, ttl: number, path: string): Promise<T | null> {
-  const cached = await getProxyCache<T>(cacheKey, ttl);
-  if (cached) {
-    debugLog("Sonarr", `cache hit for ${cacheKey}`);
-    return cached;
-  }
-  return fetchAndCache<T>(cacheKey, path);
-}
 
 // --- Public API ---
 
@@ -162,13 +94,13 @@ export async function getSonarrShow(tvdbId: number): Promise<SonarrShow | null> 
     return stale;
   }
 
-  const data = await fetchAndCache<SonarrShow>(cacheKey, path);
+  const data = await client.fetchAndCache<SonarrShow>(cacheKey, path);
   // Refetch failed (proxy down / circuit open) — a day-old entry beats nothing
   return data ?? stale;
 }
 
 /** Search shows by title. Returns array of matches or null. */
 export async function searchSonarrShow(query: string): Promise<SonarrShow[] | null> {
-  return cachedSonarrFetch<SonarrShow[]>(`sonarr:search:${query}`, SEARCH_TTL, `/tvdb/search/en/?term=${encodeURIComponent(query)}`);
+  return client.cachedFetch<SonarrShow[]>(`sonarr:search:${query}`, SEARCH_TTL, `/tvdb/search/en/?term=${encodeURIComponent(query)}`);
 }
 
