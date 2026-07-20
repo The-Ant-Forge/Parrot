@@ -52,6 +52,7 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **Metacritic** | `metacritic.com/movie/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
 | **Metacritic** | `metacritic.com/tv/{slug}` | IMDb from JSON-LD sameAs (title-based fallback) | `h1` |
 | **TVMaze** | `tvmaze.com/shows/{id}` | TVDB/IMDb via TVMaze API (free, no key) | `header.columns h1` or `h1` |
+| **KickassTorrents** | `kickasstorrents.to/{release-slug}-t{id}.html` | IMDb link → IMDb URL as text in `#desc` → title from release slug | `h1` |
 | **BBC iPlayer** | `bbc.co.uk/iplayer/episode/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) | `.typo--buzzard` |
 | **BBC iPlayer** | `bbc.co.uk/iplayer/episodes/{pid}/{slug}` | Title-based from slug + DOM title (additive merge) | `.typo--buzzard` |
 
@@ -72,6 +73,8 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 
 **API-resolved** (TVMaze): The page has no external database links. The content script extracts the TVMaze numeric ID from the URL, sends it to the background, which calls the free TVMaze API (`api.tvmaze.com/shows/{id}`) to resolve TVDB and IMDb IDs. The background then looks up those IDs in the library index.
 
+**Release-name waterfall** (KickassTorrents): torrent detail pages carry no structured IDs. The script tries an IMDb link anywhere on the page, then an *unlinked* IMDb URL in the `#desc` description text (`findImdbIdInText()`), then falls back to a title parsed from the release-name slug (`parseKickassSlug()`: a `sNN`/`sNNeNN` token marks a show and ends the title; otherwise the last plausible year token ends it, so numeric titles survive; with no year the title ends at the first quality/source token).
+
 **Title-based** (PSA, Rotten Tomatoes, JustWatch, Metacritic): No external IDs exist on the page (or they have been removed by the site). Parrot normalizes a title and optional year, then matches against a title-based index built from Plex library data using the key `"some movie|2025"`. PSA, Rotten Tomatoes, and Metacritic use an **additive merge**: both the URL slug and h1 text are parsed, and the richest info from each is combined (e.g., slug provides title, h1 provides year). JustWatch parses the h1 text (e.g., `"The Night Manager (2016)"`). Handles both hyphen-separated slugs (`some-movie-2025`) and underscore-separated slugs (`some_movie_2025`). Rotten Tomatoes, JustWatch, and Metacritic try structured data or link scanning first and fall back to title-based matching. If the initial title-based lookup misses, the background resolves a TMDB ID via search and re-checks the library; if found, an `OWNERSHIP_UPDATED` message updates the in-page pill and triggers gap checking.
 
 ### Media Type Detection
@@ -89,6 +92,7 @@ url.match(/imdb\.com\/title\/(tt\d+)/);
 - **Metacritic**: URL path (`/movie/` vs `/tv/`) determines type
 - **TVMaze**: Always show (TV-only site)
 - **TVDB**: URL path (`/series/` vs `/movies/`) determines type
+- **KickassTorrents**: `sNN`/`sNNeNN` token in the release slug = show; otherwise ambiguous — resolved server-side (IMDb dual lookup / `ambiguousType` title CHECK)
 
 ### SPA Navigation
 
@@ -119,6 +123,7 @@ parrot/
 │   │   ├── nzbgeek.content.ts         # NZBGeek content script
 │   │   ├── rargb.content.ts           # RARGB content script
 │   │   ├── nzbforyou.content.ts       # NZBForYou content script
+│   │   ├── kickass.content.ts         # KickassTorrents content script (release-name waterfall)
 │   │   ├── psa.content.ts             # PSA content script (title-based)
 │   │   ├── letterboxd.content.ts      # Letterboxd content script
 │   │   ├── trakt.content.ts           # Trakt content script
@@ -161,7 +166,7 @@ parrot/
 │       ├── logger.ts                  # Debug/error logging gated by settings toggle
 │       ├── dom-utils.ts               # DOM utilities (waitForElement)
 │       └── sites.ts                   # Supported site definitions
-├── tests/                             # Vitest test suite (356 tests)
+├── tests/                             # Vitest test suite (369 tests)
 ├── scripts/
 │   ├── bump-build.js                  # Auto-increment build number (B)
 │   └── bump-commit.js                 # Bump commit number (A), reset B
@@ -181,7 +186,7 @@ parrot/
 - Auto-refreshes stale library index on demand (configurable interval, default 7 days)
 - Resolves the right Plex server URL per request: tries the configured local URL first, falls back to the optional auto-detected `remoteUrl`, and memoizes the working URL per server for the session
 
-**Content Scripts (17 scripts)**
+**Content Scripts (18 scripts)**
 - One per supported site
 - Extracts media ID from URL or by scanning page links (shared `scanLinksForExternalId()`)
 - Sends `CHECK` message to service worker

@@ -1,6 +1,6 @@
 # Supported Sites
 
-Parrot ships with 16 built-in content scripts. Each one knows how to extract a media identifier (TMDB / IMDb / TVDB ID, title, or slug) from the page and request a library check.
+Parrot ships with 17 built-in sites. Each one knows how to extract a media identifier (TMDB / IMDb / TVDB ID, title, or slug) from the page and request a library check.
 
 <img src="https://raw.githubusercontent.com/The-Ant-Forge/Parrot/master/docs/screenshots/options-sites.png" alt="Supported Sites table" width="540" />
 
@@ -11,6 +11,7 @@ Parrot ships with 16 built-in content scripts. Each one knows how to extract a m
 | **BBC iPlayer** | Auto | Title matching from URL slug + DOM title |
 | **IMDb** | Auto | IMDb ID directly from URL |
 | **JustWatch** | Auto | Title matching from h1 text |
+| **KickassTorrents** | Auto | IMDb link, unlinked IMDb URL in the description, or title from the release-name slug (`sNN` marker = TV) |
 | **Letterboxd** | Movie | TMDB / IMDb from page links |
 | **Metacritic** | Auto | IMDb from JSON-LD `sameAs`, title-matching fallback |
 | **NZBForYou** | Auto | IMDb from page links, fallback to TMDB/TVDB/TVMaze link scan |

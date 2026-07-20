@@ -84,6 +84,83 @@ export function extractNzbgeekMediaType(search: string): "movie" | "show" | null
   return null;
 }
 
+// --- KickassTorrents release-slug parser ---
+
+export interface ParsedReleaseSlug {
+  title: string;
+  year?: number;
+  /** "show" when the slug carries a season marker; undefined = ambiguous. */
+  mediaType: "show" | undefined;
+}
+
+/** sNN / sNNeNNN token (multi-season ranges appear as two adjacent tokens). */
+const SEASON_MARKER = /^s\d{1,2}(?:e\d{1,3})?$/i;
+
+/** Quality/source tokens that end the title when a slug has no year. */
+const RELEASE_NOISE_TOKENS = new Set([
+  "1080p", "2160p", "720p", "480p", "bluray", "blu", "ray", "web", "webrip",
+  "dl", "hdtv", "remux", "uhd", "hdr", "hdr10", "dv", "hevc", "x264", "x265",
+  "h264", "h265", "aac", "dts", "truehd", "atmos", "uncut", "extended",
+  "remastered", "upscaled", "proper", "repack", "internal", "complete",
+]);
+
+/**
+ * KickassTorrents: parse title/year/type from a torrent detail path
+ * (`/{release-name-slug}-t{digits}.html`). Returns null for other paths.
+ *
+ * Release names read `title [year] [sNN[eNN]] quality...`:
+ * - a season marker is an authoritative "show" and ends the title
+ *   (the token just before it is the year, when plausible);
+ * - otherwise the LAST plausible year token ends the title — numeric titles
+ *   keep their number (in `2001-a-space-odyssey-1968` the year is 1968, and
+ *   `blade-runner-2049-2017` keeps 2049 because it isn't a plausible year);
+ * - with no year, the title ends at the first known quality/source token.
+ */
+export function parseKickassSlug(pathname: string): ParsedReleaseSlug | null {
+  const match = pathname.match(/^\/([a-z0-9-]+)-t\d+\.html$/i);
+  if (!match) return null;
+  const tokens = match[1].split("-").filter(Boolean);
+
+  const isPlausibleYear = (tok: string): boolean => {
+    if (!/^(?:19|20)\d{2}$/.test(tok)) return false;
+    return parseInt(tok, 10) <= new Date().getFullYear() + 1;
+  };
+
+  const markerIdx = tokens.findIndex((t) => SEASON_MARKER.test(t));
+  if (markerIdx >= 0) {
+    let end = markerIdx;
+    let year: number | undefined;
+    if (end > 0 && isPlausibleYear(tokens[end - 1])) {
+      year = parseInt(tokens[end - 1], 10);
+      end--;
+    }
+    if (end === 0) return null;
+    return { title: tokens.slice(0, end).join(" "), year, mediaType: "show" };
+  }
+
+  // Last plausible year (never the first token — a leading year is a title)
+  for (let i = tokens.length - 1; i >= 1; i--) {
+    if (isPlausibleYear(tokens[i])) {
+      return { title: tokens.slice(0, i).join(" "), year: parseInt(tokens[i], 10), mediaType: undefined };
+    }
+  }
+
+  // No year — cut the title at the first quality/source token
+  const noiseIdx = tokens.findIndex((t) => RELEASE_NOISE_TOKENS.has(t.toLowerCase()));
+  const titleTokens = noiseIdx >= 0 ? tokens.slice(0, noiseIdx) : tokens;
+  if (titleTokens.length === 0) return null;
+  return { title: titleTokens.join(" "), year: undefined, mediaType: undefined };
+}
+
+/**
+ * Find an IMDb title id in plain text (e.g. an unlinked
+ * `https://www.imdb.com/title/tt0000001/` inside a torrent description).
+ */
+export function findImdbIdInText(text: string): string | null {
+  const match = text.match(/imdb\.com\/title\/(tt\d+)/i);
+  return match ? match[1] : null;
+}
+
 // --- JSON-LD structured data scanner ---
 
 /**

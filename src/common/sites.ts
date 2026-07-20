@@ -29,6 +29,15 @@ export const DEFAULT_SITES: SiteDefinition[] = [
     enabled: true,
   },
   {
+    id: "kickass",
+    name: "KickassTorrents",
+    urlPattern: "*://kickasstorrents.to/*-t*.html, *://*.kickasstorrents.to/*-t*.html",
+    mediaType: "auto",
+    badgeSelector: "h1",
+    isBuiltin: true,
+    enabled: true,
+  },
+  {
     id: "letterboxd",
     name: "Letterboxd",
     urlPattern: "*://*.letterboxd.com/film/*",

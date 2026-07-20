@@ -12,7 +12,7 @@
 
 ## Architecture (orientation only — see spec for the full map)
 
-- `src/entrypoints/` — `background.ts` service worker (CHECK handling, library index, metadata enrichment) + `bg/` helper modules; 17 `*.content.ts` scripts (one per site); `options/`; `popup/`
+- `src/entrypoints/` — `background.ts` service worker (CHECK handling, library index, metadata enrichment) + `bg/` helper modules; 18 `*.content.ts` scripts (one per site); `options/`; `popup/`
 - `src/api/` — one client per external service: `plex.ts` (+ `plex-tv.ts` server discovery), community proxies `radarr.ts`/`sonarr.ts`, fallbacks `tmdb.ts`/`tvdb.ts`/`omdb.ts`, `tvmaze.ts`
 - `src/common/` — shared types, storage, badge + gap panels, extractors, gap-checker, check-helpers, circuit breaker, logger
 - `scripts/` — version bump scripts, `sync-wiki.js`

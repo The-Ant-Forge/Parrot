@@ -29,7 +29,7 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 ## Features
 
-- **Library status badge** on 16 supported sites — dark pill with gold/gray Plex chevron
+- **Library status badge** on 17 supported sites — dark pill with gold/gray Plex chevron
 - **Resolution display** — see media quality (SD, 720p, 1080p, 4K) on badges and the popup dashboard
 - **Zero-config community proxies** — free Radarr and Sonarr proxies provide movie and TV metadata out of the box; no API keys needed for basic functionality, just configure your Plex server
 - **Media ratings** — up to 6 sources for movies (TMDB, IMDb, Rotten Tomatoes, Metacritic, Trakt) and TVDB rating for TV shows
@@ -157,6 +157,7 @@ Click the toolbar icon on any media page to see a summary: library counts, serve
 | **BBC iPlayer** | Title matching from URL slug + DOM title |
 | **IMDb** | IMDb ID from URL |
 | **JustWatch** | Title matching from h1 text |
+| **KickassTorrents** | IMDb link or unlinked IMDb URL in the description, title from release slug |
 | **Letterboxd** | TMDB/IMDb from page links |
 | **Metacritic** | IMDb from JSON-LD `sameAs`, title matching fallback |
 | **NZBForYou** | IMDb from page links, link scan fallback (TMDB/TVDB/TVMaze) |

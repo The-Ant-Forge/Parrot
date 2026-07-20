@@ -10,6 +10,8 @@ import {
   extractRtMediaType,
   extractMetacriticMediaType,
   extractIplayerFromUrl,
+  parseKickassSlug,
+  findImdbIdInText,
 } from "../src/common/extractors";
 
 describe("extractTmdbFromUrl", () => {
@@ -227,5 +229,101 @@ describe("extractMetacriticMediaType", () => {
 
   it("returns null for other paths", () => {
     expect(extractMetacriticMediaType("/person/some-actor")).toBeNull();
+  });
+});
+
+describe("parseKickassSlug", () => {
+  it("parses a movie slug: title + year, ambiguous media type", () => {
+    expect(parseKickassSlug("/the-specialist-1994-1080p-bluray-hevc-x265-5-1-bone-t6685416.html")).toEqual({
+      title: "the specialist",
+      year: 1994,
+      mediaType: undefined,
+    });
+  });
+
+  it("parses a show slug via the season marker", () => {
+    expect(parseKickassSlug("/ms-x-2026-s01-1080p-web-dl-hevc-x265-5-1-bone-t6685457.html")).toEqual({
+      title: "ms x",
+      year: 2026,
+      mediaType: "show",
+    });
+  });
+
+  it("parses a multi-season range slug (first marker wins)", () => {
+    expect(parseKickassSlug("/hitmen-2020-s01-s02-1080p-web-dl-hevc-x265-5-1-bone-t6685999.html")).toEqual({
+      title: "hitmen",
+      year: 2020,
+      mediaType: "show",
+    });
+  });
+
+  it("parses an sXXeXX marker", () => {
+    expect(parseKickassSlug("/harbor-of-glass-s02e05-720p-hdtv-x264-t1.html")).toEqual({
+      title: "harbor of glass",
+      year: undefined,
+      mediaType: "show",
+    });
+  });
+
+  it("keeps edition noise after the year out of the title", () => {
+    expect(parseKickassSlug("/transporter-2-2005-uncut-upscaled-bluray-2160p-hdr10-hevc-truehd-5-1-x265-e-t6685539.html")).toEqual({
+      title: "transporter 2",
+      year: 2005,
+      mediaType: undefined,
+    });
+  });
+
+  it("picks the last plausible year for numeric titles", () => {
+    expect(parseKickassSlug("/2001-a-space-odyssey-1968-2160p-bluray-x265-t2.html")).toEqual({
+      title: "2001 a space odyssey",
+      year: 1968,
+      mediaType: undefined,
+    });
+  });
+
+  it("ignores implausible future-year tokens in the title", () => {
+    expect(parseKickassSlug("/blade-runner-2049-2017-1080p-bluray-t3.html")).toEqual({
+      title: "blade runner 2049",
+      year: 2017,
+      mediaType: undefined,
+    });
+  });
+
+  it("falls back to cutting at the first noise token when there is no year", () => {
+    expect(parseKickassSlug("/the-quiet-cartographer-1080p-webrip-x265-t4.html")).toEqual({
+      title: "the quiet cartographer",
+      year: undefined,
+      mediaType: undefined,
+    });
+  });
+
+  it("uses the whole slug when there is no year and no noise token", () => {
+    expect(parseKickassSlug("/lanterns-of-meridian-bay-t5.html")).toEqual({
+      title: "lanterns of meridian bay",
+      year: undefined,
+      mediaType: undefined,
+    });
+  });
+
+  it("returns null for non-torrent-detail paths", () => {
+    expect(parseKickassSlug("/browse")).toBeNull();
+    expect(parseKickassSlug("/the-specialist-1994.html")).toBeNull();
+    expect(parseKickassSlug("/community/thread-t123")).toBeNull();
+  });
+});
+
+describe("findImdbIdInText", () => {
+  it("finds an unlinked IMDb URL in text", () => {
+    const text = "HEVC, Main 10@High\n\nhttps://www.imdb.com/title/tt0388482/\n\nscreens below";
+    expect(findImdbIdInText(text)).toBe("tt0388482");
+  });
+
+  it("returns the first of several ids", () => {
+    const text = "see imdb.com/title/tt0000001/ and imdb.com/title/tt0000002/";
+    expect(findImdbIdInText(text)).toBe("tt0000001");
+  });
+
+  it("returns null when no IMDb URL is present", () => {
+    expect(findImdbIdInText("Format: Matroska at 24.9 Mb/s tt is not an id")).toBeNull();
   });
 });
