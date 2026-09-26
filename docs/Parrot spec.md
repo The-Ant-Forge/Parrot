@@ -839,7 +839,7 @@ The external ID extraction from Plex `guids` arrays is identical in both project
 | Component | Technology |
 |-----------|------------|
 | Language | TypeScript (strict mode) |
-| Build | WXT 0.20.x (Vite-based extension framework) |
+| Build | WXT 0.21.x (Vite-based extension framework) |
 | Testing | Vitest |
 | Linting | ESLint + Prettier |
 | Target | Chrome (primary), Firefox (secondary) |

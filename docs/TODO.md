@@ -20,9 +20,15 @@ Forward-looking roadmap. Shipped work is recorded in the [GitHub release notes](
 - [ ] Adopt `noUncheckedIndexedAccess` — wxt 0.21's generated tsconfig enables it; we override it to `false` in the root `tsconfig.json` because turning it on surfaces ~200 `T | undefined` errors across src + tests. Worth adopting incrementally: it catches exactly the "index into a map/array and trust the result" bug class.
 - [ ] Add unit tests for `gap-checker.ts` (needs browser.runtime mocking)
 - [ ] Add unit tests for `url-observer.ts` (needs MutationObserver mocking)
+- [ ] `prettier --check .` reports style issues in 100 files, and has for a
+  while: the same 100 files are flagged by prettier 3.9.6 and 3.9.9 alike, so
+  this is accumulated drift, not a formatter change. `npm run format` fixes it
+  but produces a 100-file diff, so it wants a commit of its own rather than a
+  ride-along on unrelated work. Consider adding a `format:check` script so it
+  cannot silently regrow.
 
 **Dependency majors**
-- [ ] `typescript` 5.9 -> 7 - **blocked upstream**: typescript-eslint 8.68.0 (latest as of 2026-08-30) still peers on `typescript >=4.8.4 <6.1.0`, and there is no v9 line yet. No Parrot-side driver either: `npm audit` is clean and nothing we want needs TS 7. Recheck when typescript-eslint announces TS 7 support.
+- [ ] `typescript` 5.9 -> 7 - **blocked upstream**: typescript-eslint 8.70.1 (latest as of 2026-09-27) still peers on `typescript >=4.8.4 <6.1.0`, and there is no v9 line yet. No Parrot-side driver either: `npm audit` is clean and nothing we want needs TS 7. Recheck when typescript-eslint announces TS 7 support.
 - [ ] Teach the version bump scripts to sync `package-lock.json`'s `version` field. `scripts/bump-build.js` and `bump-commit.js` write `package.json` only, so the lockfile drifts on every build and has to be hand-synced. Simplest fix: run `npm install --package-lock-only` from the scripts.
 
 ---
