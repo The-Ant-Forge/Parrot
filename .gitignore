@@ -8,3 +8,4 @@ dist/
 Thumbs.db
 *.vsix
 .claude
+.vitest/
