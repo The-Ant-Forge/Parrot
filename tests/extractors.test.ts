@@ -121,6 +121,25 @@ describe("extractPsaFromUrl", () => {
     expect(extractPsaFromUrl("https://other.site/movie/something")).toBeNull();
   });
 
+  it("extracts from the psa.rip domain", () => {
+    expect(extractPsaFromUrl("https://psa.rip/movie/some-title-2024/")).toEqual({
+      mediaType: "movie",
+      slug: "some-title-2024",
+    });
+  });
+
+  it("extracts from a future psa.<tld> domain", () => {
+    expect(extractPsaFromUrl("https://psa.xyz/tv-show/another-show/")).toEqual({
+      mediaType: "show",
+      slug: "another-show",
+    });
+  });
+
+  it("returns null when psa appears only in a non-PSA host", () => {
+    expect(extractPsaFromUrl("https://notpsa.rip/movie/something")).toBeNull();
+    expect(extractPsaFromUrl("https://example.com/psa.rip/movie/something")).toBeNull();
+  });
+
   it("returns null for PSA page URL", () => {
     expect(extractPsaFromUrl("https://psa.wf/about")).toBeNull();
   });

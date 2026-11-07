@@ -44,7 +44,11 @@ async function checkAndBadge() {
 }
 
 export default defineContentScript({
+  // Chrome match patterns can't wildcard a TLD (no "psa.*"), so each domain
+  // the site moves to is listed here. psa.wf kept for old links/redirects.
   matches: [
+    "*://psa.rip/movie/*",
+    "*://psa.rip/tv-show/*",
     "*://psa.wf/movie/*",
     "*://psa.wf/tv-show/*",
   ],

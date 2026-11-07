@@ -38,8 +38,8 @@ Parrot is a browser extension that tells you whether media you're browsing on th
 | **NZBGeek** | `nzbgeek.info/geekseek.php?tvid={id}` | TVDB from page links | `span.overlay_title` |
 | **RARGB** | `rargb.to/torrent/*` | TMDB/IMDb/TVDB from page links | `h1` |
 | **NZBForYou** | `nzbforyou.com/viewtopic.php` | IMDb from page links (link scan fallback) | `h3.first` |
-| **PSA** | `psa.wf/movie/{slug}` | Title-based matching from URL slug | `h1.post-title` |
-| **PSA** | `psa.wf/tv-show/{slug}` | Title-based matching from URL slug | `h1.post-title` |
+| **PSA** | `psa.rip/movie/{slug}` (also `psa.wf`) | Title-based matching from URL slug | `h1.post-title` |
+| **PSA** | `psa.rip/tv-show/{slug}` (also `psa.wf`) | Title-based matching from URL slug | `h1.post-title` |
 | **Letterboxd** | `letterboxd.com/film/{slug}` | TMDB/IMDb from page links | `h1.headline-1` |
 | **Trakt** | `trakt.tv/movies/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |
 | **Trakt** | `trakt.tv/shows/{slug}` | TMDB/IMDb/TVDB from page links | `h1` |

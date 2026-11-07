@@ -26,9 +26,11 @@ export function extractTvmazeFromUrl(url: string): { id: string } | null {
   return match ? { id: match[1] } : null;
 }
 
-/** PSA: extract mediaType and slug from a PSA URL. */
+/** PSA: extract mediaType and slug from a PSA URL.
+ *  Any `psa.<tld>` host is accepted because the site moves TLD often; which
+ *  domains actually run the script is controlled by the content script matches. */
 export function extractPsaFromUrl(url: string): { mediaType: "movie" | "show"; slug: string } | null {
-  const match = url.match(/psa\.wf\/(movie|tv-show)\/([^/?#]+)/);
+  const match = url.match(/^https?:\/\/(?:www\.)?psa\.[a-z]+\/(movie|tv-show)\/([^/?#]+)/i);
   if (!match) return null;
   return {
     mediaType: match[1] === "movie" ? "movie" : "show",

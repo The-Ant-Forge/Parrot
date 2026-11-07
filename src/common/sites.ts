@@ -85,7 +85,7 @@ export const DEFAULT_SITES: SiteDefinition[] = [
   {
     id: "psa",
     name: "PSA",
-    urlPattern: "*://psa.wf/movie/*, *://psa.wf/tv-show/*",
+    urlPattern: "*://psa.rip/movie/*, *://psa.rip/tv-show/*, *://psa.wf/movie/*, *://psa.wf/tv-show/*",
     mediaType: "auto",
     badgeSelector: "h1.post-title",
     isBuiltin: true,
