@@ -9,3 +9,4 @@ Thumbs.db
 *.vsix
 .claude
 .vitest/
+.playwright-mcp/
