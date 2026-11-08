@@ -52,6 +52,7 @@ npm run dev      # hot-reload dev mode
 npm run build    # production build (auto-bumps build number)
 npm test         # vitest
 npm run lint     # eslint
+npm run typecheck # tsc --noEmit (the build does not type-check)
 ```
 
 Load in Chrome: `chrome://extensions/` → Developer Mode → Load unpacked → `.output/chrome-mv3/`

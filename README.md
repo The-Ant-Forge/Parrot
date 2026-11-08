@@ -224,6 +224,7 @@ npm run build          # production build
 npm run zip            # build + zip for release
 npm test               # run all tests
 npm run lint           # lint
+npm run typecheck      # type-check (the build does not)
 ```
 
 ### Versioning

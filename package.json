@@ -1,6 +1,6 @@
 {
   "name": "parrot",
-  "version": "1.28.1",
+  "version": "1.28.2",
   "description": "Browser extension that checks if media you're browsing is already in your Plex library",
   "private": true,
   "type": "module",
@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "wiki:sync": "node scripts/sync-wiki.js"
   },
@@ -25,7 +26,7 @@
     "globals": "17.13.0",
     "happy-dom": "21.0.4",
     "prettier": "3.9.10",
-    "typescript": "^5.7.0",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vite": "8.3.5",
     "vitest": "5.0.5",

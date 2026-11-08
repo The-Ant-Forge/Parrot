@@ -1,0 +1,818 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - link "Skip to content" [ref=e3] [cursor=pointer]:
+      - /url: "#content"
+    - banner [ref=e4]:
+      - navigation [ref=e5]:
+        - list [ref=e7]:
+          - listitem [ref=e8]:
+            - link "Homepage" [ref=e9] [cursor=pointer]:
+              - /url: /
+          - listitem [ref=e10]:
+            - link "Movies" [ref=e11] [cursor=pointer]:
+              - /url: https://psa.rip/category/movie/
+          - listitem [ref=e12]:
+            - link "TV-Shows" [ref=e13] [cursor=pointer]:
+              - /url: https://psa.rip/category/tv-show/
+          - listitem [ref=e14]:
+            - link "By Year" [ref=e15] [cursor=pointer]:
+              - /url: https://psa.rip/category/year/
+          - listitem [ref=e16]:
+            - link "Other Stuff" [ref=e17] [cursor=pointer]:
+              - /url: https://psa.rip/category/other/
+          - listitem [ref=e18]:
+            - link "Tools" [ref=e19] [cursor=pointer]:
+              - /url: https://psa.rip/category/tools/
+          - listitem [ref=e20]:
+            - link "Contact Us" [ref=e21] [cursor=pointer]:
+              - /url: https://psa.rip/contact-us-2/
+          - listitem [ref=e22]:
+            - link "Support Us / Ad-free Experience" [ref=e23] [cursor=pointer]:
+              - /url: https://psa.rip/support-us/
+          - listitem [ref=e24]:
+            - link "Abuse/DMCA/Takedown" [ref=e25] [cursor=pointer]:
+              - /url: https://psa.rip/contact-us-2/
+        - button [ref=e26] [cursor=pointer]
+      - generic [ref=e29]:
+        - link [ref=e31] [cursor=pointer]:
+          - /url: https://psa.rip/
+        - navigation [ref=e32]:
+          - list [ref=e34]:
+            - listitem [ref=e35]:
+              - link "Movies" [ref=e36] [cursor=pointer]:
+                - /url: https://psa.rip/category/movie/
+            - listitem [ref=e37]:
+              - link "TV-Shows" [ref=e38] [cursor=pointer]:
+                - /url: https://psa.rip/category/tv-show/
+            - listitem [ref=e39]:
+              - link "TV-PACKs" [ref=e40] [cursor=pointer]:
+                - /url: https://psa.rip/category/tv-show/tv-pack/
+            - listitem [ref=e41]:
+              - link "How to Download" [ref=e42] [cursor=pointer]:
+                - /url: https://psa.rip/how-to-download/
+            - listitem [ref=e43]:
+              - link "Unofficial F.A.Q" [ref=e44] [cursor=pointer]:
+                - /url: https://psa.rip/unofficial-faq/
+            - listitem [ref=e45]:
+              - link "Active Domains and Mirrors" [ref=e46] [cursor=pointer]:
+                - /url: https://psa.rip/psarips-active-domains-and-mirrors/
+            - listitem [ref=e47]:
+              - link "Re-upload Center" [ref=e48] [cursor=pointer]:
+                - /url: /re-upload-center/
+            - listitem [ref=e49]:
+              - link "Support Us / Ad-free Experience" [ref=e50] [cursor=pointer]:
+                - /url: https://psa.rip/support-us/
+    - generic [ref=e54]:
+      - main [ref=e55]:
+        - generic [ref=e57]:
+          - article [ref=e59]:
+            - generic [ref=e60]:
+              - heading [level=2] [ref=e61]:
+                - link "Saturday Night Live" [ref=e62] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/saturday-night-live/
+              - generic [ref=e63]:
+                - link [ref=e64] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/saturday-night-live/
+                - link "87" [ref=e65] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/saturday-night-live/#comments
+              - generic [ref=e67]:
+                - paragraph [ref=e68]: Update -> S52E05.720p.WEBRip
+                - paragraph [ref=e69]:
+                  - link "Comedy" [ref=e70] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                  - text: /
+                  - link "Music" [ref=e71] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/music-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e72] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+                - paragraph [ref=e73]:
+                  - time [ref=e74]: 2026-11-08
+              - paragraph [ref=e76]: A famous guest host stars in parodies and sketches created by the cast of this witty show.
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - article [ref=e79]:
+                - generic [ref=e80]:
+                  - heading [level=2] [ref=e81]:
+                    - link "Ultimate Fighting Championship (UFC)" [ref=e82] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/
+                  - generic [ref=e83]:
+                    - link [ref=e84] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/
+                    - link "111" [ref=e85] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/#comments
+                  - generic [ref=e87]:
+                    - paragraph [ref=e88]: update -> Fight.Night.Cortes-Acosta.vs.Walker
+                    - paragraph [ref=e89]:
+                      - link "Sport" [ref=e90] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/sport-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e91] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e92]:
+                      - time [ref=e93]: 2026-11-08
+                  - paragraph [ref=e95]: The Ultimate Fighting Championship (UFC) is an American mixed martial arts organization based in Las Vegas, Nevada, that is owned and operated by parent company William Morris Endeavor. It is one of the largest MMA promotions in the world and features many high-level fighters on the roster.
+              - article [ref=e96]:
+                - generic [ref=e97]:
+                  - heading [level=2] [ref=e98]:
+                    - link "WWE Crown Jewel" [ref=e99] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/wwe-crown-jewel/
+                  - generic [ref=e100]:
+                    - link [ref=e101] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/wwe-crown-jewel/
+                    - link "8" [ref=e102] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/wwe-crown-jewel/#comments
+                  - generic [ref=e104]:
+                    - paragraph [ref=e105]: update -> 2026.720p.WEBRip
+                    - paragraph [ref=e106]:
+                      - link "Sport" [ref=e107] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/sport-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e108] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e109]:
+                      - time [ref=e110]: 2026-11-08
+                  - paragraph [ref=e112]: WWE Crown Jewel is a professional wrestling event produced by WWE, an American-based promotion.
+            - generic [ref=e113]:
+              - article [ref=e114]:
+                - generic [ref=e115]:
+                  - heading [level=2] [ref=e116]:
+                    - link "The Institute" [ref=e117] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/the-institute/
+                  - generic [ref=e118]:
+                    - link [ref=e119] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/the-institute/
+                    - link "5" [ref=e120] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/the-institute/#comments
+                  - generic [ref=e122]:
+                    - paragraph [ref=e123]: update -> S02E01.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e124]:
+                      - link "Horror" [ref=e125] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/horror-tv-show/
+                      - text: /
+                      - link "Sci-Fi" [ref=e126] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/sci-fi-tv-show/
+                      - text: /
+                      - link "Thriller" [ref=e127] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/thriller-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e128] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e129]:
+                      - time [ref=e130]: 2026-11-08
+                  - paragraph [ref=e132]: A teen genius wakes up in a strange place full of children who got there the same way he did, and who all, like him, possess unusual abilities.
+              - article [ref=e133]:
+                - generic [ref=e134]:
+                  - heading [level=2] [ref=e135]:
+                    - link "Heart of the Beast (2026)" [ref=e136] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/heart-of-the-beast-2026/
+                  - generic [ref=e137]:
+                    - link [ref=e138] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/heart-of-the-beast-2026/
+                    - link "2" [ref=e139] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/heart-of-the-beast-2026/#comments
+                  - generic [ref=e141]:
+                    - paragraph [ref=e142]: update -> 2160p.HDR10Plus.DV.WEBRip
+                    - paragraph [ref=e143]:
+                      - link "2026" [ref=e144] [cursor=pointer]:
+                        - /url: https://psa.rip/category/year/2026/
+                      - text: /
+                      - link "Action" [ref=e145] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/action/
+                      - text: /
+                      - link "Adventure" [ref=e146] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/adventure/
+                      - text: /
+                      - link "Drama" [ref=e147] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/drama/
+                      - text: /
+                      - link "Movie" [ref=e148] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/
+                      - text: /
+                      - link "Thriller" [ref=e149] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/thriller/
+                    - paragraph [ref=e150]:
+                      - time [ref=e151]: 2026-11-08
+                  - paragraph [ref=e153]: After a harrowing plane crash, Special Forces veteran James Belmont and his combat dog, Odin, find themselves stranded deep in the Alaskan wilderness. Together, they are forced into a brutal fight for survival against the elements.
+            - generic [ref=e154]:
+              - article [ref=e155]:
+                - generic [ref=e156]:
+                  - heading [level=2] [ref=e157]:
+                    - link "The Rainmaker" [ref=e158] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/the-rainmaker/
+                  - generic [ref=e159]:
+                    - link [ref=e160] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/the-rainmaker/
+                    - link "5" [ref=e161] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/the-rainmaker/#comments
+                  - generic [ref=e163]:
+                    - paragraph [ref=e164]: update -> S02E04.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e165]:
+                      - link "Crime" [ref=e166] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/crime-tv-show/
+                      - text: /
+                      - link "Drama" [ref=e167] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/drama-tv-show/
+                      - text: /
+                      - link "Thriller" [ref=e168] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/thriller-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e169] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e170]:
+                      - time [ref=e171]: 2026-11-07
+                  - paragraph [ref=e173]: Based on the 1995 novel by John Grisham, the series follows a young lawyer who finds himself trapped by the dangerous firm that has hired him.
+              - article [ref=e174]:
+                - generic [ref=e175]:
+                  - heading [level=2] [ref=e176]:
+                    - link "The Odyssey (2026)" [ref=e177] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/the-odyssey-2026/
+                  - generic [ref=e178]:
+                    - link [ref=e179] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/the-odyssey-2026/
+                    - link "26" [ref=e180] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/the-odyssey-2026/#comments
+                  - generic [ref=e182]:
+                    - paragraph [ref=e183]: update -> 2160p.10bit.HDR.BluRay
+                    - paragraph [ref=e184]:
+                      - link "2026" [ref=e185] [cursor=pointer]:
+                        - /url: https://psa.rip/category/year/2026/
+                      - text: /
+                      - link "Action" [ref=e186] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/action/
+                      - text: /
+                      - link "Adventure" [ref=e187] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/adventure/
+                      - text: /
+                      - link "Drama" [ref=e188] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/drama/
+                      - text: /
+                      - link "Fantasy" [ref=e189] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/fantasy/
+                      - text: /
+                      - link "Movie" [ref=e190] [cursor=pointer]:
+                        - /url: https://psa.rip/category/movie/
+                    - paragraph [ref=e191]:
+                      - time [ref=e192]: 2026-11-07
+                  - paragraph [ref=e194]: After the Trojan War, Odysseus faces a dangerous voyage back to Ithaca, meeting creatures like the Cyclops Polyphemus, Sirens, and Calypso along the way.
+            - generic [ref=e195]:
+              - article [ref=e196]:
+                - generic [ref=e197]:
+                  - heading [level=2] [ref=e198]:
+                    - link "Mike Judge’s Beavis and Butt-Head" [ref=e199] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/
+                  - generic [ref=e200]:
+                    - link [ref=e201] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/
+                    - link "20" [ref=e202] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/#comments
+                  - generic [ref=e204]:
+                    - paragraph [ref=e205]: update -> S04E09-10.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e206]:
+                      - link "Animation" [ref=e207] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/animation-tv-show/
+                      - text: /
+                      - link "Comedy" [ref=e208] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e209] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e210]:
+                      - time [ref=e211]: 2026-11-07
+                  - paragraph [ref=e213]: The iconic animated duo are back and dumber than ever. The ’90s pop-culture phenomenons return, voiced by creator Mike Judge, to confound common sense, torment each other, and showcase some of the dumbest comedy imaginable.
+              - article [ref=e214]:
+                - generic [ref=e215]:
+                  - heading [level=2] [ref=e216]:
+                    - link "Newlyweds" [ref=e217] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/newlyweds/
+                  - generic [ref=e218]:
+                    - link [ref=e219] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/newlyweds/
+                    - link "0" [ref=e220] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/newlyweds/#respond
+                  - generic [ref=e222]:
+                    - paragraph [ref=e223]: update -> S01E03.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e224]:
+                      - link "Comedy" [ref=e225] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                      - text: /
+                      - link "Romance" [ref=e226] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/romance/
+                      - text: /
+                      - link "TV-Show" [ref=e227] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e228]:
+                      - time [ref=e229]: 2026-11-07
+                  - paragraph [ref=e231]: A free-spirited woman and a buttoned-up professor get married impetuously after a whirlwind courtship.
+            - generic [ref=e232]:
+              - article [ref=e233]:
+                - generic [ref=e234]:
+                  - heading [level=2] [ref=e235]:
+                    - link "Happy’s Place" [ref=e236] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/happys-place/
+                  - generic [ref=e237]:
+                    - link [ref=e238] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/happys-place/
+                    - link "0" [ref=e239] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/happys-place/#respond
+                  - generic [ref=e241]:
+                    - paragraph [ref=e242]: update -> S03e03.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e243]:
+                      - link "Comedy" [ref=e244] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                      - text: /
+                      - link "Drama" [ref=e245] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/drama-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e246] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e247]:
+                      - time [ref=e248]: 2026-11-07
+                  - paragraph [ref=e250]: Bobbie (Reba) inherits a restaurant from her late father, then learns she must share ownership with a newly discovered half-sister, creating awkward tension between the two.
+              - article [ref=e251]:
+                - generic [ref=e252]:
+                  - heading [level=2] [ref=e253]:
+                    - link "The Graham Norton Show" [ref=e254] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/graham-norton-show/
+                  - generic [ref=e255]:
+                    - link [ref=e256] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/graham-norton-show/
+                    - link "35" [ref=e257] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/graham-norton-show/#comments
+                  - generic [ref=e259]:
+                    - paragraph [ref=e260]: Update -> S34E07.720p.WEBRip
+                    - paragraph [ref=e261]:
+                      - link "Talk-Show" [ref=e262] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/talk-show/
+                      - text: /
+                      - link "TV-Show" [ref=e263] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e264]:
+                      - time [ref=e265]: 2026-11-07
+                  - paragraph [ref=e267]: Chat show featuring celebrities, music and fabulous weirdness from the British public.
+            - generic [ref=e268]:
+              - article [ref=e269]:
+                - generic [ref=e270]:
+                  - heading [level=2] [ref=e271]:
+                    - link "Sheriff Country" [ref=e272] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/sheriff-country/
+                  - generic [ref=e273]:
+                    - link [ref=e274] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/sheriff-country/
+                    - link "5" [ref=e275] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/sheriff-country/#comments
+                  - generic [ref=e277]:
+                    - paragraph [ref=e278]: update -> S02E05.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e279]:
+                      - link "Crime" [ref=e280] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/crime-tv-show/
+                      - text: /
+                      - link "Drama" [ref=e281] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/drama-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e282] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e283]:
+                      - time [ref=e284]: 2026-11-07
+                  - paragraph [ref=e286]: Mickey Fox investigates criminal activity and patrols the streets of small-town Edgewater while contending with her ex-con father and a mysterious incident involving her wayward daughter.
+              - article [ref=e287]:
+                - generic [ref=e288]:
+                  - heading [level=2] [ref=e289]:
+                    - link "Fire Country" [ref=e290] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/fire-country/
+                  - generic [ref=e291]:
+                    - link [ref=e292] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/fire-country/
+                    - link "10" [ref=e293] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/fire-country/#comments
+                  - generic [ref=e295]:
+                    - paragraph [ref=e296]: update -> S05E05.720p-1080p.10bit.WEBRip
+                    - paragraph [ref=e297]:
+                      - link "Drama" [ref=e298] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/drama-tv-show/
+                      - text: /
+                      - link "TV-Show" [ref=e299] [cursor=pointer]:
+                        - /url: https://psa.rip/category/tv-show/
+                    - paragraph [ref=e300]:
+                      - time [ref=e301]: 2026-11-07
+                  - paragraph [ref=e303]: A young convict joins a firefighting program looking for redemption and a shortened prison sentence. He and other inmates work alongside elite firefighters to extinguish massive blazes across the region.
+          - navigation [ref=e304]:
+            - navigation [ref=e305]:
+              - generic [ref=e306]: Page 1 of 556
+              - text: "1"
+              - link "2" [ref=e307] [cursor=pointer]:
+                - /url: https://psa.rip/page/2/
+              - link "3" [ref=e308] [cursor=pointer]:
+                - /url: https://psa.rip/page/3/
+              - link "4" [ref=e309] [cursor=pointer]:
+                - /url: https://psa.rip/page/4/
+              - link "5" [ref=e310] [cursor=pointer]:
+                - /url: https://psa.rip/page/5/
+              - text: ...
+              - link "Next Page" [ref=e311] [cursor=pointer]:
+                - /url: https://psa.rip/page/2/
+                - text: »
+      - generic [ref=e313]:
+        - generic [ref=e314]:
+          - paragraph [ref=e315]: Follow us
+          - list [ref=e316]:
+            - listitem [ref=e317]:
+              - link "Join us on Discord" [ref=e318] [cursor=pointer]:
+                - /url: https://discord.gg/rhv9JnHncH
+                - generic [ref=e319]: 
+            - listitem [ref=e320]:
+              - link "Follow us on Telegram" [ref=e321] [cursor=pointer]:
+                - /url: https://telegram.me/psarips
+                - generic [ref=e322]: 
+            - listitem [ref=e323]:
+              - link "RSS" [ref=e324] [cursor=pointer]:
+                - /url: /feed/
+        - generic [ref=e329]:
+          - search "Search form" [ref=e331]:
+            - searchbox "Search input" [ref=e332]
+            - textbox "Search autocomplete" [disabled] [ref=e333]
+          - button "Search magnifier" [ref=e334] [cursor=pointer]
+        - heading "Announcements" [level=3] [ref=e339]
+        - generic [ref=e340]:
+          - heading "Recent Uploads" [level=3] [ref=e341]
+          - list [ref=e342]:
+            - listitem [ref=e343]:
+              - paragraph [ref=e344]:
+                - link "Saturday Night Live" [ref=e345] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/saturday-night-live/
+              - link [ref=e347] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/saturday-night-live/
+              - generic [ref=e348]:
+                - paragraph [ref=e349]: Update -> S52E05.720p.WEBRip
+                - paragraph [ref=e350]:
+                  - link "Comedy" [ref=e351] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                  - text: /
+                  - link "Music" [ref=e352] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/music-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e353] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+            - listitem [ref=e354]:
+              - paragraph [ref=e355]:
+                - link "Ultimate Fighting Championship (UFC)" [ref=e356] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/
+              - link [ref=e358] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/
+              - generic [ref=e359]:
+                - paragraph [ref=e360]: update -> Fight.Night.Cortes-Acosta.vs.Walker
+                - paragraph [ref=e361]:
+                  - link "Sport" [ref=e362] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/sport-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e363] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+            - listitem [ref=e364]:
+              - paragraph [ref=e365]:
+                - link "WWE Crown Jewel" [ref=e366] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/wwe-crown-jewel/
+              - link [ref=e368] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/wwe-crown-jewel/
+              - generic [ref=e369]:
+                - paragraph [ref=e370]: update -> 2026.720p.WEBRip
+                - paragraph [ref=e371]:
+                  - link "Sport" [ref=e372] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/sport-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e373] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+            - listitem [ref=e374]:
+              - paragraph [ref=e375]:
+                - link "The Institute" [ref=e376] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/the-institute/
+              - link [ref=e378] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/the-institute/
+              - generic [ref=e379]:
+                - paragraph [ref=e380]: update -> S02E01.720p-1080p.10bit.WEBRip
+                - paragraph [ref=e381]:
+                  - link "Horror" [ref=e382] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/horror-tv-show/
+                  - text: /
+                  - link "Sci-Fi" [ref=e383] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/sci-fi-tv-show/
+                  - text: /
+                  - link "Thriller" [ref=e384] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/thriller-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e385] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+        - generic [ref=e386]:
+          - heading "What’s Hot?" [level=3] [ref=e387]
+          - list [ref=e388]:
+            - listitem [ref=e389]:
+              - paragraph [ref=e390]:
+                - link "Ultimate Fighting Championship (UFC)" [ref=e391] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/
+              - link [ref=e393] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/ultimate-fighting-championship-ufc/
+              - generic [ref=e394]:
+                - paragraph [ref=e395]: update -> Fight.Night.Cortes-Acosta.vs.Walker
+                - paragraph [ref=e396]:
+                  - link "Sport" [ref=e397] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/sport-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e398] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+            - listitem [ref=e399]:
+              - paragraph [ref=e400]:
+                - link "Saturday Night Live" [ref=e401] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/saturday-night-live/
+              - link [ref=e403] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/saturday-night-live/
+              - generic [ref=e404]:
+                - paragraph [ref=e405]: Update -> S52E05.720p.WEBRip
+                - paragraph [ref=e406]:
+                  - link "Comedy" [ref=e407] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                  - text: /
+                  - link "Music" [ref=e408] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/music-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e409] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+            - listitem [ref=e410]:
+              - paragraph [ref=e411]:
+                - link "The Odyssey (2026)" [ref=e412] [cursor=pointer]:
+                  - /url: https://psa.rip/movie/the-odyssey-2026/
+              - link [ref=e414] [cursor=pointer]:
+                - /url: https://psa.rip/movie/the-odyssey-2026/
+              - generic [ref=e415]:
+                - paragraph [ref=e416]: update -> 2160p.10bit.HDR.BluRay
+                - paragraph [ref=e417]:
+                  - link "2026" [ref=e418] [cursor=pointer]:
+                    - /url: https://psa.rip/category/year/2026/
+                  - text: /
+                  - link "Action" [ref=e419] [cursor=pointer]:
+                    - /url: https://psa.rip/category/movie/action/
+                  - text: /
+                  - link "Adventure" [ref=e420] [cursor=pointer]:
+                    - /url: https://psa.rip/category/movie/adventure/
+                  - text: /
+                  - link "Drama" [ref=e421] [cursor=pointer]:
+                    - /url: https://psa.rip/category/movie/drama/
+                  - text: /
+                  - link "Fantasy" [ref=e422] [cursor=pointer]:
+                    - /url: https://psa.rip/category/movie/fantasy/
+                  - text: /
+                  - link "Movie" [ref=e423] [cursor=pointer]:
+                    - /url: https://psa.rip/category/movie/
+            - listitem [ref=e424]:
+              - paragraph [ref=e425]:
+                - link "Mike Judge’s Beavis and Butt-Head" [ref=e426] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/
+              - link [ref=e428] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/
+              - generic [ref=e429]:
+                - paragraph [ref=e430]: update -> S04E09-10.720p-1080p.10bit.WEBRip
+                - paragraph [ref=e431]:
+                  - link "Animation" [ref=e432] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/animation-tv-show/
+                  - text: /
+                  - link "Comedy" [ref=e433] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/comedy-tv-show/
+                  - text: /
+                  - link "TV-Show" [ref=e434] [cursor=pointer]:
+                    - /url: https://psa.rip/category/tv-show/
+    - contentinfo [ref=e435]:
+      - generic [ref=e438]:
+        - generic [ref=e439]:
+          - generic [ref=e440]:
+            - heading "Recently ReUploaded" [level=3] [ref=e441]
+            - list [ref=e443]:
+              - generic [ref=e444]:
+                - listitem [ref=e445]:
+                  - link "Black Doves (S1 Pack)" [ref=e446] [cursor=pointer]:
+                    - /url: /tv-show/black-doves/
+                - listitem [ref=e447]:
+                  - link "The Assassin (S1 Pack)" [ref=e448] [cursor=pointer]:
+                    - /url: /tv-show/the-assassin/
+                - listitem [ref=e449]:
+                  - link "The Lowdown (S1 Pack)" [ref=e450] [cursor=pointer]:
+                    - /url: /tv-show/the-lowdown/
+                - listitem [ref=e451]:
+                  - link "Elsbeth (S3 Pack)" [ref=e452] [cursor=pointer]:
+                    - /url: /tv-show/Elsbeth/
+                - listitem [ref=e453]:
+                  - link "Georgie and Mandy’s First Marriage (S2 Pack)" [ref=e454] [cursor=pointer]:
+                    - /url: /tv-show/georgie-and-mandys-first-marriage/
+                - listitem [ref=e455]:
+                  - link "Tulsa King (S3 Pack)" [ref=e456] [cursor=pointer]:
+                    - /url: /tv-show/tulsa-king/
+                - listitem [ref=e457]:
+                  - 'link "IT: Welcome to Derry (S1 Pack)" [ref=e458] [cursor=pointer]':
+                    - /url: /tv-show/it-welcome-to-derry/
+                - listitem [ref=e459]:
+                  - link "Happy’s Place (S2 Pack)" [ref=e460] [cursor=pointer]:
+                    - /url: /tv-show/happys-place/
+                - listitem [ref=e461]:
+                  - 'link "Dexter: Resurrection (S1 Pack)" [ref=e462] [cursor=pointer]':
+                    - /url: /tv-show/dexter-resurrection/
+                - listitem [ref=e463]:
+                  - link "WandaVision (S1 Pack)" [ref=e464] [cursor=pointer]:
+                    - /url: /tv-show/WandaVision/
+                - listitem [ref=e465]:
+                  - link "Agatha All Along (S1 Pack)" [ref=e466] [cursor=pointer]:
+                    - /url: /tv-show/agatha-all-along/
+                - listitem [ref=e467]:
+                  - 'link "A Shaun the Sheep Movie: Farmageddon (2019) 720p-1080p BluRay (ReUploaded-Seeding)" [ref=e468] [cursor=pointer]':
+                    - /url: /movie/a-shaun-the-sheep-movie-farmageddon-2019/
+                - listitem [ref=e469]:
+                  - link "Bumblebee (2018) 720p-1080p-2160p BluRay (ReUploaded-Seeding)" [ref=e470] [cursor=pointer]:
+                    - /url: /movie/bumblebee-2018/
+                - listitem [ref=e471]:
+                  - link "12 Monkeys (S1-S2-S3-S4 Packs)" [ref=e472] [cursor=pointer]:
+                    - /url: /tv-show/12-monkeys/
+                - listitem [ref=e473]:
+                  - link "The Terminal List (S1 Pack)" [ref=e474] [cursor=pointer]:
+                    - /url: /tv-show/the-terminal-list/
+                - listitem [ref=e475]:
+                  - 'link "Godzilla: City on the Edge of Battle (2018) 720p-1080p WEBRip (ReUploaded-Seeding)" [ref=e476] [cursor=pointer]':
+                    - /url: /movie/godzilla-city-on-the-edge-of-battle-2018/
+                - listitem [ref=e477]:
+                  - link "Minions (2015) 1080p BluRay (ReUploaded-Seeding)" [ref=e478] [cursor=pointer]:
+                    - /url: /movie/minions-2015/
+                - listitem [ref=e479]:
+                  - link "Skyscraper (2018) 720p-1080p-2160p BluRay (ReUploaded-Seeding)" [ref=e480] [cursor=pointer]:
+                    - /url: /movie/skyscraper-2018/
+                - listitem [ref=e481]:
+                  - 'link "The Witch: Part 1. The Subversion (2018) 720p-1080p WEBRip (ReUploaded-Seeding)" [ref=e482] [cursor=pointer]':
+                    - /url: /movie/the-witch-part-1-the-subversion-2018/
+                - listitem [ref=e483]:
+                  - 'link "The Witch: Part 2. The Other One (2022) 720p-1080p WEBRip (ReUploaded-Seeding)" [ref=e484] [cursor=pointer]':
+                    - /url: /movie/the-witch-part-2-the-other-one-2022/
+                - listitem [ref=e485]:
+                  - link "Waterworld (1995) 720p-1080p BluRay (ReUploaded-Seeding)" [ref=e486] [cursor=pointer]:
+                    - /url: /movie/waterworld-1995/
+                - listitem [ref=e487]:
+                  - 'link "xXx: Return of Xander Cage (2017) 720p-1080p BluRay (ReUploaded-Seeding)" [ref=e488] [cursor=pointer]':
+                    - /url: /movie/xxx-return-xander-cage-2017/
+                - listitem [ref=e489]:
+                  - link "CIA (S1 Pack)" [ref=e490] [cursor=pointer]:
+                    - /url: /tv-show/CIA/
+                - listitem [ref=e491]:
+                  - link "Tracker (S1-S2-S3 Packs)" [ref=e492] [cursor=pointer]:
+                    - /url: /tv-show/tracker/
+                - listitem [ref=e493]:
+                  - link "The Rainmaker (S1 Pack)" [ref=e494] [cursor=pointer]:
+                    - /url: /tv-show/the-rainmaker/
+          - generic [ref=e495]:
+            - heading "User Panel" [level=3] [ref=e496]
+            - list [ref=e497]:
+              - listitem [ref=e498]:
+                - link "Register" [ref=e499] [cursor=pointer]:
+                  - /url: https://psa.rip/wp-login.php?action=register
+              - listitem [ref=e500]:
+                - link "Log in" [ref=e501] [cursor=pointer]:
+                  - /url: https://psa.rip/wp-login.php
+              - listitem [ref=e502]:
+                - link "Entries feed" [ref=e503] [cursor=pointer]:
+                  - /url: https://psa.rip/feed/
+              - listitem [ref=e504]:
+                - link "Comments feed" [ref=e505] [cursor=pointer]:
+                  - /url: https://psa.rip/comments/feed/
+        - generic [ref=e507]:
+          - heading "Recent comments" [level=3] [ref=e508]
+          - list [ref=e510]:
+            - listitem [ref=e511]:
+              - link [ref=e513] [cursor=pointer]:
+                - /url: https://psa.rip/re-upload-center/#comment-164582
+              - generic [ref=e514]:
+                - generic [ref=e515]:
+                  - text: "on"
+                  - strong [ref=e516]:
+                    - link "Re-Upload Center," [ref=e518] [cursor=pointer]:
+                      - /url: https://psa.rip/re-upload-center/
+                  - strong [ref=e519]: primadonna
+                  - text: "says:"
+                - link "Can someone help seed some gaps I have Doom.Patrol.S01E05.Paw.Patrol.720p.10bit.WEBRip.2CH.x265.HEVC-PSA.mkv Doom.Patrol.S02E05.Finger.Patrol.720p.10bit.WEBRip.2CH.x265.HEVC-PSA.mkv Doom.Patrol.S02E06.Space.Patrol.720p.10bit.WEBRip.2CH.x265.HEVC-PSA.mkv The.Good.Place.S01E07.The.Eternal.Shriek.720p.WEB-DL.2CH.x265.HEVC-PSA.mkv" [ref=e521] [cursor=pointer]:
+                  - /url: https://psa.rip/re-upload-center/#comment-164582
+            - listitem [ref=e522]:
+              - link [ref=e524] [cursor=pointer]:
+                - /url: https://psa.rip/re-upload-center/#comment-164581
+              - generic [ref=e525]:
+                - generic [ref=e526]:
+                  - text: "on"
+                  - strong [ref=e527]:
+                    - link "Re-Upload Center," [ref=e529] [cursor=pointer]:
+                      - /url: https://psa.rip/re-upload-center/
+                  - strong [ref=e530]: swapnilr2004
+                  - text: "says:"
+                - link "Could you please reseed Fast and Furious Presents Hobss and Shaw 2019 2160p HDR10Plus Blu-ray 8CH x265 HEVC PSA" [ref=e532] [cursor=pointer]:
+                  - /url: https://psa.rip/re-upload-center/#comment-164581
+            - listitem [ref=e533]:
+              - link [ref=e535] [cursor=pointer]:
+                - /url: https://psa.rip/re-upload-center/#comment-164580
+              - generic [ref=e536]:
+                - generic [ref=e537]:
+                  - text: "on"
+                  - strong [ref=e538]:
+                    - link "Re-Upload Center," [ref=e540] [cursor=pointer]:
+                      - /url: https://psa.rip/re-upload-center/
+                  - strong [ref=e541]: swiftibis632
+                  - text: "says:"
+                - link "Could you reseed or re-upload Patriot S1" [ref=e543] [cursor=pointer]:
+                  - /url: https://psa.rip/re-upload-center/#comment-164580
+            - listitem [ref=e544]:
+              - link [ref=e546] [cursor=pointer]:
+                - /url: https://psa.rip/re-upload-center/#comment-164577
+              - generic [ref=e547]:
+                - generic [ref=e548]:
+                  - text: "on"
+                  - strong [ref=e549]:
+                    - link "Re-Upload Center," [ref=e551] [cursor=pointer]:
+                      - /url: https://psa.rip/re-upload-center/
+                  - strong [ref=e552]: pinkshoes
+                  - text: "says:"
+                - link "Plz seed any of these. Thanks. Hell.or.High.Water.2016.720p.10bit.BluRay.6CH.x265.HEVC-PSA The.Autopsy.of.Jane.Doe.2016.720p.10bit.BluRay.6CH.x265.HEVC-PSA Alpha.2018.720p.10bit.BluRay.6CH.x265.HEVC-PSA" [ref=e554] [cursor=pointer]:
+                  - /url: https://psa.rip/re-upload-center/#comment-164577
+            - listitem [ref=e555]:
+              - link [ref=e557] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/#comment-164576
+              - generic [ref=e558]:
+                - generic [ref=e559]:
+                  - text: "on"
+                  - strong [ref=e560]:
+                    - link "Mike Judge’s Beavis and Butt-Head," [ref=e562] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/
+                  - strong [ref=e563]: Valhalla
+                  - text: "says:"
+                - link "That segment exists, and is in the beginning of episode 6. All in all seems to be fine, and matches…" [ref=e565] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/#comment-164576
+            - listitem [ref=e566]:
+              - link [ref=e568] [cursor=pointer]:
+                - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/#comment-164575
+              - generic [ref=e569]:
+                - generic [ref=e570]:
+                  - text: "on"
+                  - strong [ref=e571]:
+                    - link "Mike Judge’s Beavis and Butt-Head," [ref=e573] [cursor=pointer]:
+                      - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/
+                  - strong [ref=e574]: spikespencer
+                  - text: "says:"
+                - link "For season 4 it looks like Production number 307 \"Pleasure Washer\" [S4E07] was incorrectly listed as episode 6, then it…" [ref=e576] [cursor=pointer]:
+                  - /url: https://psa.rip/tv-show/mike-judges-beavis-and-butt-head/#comment-164575
+            - listitem [ref=e577]:
+              - link [ref=e579] [cursor=pointer]:
+                - /url: https://psa.rip/movie/the-odyssey-2026/#comment-164574
+              - generic [ref=e580]:
+                - generic [ref=e581]:
+                  - text: "on"
+                  - strong [ref=e582]:
+                    - link "The Odyssey (2026)," [ref=e584] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/the-odyssey-2026/
+                  - strong [ref=e585]: Valhalla
+                  - text: "says:"
+                - link "It's a BluRay disk lol. we will have to wait and see. it is all speculations at this point." [ref=e587] [cursor=pointer]:
+                  - /url: https://psa.rip/movie/the-odyssey-2026/#comment-164574
+            - listitem [ref=e588]:
+              - link [ref=e590] [cursor=pointer]:
+                - /url: https://psa.rip/movie/the-odyssey-2026/#comment-164571
+              - generic [ref=e591]:
+                - generic [ref=e592]:
+                  - text: "on"
+                  - strong [ref=e593]:
+                    - link "The Odyssey (2026)," [ref=e595] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/the-odyssey-2026/
+                  - strong [ref=e596]: vkrmgn
+                  - text: "says:"
+                - link "Now I can learn to tie rope to Bow n win Penelope" [ref=e598] [cursor=pointer]:
+                  - /url: https://psa.rip/movie/the-odyssey-2026/#comment-164571
+            - listitem [ref=e599]:
+              - link [ref=e601] [cursor=pointer]:
+                - /url: https://psa.rip/re-upload-center/#comment-164570
+              - generic [ref=e602]:
+                - generic [ref=e603]:
+                  - text: "on"
+                  - strong [ref=e604]:
+                    - link "Re-Upload Center," [ref=e606] [cursor=pointer]:
+                      - /url: https://psa.rip/re-upload-center/
+                  - strong [ref=e607]: stillthere
+                  - text: "says:"
+                - link "seeding Trese S01(E05,E06) 720p WEBRip Sleepy Hollow S03(E04,E18) 720p WEB-DL Class of '09 S01(E01,E02,E04,E05,E08) 720p WEBRip" [ref=e609] [cursor=pointer]:
+                  - /url: https://psa.rip/re-upload-center/#comment-164570
+            - listitem [ref=e610]:
+              - link [ref=e612] [cursor=pointer]:
+                - /url: https://psa.rip/movie/the-odyssey-2026/#comment-164569
+              - generic [ref=e613]:
+                - generic [ref=e614]:
+                  - text: "on"
+                  - strong [ref=e615]:
+                    - link "The Odyssey (2026)," [ref=e617] [cursor=pointer]:
+                      - /url: https://psa.rip/movie/the-odyssey-2026/
+                  - strong [ref=e618]: LemmyCaution
+                  - text: "says:"
+                - link "One problem I have with Nolan's use of IMAX is that he doesn't intend one thing. He intends on people…" [ref=e620] [cursor=pointer]:
+                  - /url: https://psa.rip/movie/the-odyssey-2026/#comment-164569
+      - generic [ref=e622]:
+        - link [ref=e623] [cursor=pointer]:
+          - /url: "#"
+        - generic [ref=e625]:
+          - generic:
+            - generic:
+              - paragraph
+  - button "Toggle Dark Mode" [ref=e627] [cursor=pointer]
