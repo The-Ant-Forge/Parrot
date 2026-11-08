@@ -774,8 +774,8 @@ Version format: `Major.A.B` (e.g. `1.12.15`)
 | Segment | Meaning | How it changes |
 |---------|---------|----------------|
 | Major | Major version | Manual edit in `package.json` |
-| A | Commit number | `npm run version:commit` (resets B to 0) |
-| B | Build number | Auto-incremented on every `npm run build` via prebuild hook |
+| A | Commit number | `pnpm version:commit` (resets B to 0) |
+| B | Build number | Auto-incremented on every `pnpm build` via prebuild hook |
 
 Single source of truth is `package.json`; `wxt.config.ts` reads from it.
 

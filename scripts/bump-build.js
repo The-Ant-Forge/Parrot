@@ -1,6 +1,6 @@
 /**
  * Bumps the build number (B) in version 1.A.B
- * Run automatically before each build via the "prebuild" npm script.
+ * Run automatically before each build via the "prebuild" package script.
  */
 import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";

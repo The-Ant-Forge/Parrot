@@ -27,13 +27,13 @@ If you want to hack on Parrot or run the latest unreleased code:
 ```bash
 git clone https://github.com/The-Ant-Forge/Parrot.git
 cd Parrot
-npm install
-npm run build
+pnpm install   # requires pnpm 11+
+pnpm build
 ```
 
 The build output lives at `.output/chrome-mv3/`. Load that folder via **Load unpacked** in `chrome://extensions/`.
 
-For Firefox: `npm run build:firefox` produces `.output/firefox-mv2/`.
+For Firefox: `pnpm build:firefox` produces `.output/firefox-mv2/`.
 
 ## First-time configuration
 

@@ -4,7 +4,7 @@
 
 - **Purpose:** Browser extension that checks if media you're browsing (TMDB, TVDB, IMDb) is already in your Plex library
 - **Companion to:** [ComPlexionist](https://github.com/The-Ant-Forge/ComPlexionist) (finds library gaps; Parrot prevents duplicate hunting)
-- **Tech stack:** TypeScript, Manifest V3, Vite/WXT
+- **Tech stack:** TypeScript, Manifest V3, Vite/WXT, pnpm
 - **Target browsers:** Chrome. (Firefox builds exist but aren't distributed or tested — don't spend effort there.)
 - **Full spec (incl. component map + message types):** `docs/Parrot spec.md`
 
@@ -47,12 +47,12 @@ Merged index across N priority-ordered Plex servers: items stored once in `items
 ## Development
 
 ```bash
-npm install
-npm run dev      # hot-reload dev mode
-npm run build    # production build (auto-bumps build number)
-npm test         # vitest
-npm run lint     # eslint
-npm run typecheck # tsc --noEmit (the build does not type-check)
+pnpm install
+pnpm dev       # hot-reload dev mode
+pnpm build     # production build (auto-bumps build number)
+pnpm test      # vitest
+pnpm lint      # eslint
+pnpm typecheck # tsc --noEmit (the build does not type-check)
 ```
 
 Load in Chrome: `chrome://extensions/` → Developer Mode → Load unpacked → `.output/chrome-mv3/`
@@ -64,8 +64,8 @@ Version format: `Major.A.B` (e.g. `1.12.15`)
 | Segment | Meaning | How it changes |
 |---------|---------|----------------|
 | Major | Major version | Manual edit in `package.json` |
-| A | Commit number | `npm run version:commit` (resets B to 0) |
-| B | Build number | Auto-incremented on every `npm run build` via prebuild script |
+| A | Commit number | `pnpm version:commit` (resets B to 0) |
+| B | Build number | Auto-incremented on every `pnpm build` via prebuild script |
 
 - **Single source of truth:** `package.json` → `wxt.config.ts` reads from it
 - **Scripts:** `scripts/bump-build.js` (B++), `scripts/bump-commit.js` (A++, B=0)
@@ -87,8 +87,8 @@ The GitHub wiki at <https://github.com/The-Ant-Forge/Parrot/wiki> is sourced fro
 **To publish wiki updates:** edit the markdown under `docs/wiki/`, then:
 
 ```bash
-npm run wiki:sync                    # default commit message
-npm run wiki:sync -- "your message"  # custom commit message
+pnpm wiki:sync                       # default commit message
+pnpm wiki:sync "your message"        # custom commit message
 ```
 
 The script (`scripts/sync-wiki.js`) copies every `*.md` from `docs/wiki/` (except its own `README.md`) into the wiki clone, commits, and pushes. No-op when nothing changed.

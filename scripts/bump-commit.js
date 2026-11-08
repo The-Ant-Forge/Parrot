@@ -1,6 +1,6 @@
 /**
  * Bumps the commit number (A) in version 1.A.B and resets B to 0.
- * Run manually via "npm run version:commit".
+ * Run manually via "pnpm version:commit".
  */
 import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";

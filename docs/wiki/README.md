@@ -28,8 +28,8 @@ that provisions the underlying `.wiki.git` repo. Then retry the clone.
 ### Syncing
 
 ```bash
-npm run wiki:sync                    # default commit message
-npm run wiki:sync -- "your message"  # custom commit message
+pnpm wiki:sync                       # default commit message
+pnpm wiki:sync "your message"        # custom commit message
 ```
 
 The script copies every `*.md` file from `docs/wiki/` (except this

@@ -28,8 +28,8 @@ Forward-looking roadmap. Shipped work is recorded in the [GitHub release notes](
   cannot silently regrow.
 
 **Dependency majors**
-- [ ] `typescript` 5.9 -> 7 - **blocked upstream**: typescript-eslint 8.70.1 (latest as of 2026-09-27) still peers on `typescript >=4.8.4 <6.1.0`, and there is no v9 line yet. No Parrot-side driver either: `npm audit` is clean and nothing we want needs TS 7. Recheck when typescript-eslint announces TS 7 support.
-- [ ] Teach the version bump scripts to sync `package-lock.json`'s `version` field. `scripts/bump-build.js` and `bump-commit.js` write `package.json` only, so the lockfile drifts on every build and has to be hand-synced. Simplest fix: run `npm install --package-lock-only` from the scripts.
+- [ ] `typescript` 6.0 -> 7 - **blocked upstream**: typescript-eslint 8.72.1 (latest as of 2026-11-08) still peers on `typescript >=4.8.4 <6.1.0`, and there is no v9 line yet. On 6.0.3 (the newest in range) since 2026-11-08, with no deprecation warnings, so 7 should be a version bump once typescript-eslint supports it.
+- [ ] Remove the `trustPolicyExclude` entry for `@webext-core/isolated-element@1.1.5` from `pnpm-workspace.yaml` once wxt moves past it (it pulls the 1.x line).
 
 ---
 

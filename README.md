@@ -61,9 +61,11 @@ When you visit a movie or TV show page on a supported site, Parrot shows a badge
 
 ### Install from source
 
+Requires [pnpm](https://pnpm.io/installation) 11+.
+
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm build
 ```
 
 Then load in Chrome:
@@ -217,14 +219,14 @@ Chrome doesn't allow side-loaded extensions to auto-install — this manual relo
 ## Development
 
 ```bash
-npm install            # one time
-npm run dev            # dev mode with hot reload (Chrome)
-npm run dev:firefox    # dev mode (Firefox)
-npm run build          # production build
-npm run zip            # build + zip for release
-npm test               # run all tests
-npm run lint           # lint
-npm run typecheck      # type-check (the build does not)
+pnpm install     # one time
+pnpm dev         # dev mode with hot reload (Chrome)
+pnpm dev:firefox # dev mode (Firefox)
+pnpm build       # production build
+pnpm zip         # build + zip for release
+pnpm test        # run all tests
+pnpm lint        # lint
+pnpm typecheck   # type-check (the build does not)
 ```
 
 ### Versioning
@@ -234,8 +236,8 @@ Version format: `Major.A.B` (e.g. `1.20.0`)
 | Segment | Meaning | How it changes |
 |---------|---------|----------------|
 | Major   | Major version | Manual edit in `package.json` |
-| A       | Commit number | `npm run version:commit` (resets B to 0) |
-| B       | Build number  | Auto-incremented on every `npm run build` |
+| A       | Commit number | `pnpm version:commit` (resets B to 0) |
+| B       | Build number  | Auto-incremented on every `pnpm build` |
 
 ### Project layout
 

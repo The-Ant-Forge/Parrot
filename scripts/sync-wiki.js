@@ -3,8 +3,8 @@
  * (Parrot.wiki/), commits, and pushes.
  *
  * Usage:
- *   npm run wiki:sync                     # default commit message
- *   npm run wiki:sync -- "your message"   # custom commit message
+ *   pnpm wiki:sync                        # default commit message
+ *   pnpm wiki:sync "your message"         # custom commit message
  *
  * One-time setup: clone the wiki repo next to the main repo.
  *   cd ..

@@ -1,0 +1,13 @@
+# Project-level pnpm settings. Machine-wide hardening (minimumReleaseAge,
+# blockExoticSubdeps, strictDepBuilds, trustPolicy) lives in the global
+# pnpm config; these two cannot be set globally in pnpm 11.
+strictPeerDependencies: true
+auditLevel: moderate
+
+# trustPolicy: no-downgrade exceptions. Pin exact versions, never wildcards.
+trustPolicyExclude:
+  # wxt dep. 1.1.5 was hand-published by the maintainer's account (the same
+  # one that published 1.1.2) after 1.1.3/1.1.4 came from GitHub OIDC CI.
+  # Diffed against 1.1.4 on 2026-11-08: DOM structure change only, no
+  # install scripts or network code. Parrot uses no wxt API that pulls it in.
+  - "@webext-core/isolated-element@1.1.5"
